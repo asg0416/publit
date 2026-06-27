@@ -1,0 +1,2 @@
+uv reference placeholder:
+Publit does not currently use Python or uv. Keep this file so future agents do not infer a Python package workflow.

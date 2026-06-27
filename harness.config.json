@@ -1,0 +1,35 @@
+{
+  "project": "Publit",
+  "mode": "harness-first-mvp",
+  "privacy": {
+    "neverPersist": ["lat", "lng", "latitude", "longitude", "coordinates", "raw_location"],
+    "neverReturn": ["lat", "lng", "latitude", "longitude", "coordinates", "raw_location", "device_hash"],
+    "deviceIdentity": "hashed-device-id-only"
+  },
+  "rateLimit": {
+    "cooldownSeconds": 30,
+    "maxActionsPerMinute": 3,
+    "actions": ["create_flame", "react_flame", "report_flame", "extinguish_flame"]
+  },
+  "lifecycle": {
+    "order": ["live", "ember", "trace", "expired"],
+    "liveHours": 3,
+    "emberHours": 24,
+    "traceDays": 7,
+    "traceBodyVisible": false
+  },
+  "slot": {
+    "liveLimitPerDeviceHash": 3,
+    "excludedStatuses": ["ember", "trace", "extinguished", "reported", "hidden", "expired"]
+  },
+  "forbidden": {
+    "mapSdkAllowed": false,
+    "mapPackages": ["google.maps", "@googlemaps", "naver.maps", "kakao.maps", "mapbox", "leaflet"],
+    "mapMarkerUiAllowed": false
+  },
+  "remoteSmoke": {
+    "requiresPublishableKey": true,
+    "requiresServiceRoleKey": false,
+    "functions": ["suggest-tags", "create-flame", "extinguish-flame"]
+  }
+}

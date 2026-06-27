@@ -1,0 +1,2 @@
+Nixpacks reference placeholder:
+Publit does not currently depend on Nixpacks. Keep this file so future deployment agents know there is no Nixpacks-specific configuration yet.

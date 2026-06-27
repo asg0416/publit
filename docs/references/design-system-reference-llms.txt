@@ -1,0 +1,6 @@
+Publit design reference for LLM agents:
+- Mobile-first operational product, not a landing page.
+- Primary visual: circular radar with anonymous flame particles.
+- No map tiles, markers, or geographic coordinate UI.
+- Text should be compact, clear, and Korean-first.
+- Prefer warm flame accents balanced with cool dark surfaces.
