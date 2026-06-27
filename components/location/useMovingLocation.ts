@@ -16,6 +16,14 @@ export function useMovingLocation(onRefresh: (position: { lat: number; lng: numb
   const [state, setState] = useState<LocationState>({ status: 'idle' });
   const lastFetch = useRef<LastLocationFetch | null>(null);
   const watchId = useRef<number | null>(null);
+  const watchEnabled = useRef(false);
+  const requestInFlight = useRef(false);
+
+  const stopWatch = useCallback(() => {
+    if (watchId.current === null) return;
+    navigator.geolocation.clearWatch(watchId.current);
+    watchId.current = null;
+  }, []);
 
   const acceptPosition = useCallback((position: GeolocationPosition) => {
     const lat = position.coords.latitude;
@@ -30,36 +38,49 @@ export function useMovingLocation(onRefresh: (position: { lat: number; lng: numb
     }
   }, [onRefresh]);
 
-  const requestLocation = useCallback(() => {
-    if (!('geolocation' in navigator)) {
-      setState({ status: 'unsupported', message: '이 브라우저에서는 위치 권한을 사용할 수 없어요.' });
-      return;
-    }
+  const startWatch = useCallback(() => {
+    if (!watchEnabled.current) return;
+    if (!('geolocation' in navigator)) return;
+    if (document.visibilityState !== 'visible' || watchId.current !== null) return;
 
-    setState((current) => ({ ...current, status: 'requesting' }));
-    navigator.geolocation.getCurrentPosition(
+    watchId.current = navigator.geolocation.watchPosition(
       acceptPosition,
-      () => setState({ status: 'denied', message: '위치 권한 없이도 조용히 둘러볼 수 있어요.' }),
+      () => undefined,
       { enableHighAccuracy: false, maximumAge: 30_000, timeout: 10_000 },
     );
   }, [acceptPosition]);
 
+  const requestLocation = useCallback(() => {
+    if (!('geolocation' in navigator)) {
+      watchEnabled.current = false;
+      stopWatch();
+      setState({ status: 'unsupported', message: '이 브라우저에서는 위치 권한을 사용할 수 없어요.' });
+      return;
+    }
+    if (requestInFlight.current) return;
+
+    requestInFlight.current = true;
+    setState((current) => ({ ...current, status: 'requesting', message: undefined }));
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        requestInFlight.current = false;
+        watchEnabled.current = true;
+        acceptPosition(position);
+        startWatch();
+      },
+      () => {
+        requestInFlight.current = false;
+        watchEnabled.current = false;
+        stopWatch();
+        setState({ status: 'denied', message: '위치 권한 없이도 조용히 둘러볼 수 있어요.' });
+      },
+      { enableHighAccuracy: false, maximumAge: 30_000, timeout: 10_000 },
+    );
+  }, [acceptPosition, startWatch, stopWatch]);
+
   useEffect(() => {
     if (!('geolocation' in navigator)) return undefined;
 
-    const startWatch = () => {
-      if (document.visibilityState !== 'visible' || watchId.current !== null) return;
-      watchId.current = navigator.geolocation.watchPosition(
-        acceptPosition,
-        () => undefined,
-        { enableHighAccuracy: false, maximumAge: 30_000, timeout: 10_000 },
-      );
-    };
-    const stopWatch = () => {
-      if (watchId.current === null) return;
-      navigator.geolocation.clearWatch(watchId.current);
-      watchId.current = null;
-    };
     const handleVisibility = () => {
       if (document.visibilityState === 'visible') startWatch();
       else stopWatch();
@@ -71,7 +92,7 @@ export function useMovingLocation(onRefresh: (position: { lat: number; lng: numb
       document.removeEventListener('visibilitychange', handleVisibility);
       stopWatch();
     };
-  }, [acceptPosition]);
+  }, [startWatch, stopWatch]);
 
   return { state, requestLocation };
 }
