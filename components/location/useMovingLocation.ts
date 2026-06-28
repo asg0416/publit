@@ -1,29 +1,36 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 import { encodeGrid } from '@/lib/location/geohash';
 import { type LastLocationFetch, shouldRefreshLocation } from '@/lib/location/useMovingLocationCore';
 
 export type LocationState = {
-  status: 'idle' | 'requesting' | 'granted' | 'denied' | 'unsupported';
+  status: 'idle' | 'requesting' | 'granted' | 'denied' | 'unsupported' | 'unavailable';
   lat?: number;
   lng?: number;
   grid?: string;
   message?: string;
 };
 
+const LOCATION_UNSUPPORTED_MESSAGE = '이 브라우저에서는 위치 권한을 사용할 수 없어요.';
+const LOCATION_DENIED_MESSAGE = '브라우저나 OS에서 위치 권한이 막혀 있어요. 주소창 또는 시스템 위치 설정을 확인해주세요.';
+const LOCATION_UNAVAILABLE_MESSAGE = '권한은 요청됐지만 현재 위치를 가져오지 못했어요. PC의 위치 서비스나 네트워크 위치를 확인한 뒤 다시 시도해주세요.';
+const LOCATION_TIMEOUT_MESSAGE = '위치 확인 시간이 초과됐어요. PC의 위치 서비스나 네트워크 연결을 확인한 뒤 다시 시도해주세요.';
+
+function getLocationErrorState(error: GeolocationPositionError): Pick<LocationState, 'status' | 'message'> {
+  if (error.code === error.PERMISSION_DENIED) {
+    return { status: 'denied', message: LOCATION_DENIED_MESSAGE };
+  }
+  if (error.code === error.TIMEOUT) {
+    return { status: 'unavailable', message: LOCATION_TIMEOUT_MESSAGE };
+  }
+  return { status: 'unavailable', message: LOCATION_UNAVAILABLE_MESSAGE };
+}
+
 export function useMovingLocation(onRefresh: (position: { lat: number; lng: number; grid: string }) => void) {
   const [state, setState] = useState<LocationState>({ status: 'idle' });
   const lastFetch = useRef<LastLocationFetch | null>(null);
-  const watchId = useRef<number | null>(null);
-  const watchEnabled = useRef(false);
   const requestInFlight = useRef(false);
-
-  const stopWatch = useCallback(() => {
-    if (watchId.current === null) return;
-    navigator.geolocation.clearWatch(watchId.current);
-    watchId.current = null;
-  }, []);
 
   const acceptPosition = useCallback((position: GeolocationPosition) => {
     const lat = position.coords.latitude;
@@ -38,23 +45,15 @@ export function useMovingLocation(onRefresh: (position: { lat: number; lng: numb
     }
   }, [onRefresh]);
 
-  const startWatch = useCallback(() => {
-    if (!watchEnabled.current) return;
-    if (!('geolocation' in navigator)) return;
-    if (document.visibilityState !== 'visible' || watchId.current !== null) return;
-
-    watchId.current = navigator.geolocation.watchPosition(
-      acceptPosition,
-      () => undefined,
-      { enableHighAccuracy: false, maximumAge: 30_000, timeout: 10_000 },
-    );
-  }, [acceptPosition]);
+  const rejectPosition = useCallback((error: GeolocationPositionError) => {
+    requestInFlight.current = false;
+    const next = getLocationErrorState(error);
+    setState((current) => ({ ...current, ...next }));
+  }, []);
 
   const requestLocation = useCallback(() => {
     if (!('geolocation' in navigator)) {
-      watchEnabled.current = false;
-      stopWatch();
-      setState({ status: 'unsupported', message: '이 브라우저에서는 위치 권한을 사용할 수 없어요.' });
+      setState({ status: 'unsupported', message: LOCATION_UNSUPPORTED_MESSAGE });
       return;
     }
     if (requestInFlight.current) return;
@@ -64,35 +63,12 @@ export function useMovingLocation(onRefresh: (position: { lat: number; lng: numb
     navigator.geolocation.getCurrentPosition(
       (position) => {
         requestInFlight.current = false;
-        watchEnabled.current = true;
         acceptPosition(position);
-        startWatch();
       },
-      () => {
-        requestInFlight.current = false;
-        watchEnabled.current = false;
-        stopWatch();
-        setState({ status: 'denied', message: '위치 권한 없이도 조용히 둘러볼 수 있어요.' });
-      },
+      rejectPosition,
       { enableHighAccuracy: false, maximumAge: 30_000, timeout: 10_000 },
     );
-  }, [acceptPosition, startWatch, stopWatch]);
-
-  useEffect(() => {
-    if (!('geolocation' in navigator)) return undefined;
-
-    const handleVisibility = () => {
-      if (document.visibilityState === 'visible') startWatch();
-      else stopWatch();
-    };
-
-    document.addEventListener('visibilitychange', handleVisibility);
-    startWatch();
-    return () => {
-      document.removeEventListener('visibilitychange', handleVisibility);
-      stopWatch();
-    };
-  }, [startWatch, stopWatch]);
+  }, [acceptPosition, rejectPosition]);
 
   return { state, requestLocation };
 }
