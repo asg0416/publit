@@ -36,6 +36,7 @@ const moods: Array<{ value: FlameMood; label: string }> = [
 export function CreateFlameSheet({ open, topics, remoteSuggestions, slots, onClose, onSuggest, onSubmit, onExtinguish, submitMessage }: CreateFlameSheetProps) {
   const [text, setText] = useState('');
   const [tagLabel, setTagLabel] = useState('');
+  const [tagManuallyEdited, setTagManuallyEdited] = useState(false);
   const [category, setCategory] = useState<FlameCategory>('other');
   const [mood, setMood] = useState<FlameMood>('curious');
   const [selfStrength, setSelfStrength] = useState<1 | 2 | 3>(2);
@@ -49,8 +50,8 @@ export function CreateFlameSheet({ open, topics, remoteSuggestions, slots, onClo
     array.findIndex((other) => other.normalizedKey === item.normalizedKey) === index
   );
   const suggestedTag = suggestions[0] ?? null;
-  const effectiveTagLabel = tagLabel || suggestedTag?.displayLabel || '';
-  const effectiveCategory = tagLabel ? category : suggestedTag?.category ?? category;
+  const effectiveTagLabel = tagManuallyEdited ? tagLabel : suggestedTag?.displayLabel || '';
+  const effectiveCategory = tagManuallyEdited ? category : suggestedTag?.category ?? category;
   const blocked = isBlockedText(`${text} ${effectiveTagLabel}`);
 
   useEffect(() => {
@@ -80,9 +81,10 @@ export function CreateFlameSheet({ open, topics, remoteSuggestions, slots, onClo
           value={effectiveTagLabel}
           suggestions={suggestions}
           onChange={(next) => {
+            setTagManuallyEdited(true);
             setTagLabel(next);
             const selected = suggestions.find((item) => item.displayLabel === next);
-            if (selected) setCategory(selected.category);
+            setCategory(selected?.category ?? 'other');
           }}
         />
         <div className="grid grid-cols-2 gap-2">

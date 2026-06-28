@@ -13,6 +13,8 @@ import { getDeviceHash } from '@/lib/device';
 import { publitApi } from '@/lib/supabaseClient';
 import type { Flame as FlameType, HotTopic, ReactionType, ReportReason, TagSuggestion } from '@/lib/flame/types';
 
+const NEARBY_REFRESH_INTERVAL_MS = 12_000;
+
 const fallbackTopics: HotTopic[] = [
   { displayLabel: '#카페대화', normalizedKey: '카페대화', category: 'daily', scope: 'global', heatLabel: '오늘 많이 켜진 불꽃' },
   { displayLabel: '#지역교통', normalizedKey: '지역교통', category: 'local', scope: 'global', heatLabel: '근처에서 켜지고 있어요' },
@@ -53,18 +55,20 @@ export function PublitApp() {
     }
   }, []);
 
-  const refreshNearby = useCallback(async (position: { lat: number; lng: number; grid: string }) => {
+  const refreshNearby = useCallback(async (position: { lat: number; lng: number; grid: string }, options: { silent?: boolean } = {}) => {
     setLastPosition(position);
-    setStatus('근처 불꽃을 새로 살피는 중이에요.');
+    if (!options.silent) setStatus('근처 불꽃을 새로 살피는 중이에요.');
     try {
       const next = await publitApi.nearbyFlames({ lat: position.lat, lng: position.lng });
       setFlames(next);
-      setStatus(next.length ? '근처 불꽃이 레이더에 떠 있어요.' : '아직 이 공간에 떠 있는 불꽃이 없어요.');
-      setCreateFeedback('');
+      if (!options.silent) {
+        setStatus(next.length ? '근처 불꽃이 레이더에 떠 있어요.' : '아직 이 공간에 떠 있는 불꽃이 없어요.');
+        setCreateFeedback('');
+      }
       void refreshTopics(position);
       void refreshSlots();
     } catch {
-      setStatus('근처 불꽃을 불러오지 못했어요. 잠시 후 다시 시도해보세요.');
+      if (!options.silent) setStatus('근처 불꽃을 불러오지 못했어요. 잠시 후 다시 시도해보세요.');
     }
   }, [refreshSlots, refreshTopics]);
 
@@ -84,6 +88,15 @@ export function PublitApp() {
     }, 0);
     return () => window.clearTimeout(timeout);
   }, [deviceHash, refreshSlots]);
+
+  useEffect(() => {
+    if (!lastPosition) return undefined;
+    const interval = window.setInterval(() => {
+      if (document.visibilityState !== 'visible') return;
+      void refreshNearby(lastPosition, { silent: true });
+    }, NEARBY_REFRESH_INTERVAL_MS);
+    return () => window.clearInterval(interval);
+  }, [lastPosition, refreshNearby]);
 
   const hotSummary = useMemo(() => topics.slice(0, 3), [topics]);
 

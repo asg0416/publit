@@ -55,7 +55,12 @@ test('expands hot tags, accepts suggested tags, and blocks unsafe text', async (
   await page.getByRole('textbox', { name: '지금 떠오른 생각' }).fill('카페에서 투표 이야기를 들었어요.');
   await expect(page.locator('button', { hasText: '#투표용지이슈' }).last()).toBeVisible();
   await page.locator('button', { hasText: '#투표용지이슈' }).last().click();
-  await expect(page.getByLabel('불꽃 태그')).toHaveValue('#투표용지이슈');
+  const tagInput = page.getByLabel('불꽃 태그');
+  await expect(tagInput).toHaveValue('#투표용지이슈');
+
+  await tagInput.fill('');
+  await expect(tagInput).toHaveValue('');
+  await expect(page.getByRole('button', { name: '불꽃 띄우기', exact: true })).toBeDisabled();
 
   await page.getByRole('textbox', { name: '지금 떠오른 생각' }).fill('전화번호 공개하자');
   await expect(page.getByText('위험하거나 사생활을 침해할 수 있는 문구는 불꽃으로 띄울 수 없어요.')).toBeVisible();

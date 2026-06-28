@@ -119,6 +119,7 @@ test('renders the privacy-first radar home without map globals', async ({ page }
 
   await expect(page.getByTestId('flame-radar')).toBeVisible();
   await expect(page.getByTestId('flame-particle')).toHaveCount(3);
+  await expect(page.getByTestId('flame-glyph')).toHaveCount(3);
   await expect(page.getByText('근처 불꽃이 레이더에 떠 있어요.')).toBeVisible();
   await expect(page.getByText('#카페대화').first()).toBeVisible();
 

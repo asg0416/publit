@@ -13,7 +13,8 @@
 - Hash the device id with SHA-256 before sending `deviceHash`.
 - Request browser Geolocation only after an explicit user action in the foreground.
 - Use single-shot Geolocation reads for the MVP; do not start continuous `watchPosition` tracking.
-- Call nearby refresh no more than once per 30 seconds and only after meaningful movement or grid change.
+- Poll nearby flames while a location is active so anonymous flames from other devices appear without a manual reload.
+- Call moving-location refresh no more than once per 30 seconds and only after meaningful movement or grid change.
 - Generate radar screen coordinates on the client. API coordinates are forbidden.
 
 ## Components
