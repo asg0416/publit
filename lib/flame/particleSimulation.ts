@@ -23,29 +23,44 @@ function clampToCircle(particle: FlameParticle, size: number): FlameParticle {
     ...particle,
     x: center + dx * scale,
     y: center + dy * scale,
-    vx: particle.vx * -0.35,
-    vy: particle.vy * -0.35,
+    vx: particle.vx * -0.28,
+    vy: particle.vy * -0.28,
+  };
+}
+
+function anchorForTag(tagNormalized: string, size: number) {
+  const center = size / 2;
+  const seed = hashString(tagNormalized || 'other');
+  const angle = ((seed % 360) * Math.PI) / 180;
+  const radius = size * (0.18 + ((seed >>> 8) % 100) / 560);
+  return {
+    x: center + Math.cos(angle) * radius,
+    y: center + Math.sin(angle) * radius,
   };
 }
 
 export function createInitialParticles(flames: readonly Flame[], size: number): FlameParticle[] {
-  const center = size / 2;
-  const radius = size * 0.38;
+  const tagCounts = new Map<string, number>();
 
   return flames.map((flame) => {
+    const tagIndex = tagCounts.get(flame.tagNormalized) ?? 0;
+    tagCounts.set(flame.tagNormalized, tagIndex + 1);
+
     const seed = hashString(`${flame.id}:${flame.tagNormalized}`);
-    const angle = ((seed % 360) * Math.PI) / 180;
-    const spread = 0.25 + ((seed >>> 8) % 100) / 160;
+    const anchor = anchorForTag(flame.tagNormalized, size);
+    const angle = ((seed % 360) * Math.PI) / 180 + tagIndex * 1.92;
+    const orbit = 8 + (tagIndex % 4) * 5 + ((seed >>> 10) % 6);
+
     return {
       id: `particle-${flame.id}`,
       flameId: flame.id,
       tagNormalized: flame.tagNormalized,
       tagLabel: flame.tagLabel,
       category: flame.category,
-      x: center + Math.cos(angle) * radius * spread,
-      y: center + Math.sin(angle) * radius * spread,
-      vx: (((seed >>> 16) % 100) - 50) / 700,
-      vy: (((seed >>> 24) % 100) - 50) / 700,
+      x: anchor.x + Math.cos(angle) * orbit,
+      y: anchor.y + Math.sin(angle) * orbit,
+      vx: (((seed >>> 16) % 100) - 50) / 900,
+      vy: (((seed >>> 24) % 100) - 50) / 900,
       selfStrength: flame.selfStrength,
       heatLevel: heatLevelFromLabel(flame.heatLabel),
       lifecycle: flame.lifecycle,
@@ -76,35 +91,42 @@ export function simulateParticles(particles: readonly FlameParticle[], size: num
     }
 
     current = current.map((particle, index) => {
-      let vx = particle.vx + Math.sin(step + index) * 0.004;
-      let vy = particle.vy + Math.cos(step + index * 1.7) * 0.004;
+      const seed = hashString(`${particle.id}:${particle.tagNormalized}`);
+      const tagSeed = hashString(particle.tagNormalized || 'other');
+      let vx = particle.vx + Math.sin(step * 0.21 + index + seed * 0.00001) * 0.0035;
+      let vy = particle.vy + Math.cos(step * 0.19 + index * 1.7 + seed * 0.00002) * 0.0035;
       const tag = tagCenters.get(particle.tagNormalized);
       const category = categoryCenters.get(particle.category);
 
       if (tag && tag.count > 1) {
-        vx += ((tag.x / tag.count - particle.x) / size) * 0.035;
-        vy += ((tag.y / tag.count - particle.y) / size) * 0.035;
+        const tagX = tag.x / tag.count;
+        const tagY = tag.y / tag.count;
+        vx += ((tagX - particle.x) / size) * 0.16;
+        vy += ((tagY - particle.y) / size) * 0.16;
+        vx += Math.sin(step * 0.045 + tagSeed * 0.00008) * 0.018;
+        vy += Math.cos(step * 0.04 + tagSeed * 0.00011) * 0.018;
       }
+
       if (category && category.count > 1) {
-        vx += ((category.x / category.count - particle.x) / size) * 0.012;
-        vy += ((category.y / category.count - particle.y) / size) * 0.012;
+        vx += ((category.x / category.count - particle.x) / size) * 0.007;
+        vy += ((category.y / category.count - particle.y) / size) * 0.007;
       }
 
       for (const other of current) {
-        if (other.id === particle.id) continue;
+        if (other.id === particle.id || other.tagNormalized === particle.tagNormalized) continue;
         const dx = particle.x - other.x;
         const dy = particle.y - other.y;
         const distance = Math.max(1, Math.hypot(dx, dy));
-        if (distance < 28) {
-          vx += (dx / distance) * 0.018;
-          vy += (dy / distance) * 0.018;
+        if (distance < 36) {
+          vx += (dx / distance) * 0.017;
+          vy += (dy / distance) * 0.017;
         }
       }
 
-      const driftToCenterX = ((center - particle.x) / size) * 0.004;
-      const driftToCenterY = ((center - particle.y) / size) * 0.004;
-      vx = (vx + driftToCenterX) * 0.96;
-      vy = (vy + driftToCenterY) * 0.96;
+      const driftToCenterX = ((center - particle.x) / size) * 0.003;
+      const driftToCenterY = ((center - particle.y) / size) * 0.003;
+      vx = (vx + driftToCenterX) * 0.965;
+      vy = (vy + driftToCenterY) * 0.965;
 
       return clampToCircle({ ...particle, vx, vy, x: particle.x + vx, y: particle.y + vy }, size);
     });

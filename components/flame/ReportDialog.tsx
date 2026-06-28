@@ -23,16 +23,16 @@ export function ReportDialog({ open, onClose, onReport }: ReportDialogProps) {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-black/55 px-4" role="dialog" aria-modal="true" aria-label="신고">
-      <div className="w-full max-w-sm rounded-2xl bg-[#101821] p-5 shadow-[0_24px_80px_rgba(0,0,0,0.52)]">
-        <h3 className="text-base font-bold text-[#f7efe3]">신고 사유</h3>
+    <div className="fixed inset-0 z-50 grid place-items-center bg-[#26251e]/55 px-4" role="dialog" aria-modal="true" aria-label="신고">
+      <div className="publit-panel-enter w-full max-w-sm rounded-xl border border-[#cfcdc4] bg-[#fafaf7] p-5 text-[#26251e]">
+        <h3 className="text-base font-semibold text-[#26251e]">신고 사유</h3>
         <div className="mt-4 grid grid-cols-2 gap-2">
           {reasons.map((item) => (
             <button
               type="button"
               key={item.reason}
               onClick={() => onReport(item.reason)}
-              className="min-h-11 rounded-lg bg-white/10 px-3 text-xs font-semibold text-[#d9e5ef] transition-[transform,opacity] active:scale-[0.96]"
+              className="min-h-11 rounded-lg border border-[#e6e5e0] bg-white px-3 text-xs font-semibold text-[#5a5852] transition-[transform,background-color] hover:bg-[#fafaf7] active:scale-[0.97]"
             >
               {item.label}
             </button>

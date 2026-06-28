@@ -44,7 +44,7 @@ async function mockCommonRoutes(page: Page) {
   return { hotTopicRequests: () => hotTopicRequests };
 }
 
-async function installGeolocationMock(page: Page, mode: 'success' | 'unavailable' = 'success') {
+async function installGeolocationMock(page: Page, mode: 'granted' | 'prompt' | 'unavailable' = 'prompt') {
   await page.addInitScript((selectedMode) => {
     const calls = {
       getCurrentPositionCalls: 0,
@@ -79,7 +79,7 @@ async function installGeolocationMock(page: Page, mode: 'success' | 'unavailable
       configurable: true,
       value: {
         async query() {
-          return { name: 'geolocation', state: 'granted', onchange: null };
+          return { name: 'geolocation', state: selectedMode === 'granted' ? 'granted' : 'prompt', onchange: null };
         },
       },
     });
@@ -89,8 +89,8 @@ async function installGeolocationMock(page: Page, mode: 'success' | 'unavailable
         getCurrentPosition(success: PositionCallback, error?: PositionErrorCallback) {
           calls.getCurrentPositionCalls += 1;
           window.setTimeout(() => {
-            if (selectedMode === 'success') success(position as GeolocationPosition);
-            else error?.(unavailableError as GeolocationPositionError);
+            if (selectedMode === 'unavailable') error?.(unavailableError as GeolocationPositionError);
+            else success(position as GeolocationPosition);
           }, 0);
         },
         watchPosition(success: PositionCallback) {
@@ -114,7 +114,7 @@ async function readGeolocationCalls(page: Page): Promise<GeolocationCalls> {
 }
 
 test('requests browser location only after an explicit user action without starting a continuous desktop watch', async ({ page }) => {
-  await installGeolocationMock(page);
+  await installGeolocationMock(page, 'prompt');
   const routes = await mockCommonRoutes(page);
 
   await page.setViewportSize({ width: 1280, height: 900 });
@@ -154,4 +154,34 @@ test('does not describe desktop position lookup failures as missing permission a
     watchPositionCalls: 0,
     clearWatchCalls: 0,
   });
+});
+
+
+test('restores an already granted desktop location without showing the permission gate', async ({ page }) => {
+  await installGeolocationMock(page, 'granted');
+  const routes = await mockCommonRoutes(page);
+
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto('/');
+
+  await expect.poll(routes.hotTopicRequests).toBeGreaterThan(0);
+  await expect.poll(async () => readGeolocationCalls(page)).toEqual({
+    getCurrentPositionCalls: 1,
+    watchPositionCalls: 0,
+    clearWatchCalls: 0,
+  });
+  await expect(page.getByTestId('location-gate')).toHaveCount(0);
+  await expect(page.getByText('근처 불꽃이 레이더에 떠 있어요.')).toBeVisible();
+});
+
+test('hides the permission gate after the user grants location', async ({ page }) => {
+  await installGeolocationMock(page, 'prompt');
+  await mockCommonRoutes(page);
+
+  await page.goto('/');
+  await expect(page.getByTestId('location-gate')).toBeVisible();
+  await page.getByRole('button', { name: /위치 허용/ }).click();
+
+  await expect(page.getByTestId('location-gate')).toHaveCount(0);
+  await expect(page.getByText('근처 불꽃이 레이더에 떠 있어요.')).toBeVisible();
 });

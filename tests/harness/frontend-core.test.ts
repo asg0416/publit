@@ -33,6 +33,23 @@ describe('Publit frontend core harness', () => {
     assert.equal(shouldRefreshLocation(previous, { lat: 35.1796, lng: 129.0757, grid: 'g:wydm7', now: 40_000 }), true);
   });
 
+  it('keeps same-topic particles moving as one visible cluster', () => {
+    const flames = [
+      { id: 'same-1', tagNormalized: '카페대화', tagLabel: '#카페대화', category: 'daily', selfStrength: 2, heatLabel: '방금 켜진 불꽃', lifecycle: 'live' },
+      { id: 'same-2', tagNormalized: '카페대화', tagLabel: '#카페대화', category: 'daily', selfStrength: 2, heatLabel: '반응이 생기고 있어요', lifecycle: 'live' },
+      { id: 'same-3', tagNormalized: '카페대화', tagLabel: '#카페대화', category: 'daily', selfStrength: 3, heatLabel: '이 불꽃이 조금 커지고 있어요', lifecycle: 'live' },
+      { id: 'other-1', tagNormalized: '지역교통', tagLabel: '#지역교통', category: 'local', selfStrength: 2, heatLabel: '방금 켜진 불꽃', lifecycle: 'live' },
+    ] as const;
+
+    const moved = simulateParticles(createInitialParticles(flames, 320), 320, 180);
+    const sameTag = moved.filter((particle) => particle.tagNormalized === '카페대화');
+    const maxDistance = Math.max(...sameTag.flatMap((particle) =>
+      sameTag.map((other) => Math.hypot(particle.x - other.x, particle.y - other.y))
+    ));
+
+    assert.ok(maxDistance < 58);
+  });
+
   it('creates simulated radar particles without API coordinates and keeps them inside the radar', () => {
     const flames = [
       { id: '1', tagNormalized: '카페대화', tagLabel: '#카페대화', category: 'daily', selfStrength: 1, heatLabel: '방금 켜진 불꽃', lifecycle: 'live' },

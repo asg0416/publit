@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { Flame, RefreshCw } from 'lucide-react';
+import { Flame, RefreshCw, Sparkles } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { LocationGate } from '@/components/location/LocationGate';
@@ -99,6 +99,7 @@ export function PublitApp() {
   }, [lastPosition, refreshNearby]);
 
   const hotSummary = useMemo(() => topics.slice(0, 3), [topics]);
+  const shouldShowLocationGate = locationState.status !== 'granted';
 
   const handleSuggest = useCallback(async (text: string) => {
     try {
@@ -188,56 +189,79 @@ export function PublitApp() {
   const displayedFlames = flames.length ? flames : [];
 
   return (
-    <main className="min-h-screen w-full px-4 pb-8 pt-5 sm:px-6 lg:px-8 lg:pb-10 lg:pt-8">
+    <main className="min-h-screen w-full px-4 pb-8 pt-5 text-[#26251e] sm:px-6 lg:px-8 lg:pb-10 lg:pt-8">
       <div data-testid="publit-shell" className="mx-auto grid w-full max-w-6xl gap-5 lg:gap-6">
-      <header className="flex items-start justify-between gap-4 lg:items-end">
-        <div>
-          <p className="text-sm font-black tracking-[0.22em] text-[#ffca8a]">Publit</p>
-          <h1 className="mt-2 text-2xl font-black leading-tight text-[#f7efe3] [text-wrap:balance] sm:text-3xl lg:text-4xl">지금 이 공간의 불꽃</h1>
-          <p className="mt-1 text-sm text-[#99a7b7] lg:text-base">반경 500m · 정확한 좌표 없음</p>
-        </div>
-        <button
-          type="button"
-          onClick={requestLocation}
-          className="grid size-10 place-items-center rounded-lg bg-white/10 text-[#d9e5ef] transition-[transform,opacity] active:scale-[0.96]"
-          aria-label="새로고침"
-        >
-          <RefreshCw size={18} />
-        </button>
-      </header>
-
-      <div className="grid gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)] lg:items-start lg:gap-6">
-      <section data-testid="radar-panel" className="grid gap-4 lg:min-w-0">
-        <LocationGate state={locationState} onRequest={requestLocation} onQuietBrowse={() => setStatus('조용히 둘러보는 중이에요.')} />
-        <div className="rounded-2xl bg-[#101821]/82 p-4 shadow-[0_18px_60px_rgba(0,0,0,0.28)] lg:p-6">
-          <FlameRadar flames={displayedFlames} onSelect={setSelected} />
-          {displayedFlames.length === 0 ? (
-            <div className="mt-5 rounded-xl bg-black/16 p-4 text-center">
-              <p className="text-base font-bold text-[#f7efe3]">아직 이 공간에 떠 있는 불꽃이 없어요.</p>
-              <p className="mt-1 text-sm text-[#99a7b7]">첫 불꽃을 띄워볼까요?</p>
+        <header className="grid gap-4 border-b border-[#e6e5e0] pb-5 sm:grid-cols-[minmax(0,1fr)_auto] sm:items-end">
+          <div className="min-w-0">
+            <div className="inline-flex items-center gap-2 rounded-full border border-[#e6e5e0] bg-white px-3 py-1 text-xs font-semibold text-[#5a5852]">
+              <span className="size-2 rounded-full bg-[#f54e00]" />
+              Publit live space
             </div>
-          ) : null}
-        </div>
-      </section>
+            <h1 className="mt-3 max-w-2xl text-3xl font-normal leading-[1.08] text-[#26251e] [text-wrap:balance] sm:text-5xl lg:text-6xl">지금 이 공간의 불꽃</h1>
+            <p className="mt-3 max-w-xl text-sm leading-6 text-[#5a5852] sm:text-base">반경 500m의 분위기를 익명 불꽃으로만 봅니다. 정확한 좌표는 저장하지 않아요.</p>
+          </div>
+          <button
+            type="button"
+            onClick={requestLocation}
+            className="grid size-10 place-items-center rounded-lg border border-[#cfcdc4] bg-white text-[#26251e] transition-[transform,background-color] active:scale-[0.97] sm:size-11"
+            aria-label="새로고침"
+          >
+            <RefreshCw size={18} />
+          </button>
+        </header>
 
-      <section data-testid="summary-panel" className="grid gap-3 rounded-2xl bg-[#101821]/78 p-4 shadow-[0_16px_50px_rgba(0,0,0,0.24)] lg:sticky lg:top-8 lg:p-5">
-        <div className="flex items-center gap-2">
-          <Flame size={18} className="text-[#ff9a3d]" />
-          <h2 className="text-base font-bold text-[#f7efe3]">현재 공간 요약</h2>
-        </div>
-        <p className="text-sm leading-6 text-[#d9e5ef]">{status}</p>
-        <div className="flex flex-wrap gap-2">
-          {hotSummary.map((topic) => <Badge key={`${topic.scope}-${topic.normalizedKey}`}>{topic.displayLabel}</Badge>)}
-        </div>
-        <div className="grid grid-cols-2 gap-2 lg:grid-cols-1 xl:grid-cols-2">
-          <Button onClick={() => { setCreateFeedback(''); setCreateOpen(true); }}>내 불꽃 띄우기</Button>
-          <Button variant="secondary" onClick={requestLocation}>새로고침</Button>
-        </div>
-      </section>
+        <div className="grid gap-5 lg:grid-cols-[minmax(0,1.15fr)_minmax(320px,0.85fr)] lg:items-start lg:gap-6">
+          <section data-testid="radar-panel" className="grid gap-4 lg:min-w-0">
+            {shouldShowLocationGate ? (
+              <LocationGate state={locationState} onRequest={requestLocation} onQuietBrowse={() => setStatus('조용히 둘러보는 중이에요.')} />
+            ) : null}
 
-      </div>
+            <div className="publit-panel-enter overflow-hidden rounded-xl border border-[#26251e] bg-[#26251e] p-3 text-[#f7f7f4] sm:p-5">
+              <div className="mb-4 flex items-center justify-between gap-3 border-b border-white/10 pb-3">
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold text-[#dfa88f]">nearby signal</p>
+                  <p className="mt-1 truncate text-sm text-[#f7f7f4]">{lastPosition ? '현재 위치 기준으로 동기화됨' : '위치 허용 후 근처 불꽃을 불러옵니다'}</p>
+                </div>
+                <span className="inline-flex items-center gap-1 rounded-full bg-[#f54e00] px-3 py-1 text-xs font-semibold text-white">
+                  <Sparkles size={13} /> live
+                </span>
+              </div>
+              <FlameRadar flames={displayedFlames} onSelect={setSelected} />
+              {displayedFlames.length === 0 ? (
+                <div className="mt-5 rounded-lg border border-white/10 bg-white/[0.04] p-4 text-center">
+                  <p className="text-base font-semibold text-[#f7f7f4]">아직 이 공간에 떠 있는 불꽃이 없어요.</p>
+                  <p className="mt-1 text-sm text-[#c8c5bb]">첫 불꽃을 띄워볼까요?</p>
+                </div>
+              ) : null}
+            </div>
+          </section>
+
+          <section data-testid="summary-panel" className="publit-panel-enter grid gap-4 rounded-xl border border-[#e6e5e0] bg-white p-4 lg:sticky lg:top-8 lg:p-5">
+            <div className="flex items-center gap-2">
+              <span className="grid size-9 place-items-center rounded-lg bg-[#f54e00] text-white">
+                <Flame size={18} fill="currentColor" />
+              </span>
+              <div>
+                <h2 className="text-base font-semibold text-[#26251e]">현재 공간 요약</h2>
+                <p className="text-xs text-[#807d72]">서버는 거친 공간 키만 봅니다</p>
+              </div>
+            </div>
+            <p className="rounded-lg bg-[#fafaf7] px-3 py-3 text-sm leading-6 text-[#5a5852]">{status}</p>
+            <div className="flex flex-wrap gap-2">
+              {hotSummary.map((topic) => <Badge key={`${topic.scope}-${topic.normalizedKey}`}>{topic.displayLabel}</Badge>)}
+            </div>
+            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
+              <Button onClick={() => { setCreateFeedback(''); setCreateOpen(true); }}>
+                <Flame size={16} fill="currentColor" />
+                내 불꽃 띄우기
+              </Button>
+              <Button variant="secondary" onClick={requestLocation}>새로고침</Button>
+            </div>
+          </section>
+        </div>
       </div>
       <CreateFlameSheet
+        key={createOpen ? "create-open" : "create-closed"}
         open={createOpen}
         topics={topics}
         remoteSuggestions={suggestions}

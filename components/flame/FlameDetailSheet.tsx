@@ -1,12 +1,12 @@
 'use client';
 
+import { useState } from 'react';
 import type { Flame, ReactionType, ReportReason } from '@/lib/flame/types';
 import { BottomSheet } from '@/components/ui/BottomSheet';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
 import { ReactionBar } from './ReactionBar';
 import { ReportDialog } from './ReportDialog';
-import { useState } from 'react';
 
 type FlameDetailSheetProps = {
   flame: Flame | null;
@@ -24,15 +24,15 @@ export function FlameDetailSheet({ flame, onClose, onReact, onReport }: FlameDet
         {flame ? (
           <div className="grid gap-4">
             <div>
-              <p className="text-lg font-bold text-[#ffe27a]">{flame.tagLabel}</p>
-              {flame.text ? <p className="mt-3 text-base leading-7 text-[#f7efe3]">{flame.text}</p> : <p className="mt-3 text-sm text-[#99a7b7]">이 흔적은 본문 없이 공간의 분위기로만 남아 있어요.</p>}
+              <p className="text-lg font-semibold text-[#f54e00]">{flame.tagLabel}</p>
+              {flame.text ? <p className="mt-3 text-base leading-7 text-[#26251e]">{flame.text}</p> : <p className="mt-3 text-sm text-[#807d72]">이 흔적은 본문 없이 공간의 분위기로만 남아 있어요.</p>}
             </div>
             <div className="flex flex-wrap gap-2">
               <Badge>{flame.mood}</Badge>
               <Badge>강도 {flame.selfStrength}</Badge>
               <Badge>{flame.lifecycle}</Badge>
             </div>
-            <p className="rounded-xl bg-[#ff9a3d]/10 px-4 py-3 text-sm font-semibold text-[#ffca8a]">{flame.heatLabel}</p>
+            <p className="rounded-lg bg-[#f54e00]/10 px-4 py-3 text-sm font-semibold text-[#8a2d00]">{flame.heatLabel}</p>
             {flame.lifecycle !== 'trace' ? <ReactionBar onReact={(reaction) => onReact(flame.id, reaction)} /> : null}
             <Button variant="secondary" onClick={() => setReportOpen(true)}>신고</Button>
           </div>
