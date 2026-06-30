@@ -12,9 +12,25 @@ const flame = {
   category: 'daily',
   mood: 'curious',
   selfStrength: 2,
-  heatLabel: '반응이 생기고 있어요',
+  heatLabel: '방금 켜진 불꽃',
   lifecycle: 'live',
   characterKey: 'turtle',
+  displayScope: 'nearby',
+  regionLabel: '근처',
+  regionCode: 'nearby',
+  createdAt: now,
+};
+const nextFlame = {
+  id: 'flame-detail-next',
+  text: '버스 정류장 앞 신호가 오늘 유난히 길어요.',
+  tagLabel: '#지역교통',
+  tagNormalized: '지역교통',
+  category: 'local',
+  mood: 'quiet',
+  selfStrength: 3,
+  heatLabel: '이야기가 모이고 있어요',
+  lifecycle: 'live',
+  characterKey: 'chick',
   displayScope: 'nearby',
   regionLabel: '근처',
   regionCode: 'nearby',
@@ -46,7 +62,7 @@ test.beforeEach(async ({ page }) => {
     await route.fulfill({ status: 200, json: topics });
   });
   await page.route('**/functions/v1/nearby-flames', async (route) => {
-    await route.fulfill({ status: 200, json: [flame] });
+    await route.fulfill({ status: 200, json: [flame, nextFlame] });
   });
   await page.route('**/functions/v1/my-flames', async (route) => {
     await route.fulfill({ status: 200, json: { used: 0, limit: 3, isFull: false, activeFlames: [] } });
@@ -65,13 +81,27 @@ test('opens details, reacts without counts, and removes a hidden report', async 
 
   await page.getByTestId('thought-character').first().click();
   await expect(page.getByRole('dialog', { name: '#카페대화' })).toBeVisible();
-  await expect(page.getByText('근처 카페 자리가 조용해서 작업하기 좋아요.')).toBeVisible();
+  const panel = page.getByTestId('bottom-sheet-panel');
+  await expect(panel.getByText('#카페대화')).toHaveCount(1);
+  await expect(panel.getByTestId('thought-speech-bubble')).toContainText('🐢');
+  await expect(panel.getByTestId('thought-speech-bubble')).toContainText('근처 카페 자리가 조용해서 작업하기 좋아요.');
+  await expect(panel.getByText('불꽃')).toHaveCount(0);
   await expect(page.getByText(/반응 \d+개|\d+명|조회수/)).toHaveCount(0);
+
+  await panel.getByTestId('thought-detail-swipe-area').dispatchEvent('touchstart', {
+    touches: [{ identifier: 1, target: await panel.getByTestId('thought-detail-swipe-area').elementHandle(), clientX: 320, clientY: 520 }],
+  });
+  await panel.getByTestId('thought-detail-swipe-area').dispatchEvent('touchend', {
+    changedTouches: [{ identifier: 1, target: await panel.getByTestId('thought-detail-swipe-area').elementHandle(), clientX: 80, clientY: 520 }],
+  });
+  await expect(page.getByRole('dialog', { name: '#지역교통' })).toBeVisible();
+  await expect(panel.getByTestId('thought-speech-bubble')).toContainText('🐥');
+  await expect(panel.getByTestId('thought-speech-bubble')).toContainText('버스 정류장 앞 신호가 오늘 유난히 길어요.');
 
   await page.getByRole('button', { name: '궁금해요' }).click();
   await expect(page.getByText('요즘 이 태그가 모여요')).toBeVisible();
 
   await page.getByRole('button', { name: '신고' }).click();
   await page.getByRole('button', { name: '오정보' }).click();
-  await expect(page.getByTestId('thought-character')).toHaveCount(0);
+  await expect(page.getByTestId('thought-character')).toHaveCount(1);
 });

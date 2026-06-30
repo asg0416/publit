@@ -34,6 +34,12 @@ const moods: Array<{ value: FlameMood; label: string }> = [
   { value: 'want_talk', label: '나누고싶음' },
 ];
 
+const strengthOptions: Array<{ value: 1 | 2 | 3; label: string; className: string }> = [
+  { value: 1, label: '기본', className: 'bg-white text-[#5d5a51]' },
+  { value: 2, label: '엠버', className: 'bg-[#ffda68] text-[#252520]' },
+  { value: 3, label: '레드', className: 'bg-[#ff8aa0] text-[#4a1020]' },
+];
+
 const characterKeys = Object.keys(CHARACTER_EMOJI) as CharacterKey[];
 
 export function CreateFlameSheet({ open, topics, remoteSuggestions, slots, onClose, onSuggest, onSubmit, onExtinguish, submitMessage }: CreateFlameSheetProps) {
@@ -109,14 +115,16 @@ export function CreateFlameSheet({ open, topics, remoteSuggestions, slots, onClo
         <section className="grid gap-2">
           <h3 className="text-xs font-black text-[#6f6b61]">생각 크기</h3>
           <div className="grid grid-cols-3 gap-2">
-            {([1, 2, 3] as const).map((value) => (
+            {strengthOptions.map((option) => (
               <button
                 type="button"
-                key={value}
-                onClick={() => setSelfStrength(value)}
-                className={`min-h-11 rounded-[12px] px-3 text-xs font-black shadow-[1px_1px_0_rgba(35,35,31,0.45)] transition-[transform,background-color,color] active:scale-[0.96] ${selfStrength === value ? 'bg-[#a8ddc1] text-[#153424]' : 'bg-white text-[#5d5a51]'}`}
+                key={option.value}
+                onClick={() => setSelfStrength(option.value)}
+                className={`min-h-11 rounded-[12px] px-3 text-xs font-black shadow-[1px_1px_0_rgba(35,35,31,0.45)] transition-[transform,background-color,color] active:scale-[0.96] ${
+                  selfStrength === option.value ? option.className : 'bg-white text-[#5d5a51]'
+                }`}
               >
-                {value === 1 ? '작게' : value === 2 ? '보통' : '크게'}
+                {option.label}
               </button>
             ))}
           </div>

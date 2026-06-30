@@ -17,6 +17,7 @@ import { distanceMeters } from '@/lib/location/useMovingLocationCore';
 import type { CharacterKey, Flame as FlameType, HotTopic, ReactionType, ReportReason, TagSuggestion, ThoughtRangeValue } from '@/lib/flame/types';
 
 const NEARBY_REFRESH_INTERVAL_MS = 12_000;
+type PositionState = { lat: number; lng: number; grid: string };
 
 const fallbackTopics: HotTopic[] = [
   { displayLabel: '#카페대화', normalizedKey: '카페대화', category: 'daily', scope: 'global', heatLabel: '근처에서 자주 보여요' },
@@ -32,7 +33,8 @@ export function PublitApp() {
   const [slots, setSlots] = useState<{ used: number; limit: number; activeFlames: Array<{ id: string; tagLabel: string; status: string; createdAt: string }> } | null>(null);
   const [selected, setSelected] = useState<FlameType | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
-  const [lastPosition, setLastPosition] = useState<{ lat: number; lng: number; grid: string } | null>(null);
+  const [viewPosition, setViewPosition] = useState<PositionState | null>(null);
+  const [devicePosition, setDevicePosition] = useState<PositionState | null>(null);
   const [, setStatus] = useState('지금 이곳에 떠도는 생각을 확인해보세요.');
   const [createFeedback, setCreateFeedback] = useState('');
   const [rangeValue, setRangeValue] = useState<ThoughtRangeValue>('500m');
@@ -60,8 +62,8 @@ export function PublitApp() {
     }
   }, []);
 
-  const refreshNearby = useCallback(async (position: { lat: number; lng: number; grid: string }, options: { silent?: boolean } = {}) => {
-    setLastPosition(position);
+  const refreshNearby = useCallback(async (position: PositionState, options: { silent?: boolean } = {}) => {
+    setViewPosition(position);
     if (!options.silent) setStatus('근처 생각을 새로 살피는 중이에요.');
     try {
       const next = await publitApi.nearbyFlames({ lat: position.lat, lng: position.lng });
@@ -77,7 +79,12 @@ export function PublitApp() {
     }
   }, [refreshSlots, refreshTopics]);
 
-  const { state: locationState, requestLocation } = useMovingLocation(refreshNearby);
+  const handleLocationResolved = useCallback((position: PositionState) => {
+    setDevicePosition(position);
+    void refreshNearby(position);
+  }, [refreshNearby]);
+
+  const { state: locationState, requestLocation } = useMovingLocation(handleLocationResolved);
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
@@ -95,13 +102,13 @@ export function PublitApp() {
   }, [deviceHash, refreshSlots]);
 
   useEffect(() => {
-    if (!lastPosition) return undefined;
+    if (!viewPosition) return undefined;
     const interval = window.setInterval(() => {
       if (document.visibilityState !== 'visible') return;
-      void refreshNearby(lastPosition, { silent: true });
+      void refreshNearby(viewPosition, { silent: true });
     }, NEARBY_REFRESH_INTERVAL_MS);
     return () => window.clearInterval(interval);
-  }, [lastPosition, refreshNearby]);
+  }, [viewPosition, refreshNearby]);
 
   const selectedRange = useMemo(() => RANGE_OPTIONS.find((option) => option.value === rangeValue) ?? RANGE_OPTIONS[3], [rangeValue]);
   const shouldShowLocationGate = locationState.status !== 'granted';
@@ -114,23 +121,23 @@ export function PublitApp() {
       lng: position.lng,
       grid: encodeGrid(position.lat, position.lng),
     };
-    if (lastPosition && distanceMeters(lastPosition, next) < 25) return;
+    if (viewPosition && distanceMeters(viewPosition, next) < 25) return;
 
     void refreshNearby(next, { silent: true });
-  }, [lastPosition, locationState.status, refreshNearby]);
+  }, [viewPosition, locationState.status, refreshNearby]);
 
   const handleSuggest = useCallback(async (text: string) => {
     try {
       const next = await publitApi.suggestTags({
         text,
-        lat: lastPosition?.lat,
-        lng: lastPosition?.lng,
+        lat: viewPosition?.lat,
+        lng: viewPosition?.lng,
       });
       setSuggestions(next);
     } catch {
       setSuggestions([]);
     }
-  }, [lastPosition]);
+  }, [viewPosition]);
 
   const handleCreate = useCallback(async (input: { text: string; tagLabel: string; category: string; mood: string; selfStrength: number; characterKey: CharacterKey }) => {
     if (!deviceHash) {
@@ -139,7 +146,7 @@ export function PublitApp() {
       setStatus(message);
       return;
     }
-    if (!lastPosition) {
+    if (!devicePosition) {
       const message = '위치 권한을 먼저 허용하면 생각을 띄울 수 있어요.';
       setCreateFeedback(message);
       setStatus(message);
@@ -150,13 +157,19 @@ export function PublitApp() {
     try {
       const result = await publitApi.createFlame({
         ...input,
-        ...lastPosition,
+        ...devicePosition,
         deviceHash,
         displayScope: selectedRange.displayScope,
         regionCode: selectedRange.value,
       });
       if (result.flame) {
-        setFlames((current) => [result.flame!, ...current.filter((flame) => flame.id !== result.flame!.id)]);
+        const createdFlame: FlameType = {
+          ...result.flame,
+          characterKey: result.flame.characterKey ?? input.characterKey,
+          selfStrength: result.flame.selfStrength ?? (input.selfStrength as 1 | 2 | 3),
+        };
+        setViewPosition(devicePosition);
+        setFlames((current) => [createdFlame, ...current.filter((flame) => flame.id !== createdFlame.id)]);
         setCreateOpen(false);
         setCreateFeedback('');
         setStatus('내 생각이 지도 위에 떠올랐어요.');
@@ -171,7 +184,7 @@ export function PublitApp() {
       setCreateFeedback(message);
       setStatus(message);
     }
-  }, [deviceHash, lastPosition, refreshSlots, requestLocation, selectedRange.displayScope, selectedRange.value]);
+  }, [deviceHash, devicePosition, refreshSlots, requestLocation, selectedRange.displayScope, selectedRange.value]);
 
   const handleExtinguish = useCallback(async (flameId: string) => {
     if (!deviceHash) return;
@@ -214,14 +227,12 @@ export function PublitApp() {
 
   return (
     <main data-testid="publit-shell" className="relative min-h-[100svh] overflow-hidden bg-[#e9ece6] text-[#252520]">
-      <MapBackground center={lastPosition} rangeValue={rangeValue} onCenterChange={handleMapCenterChange} />
+      <MapBackground center={viewPosition} rangeValue={rangeValue} onCenterChange={handleMapCenterChange} />
       <div className="pointer-events-none absolute left-3 right-3 top-3 z-50 sm:left-4 sm:right-4">
-        <div className="flex items-center gap-2">
-          <span className="grid size-9 shrink-0 place-items-center rounded-[10px] bg-white/95 text-xl shadow-[1px_1px_0_rgba(35,35,31,0.68)]">
-            🤔
-          </span>
-          <div className="min-w-0 rounded-[12px] bg-white/90 px-3 py-1.5 shadow-[1px_1px_0_rgba(35,35,31,0.58)] backdrop-blur-sm">
-            <h1 className="text-[1.3rem] font-black leading-none tracking-normal text-[#252520]">아니근데</h1>
+        <div data-testid="brand-logo" className="inline-flex items-center gap-2 rounded-[18px] bg-white/92 px-3 py-2 shadow-[1px_1px_0_rgba(35,35,31,0.68)] backdrop-blur-sm">
+          <span className="text-xl leading-none" aria-hidden="true">🤔</span>
+          <div className="min-w-0">
+            <h1 className="text-[1.28rem] font-black leading-none tracking-normal text-[#252520]">아니근데</h1>
             <p className="mt-0.5 text-[10px] font-black leading-tight text-[#6f6b61]">지금 나만 이 생각해?</p>
           </div>
         </div>
@@ -238,7 +249,14 @@ export function PublitApp() {
       ) : null}
 
       <div data-testid="thought-panel" className="pointer-events-none absolute inset-0">
-        <ThoughtOverlay thoughts={displayedFlames} rangeLabel={selectedRange.label} onSelect={setSelected} />
+        <ThoughtOverlay
+          thoughts={displayedFlames}
+          rangeLabel={selectedRange.label}
+          onSelect={(flame) => {
+            setRangeOpen(false);
+            setSelected(flame);
+          }}
+        />
       </div>
 
       <div className="absolute right-3 top-[8.75rem] z-[60] grid gap-2 sm:right-4">
@@ -255,7 +273,7 @@ export function PublitApp() {
         </button>
         <button
           type="button"
-          onClick={() => lastPosition ? void refreshNearby({ ...lastPosition }) : requestLocation({ forceRefresh: true })}
+          onClick={() => viewPosition ? void refreshNearby({ ...viewPosition }) : requestLocation({ forceRefresh: true })}
           className="grid size-9 place-items-center rounded-[10px] bg-white text-[#252520] shadow-[2px_2px_0_rgba(35,35,31,0.72)] transition-transform active:scale-[0.96]"
           aria-label="새로고침"
         >
@@ -287,7 +305,7 @@ export function PublitApp() {
         type="button"
         aria-label="생각 띄우기 열기"
         data-testid="thought-compose-toolbar"
-        onClick={() => { setCreateFeedback(''); setCreateOpen(true); }}
+        onClick={() => { setCreateFeedback(''); setRangeOpen(false); setCreateOpen(true); }}
         className="absolute bottom-4 right-4 z-40 flex min-h-11 items-center gap-2 rounded-full bg-white/95 px-3 py-2 text-left shadow-[2px_2px_0_rgba(35,35,31,0.82)] transition-transform active:scale-[0.96] sm:right-5"
       >
         <span className="block text-sm font-black leading-tight text-[#252520]">생각 띄우기</span>
@@ -317,7 +335,12 @@ export function PublitApp() {
       />
       <FlameDetailSheet
         flame={selected}
+        flames={displayedFlames}
         onClose={() => setSelected(null)}
+        onSelect={(flame) => {
+          setRangeOpen(false);
+          setSelected(flame);
+        }}
         onReact={handleReact}
         onReport={handleReport}
       />

@@ -7,7 +7,7 @@ Deno.serve(async (req: Request) => {
   try {
     const body = await readJson(req);
     const geohash = encodeGrid(Number(body.lat), Number(body.lng));
-    const prefix = geohash.slice(0, 5);
+    const prefix = geohash;
     const now = new Date();
     const supabase = createAdminClient();
 

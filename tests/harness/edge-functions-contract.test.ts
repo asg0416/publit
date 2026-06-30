@@ -62,6 +62,13 @@ describe('Publit Edge Function contract', () => {
     assert.match(readFileSync(join(functionsDir, 'report-flame', 'index.ts'), 'utf8'), /reported|hidden/);
   });
 
+  it('queries nearby thoughts with the full server-derived grid instead of a broad city-scale prefix', () => {
+    const nearbySource = readFileSync(join(functionsDir, 'nearby-flames', 'index.ts'), 'utf8');
+
+    assert.doesNotMatch(nearbySource, /geohash\.slice\(0,\s*5\)/);
+    assert.match(nearbySource, /const prefix = geohash/);
+  });
+
   it('keeps the service role key server-only', () => {
     assert.match(source, /Deno\.env\.get\(['"]SUPABASE_SERVICE_ROLE_KEY['"]\)/);
     assert.doesNotMatch(source, /NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY/);

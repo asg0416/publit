@@ -14,6 +14,16 @@ type ThoughtOverlayProps = {
 
 const overlaySize = 320;
 
+function strengthTagClass(strength: FlameParticleType['selfStrength']) {
+  if (strength === 3) return 'bg-[#ff8aa0] text-[#4a1020] shadow-[1px_1px_0_rgba(207,45,86,0.62)]';
+  if (strength === 2) return 'bg-[#ffda68] text-[#252520] shadow-[1px_1px_0_rgba(109,78,0,0.46)]';
+  return 'bg-white text-[#252520] shadow-[1px_1px_0_rgba(35,35,31,0.68)]';
+}
+
+function isGlittery(heatLevel: FlameParticleType['heatLevel']) {
+  return heatLevel === 'hot' || heatLevel === 'cluster';
+}
+
 export function ThoughtOverlay({ thoughts, rangeLabel, onSelect }: ThoughtOverlayProps) {
   const overlayKey = thoughts.map((thought) => `${thought.id}:${thought.tagNormalized}:${thought.characterKey ?? ''}`).join('|');
 
@@ -68,7 +78,11 @@ function ThoughtOverlaySimulation({ thoughts, rangeLabel, onSelect }: ThoughtOve
               className="pointer-events-none absolute grid w-16 -translate-x-1/2 -translate-y-1/2 justify-items-center gap-1 text-[9px] font-black text-[#252520]"
               style={{ left: `${(particle.x / overlaySize) * 100}%`, top: `${(particle.y / overlaySize) * 100}%` }}
             >
-              <span className="pointer-events-none max-w-[4rem] overflow-hidden text-ellipsis whitespace-nowrap rounded-lg bg-white px-2 py-1 shadow-[1px_1px_0_rgba(35,35,31,0.68)]">
+              <span
+                data-testid="thought-tag-label"
+                data-strength={particle.selfStrength}
+                className={`pointer-events-none max-w-[4rem] overflow-hidden text-ellipsis whitespace-nowrap rounded-lg px-2 py-1 ${strengthTagClass(particle.selfStrength)}`}
+              >
                 {particle.tagLabel}
               </span>
               <button
@@ -84,7 +98,10 @@ function ThoughtOverlaySimulation({ thoughts, rangeLabel, onSelect }: ThoughtOve
                 >
                   <span
                     data-testid="flame-glyph"
-                    className="anigeunde-character grid size-9 place-items-center rounded-[10px] bg-white text-xl shadow-[1px_1px_0_rgba(35,35,31,0.68)]"
+                    data-heat-level={particle.heatLevel}
+                    className={`anigeunde-character grid size-9 place-items-center rounded-[10px] bg-white text-xl shadow-[1px_1px_0_rgba(35,35,31,0.68)] ${
+                      isGlittery(particle.heatLevel) ? 'anigeunde-glitter' : ''
+                    }`}
                   >
                     {CHARACTER_EMOJI[characterKey]}
                   </span>

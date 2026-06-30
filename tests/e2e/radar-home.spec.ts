@@ -102,26 +102,26 @@ test.beforeEach(async ({ page }) => {
     await route.fulfill({ status: 200, json: [{ displayLabel: '#카페대화', normalizedKey: '카페대화', category: 'daily', source: 'remote' }] });
   });
   await page.route('**/functions/v1/create-flame', async (route) => {
+    const body = route.request().postDataJSON() as { selfStrength?: number };
     await route.fulfill({
       status: 201,
       json: {
         flame: {
-          id: 'flame-created',
+          id: 'created-character-missing',
           text: '새로 띄운 생각이에요.',
           tagLabel: '#카페대화',
           tagNormalized: '카페대화',
           category: 'daily',
           mood: 'curious',
-          selfStrength: 2,
+          selfStrength: body.selfStrength ?? 2,
           heatLabel: '방금 떠오른 생각',
           lifecycle: 'live',
-          characterKey: 'dog',
           displayScope: 'nearby',
           regionLabel: '근처',
           regionCode: 'nearby',
           createdAt: now,
         },
-        activeFlames: [{ id: 'flame-created', tagLabel: '#카페대화', status: 'live', createdAt: now }],
+        activeFlames: [{ id: 'created-character-missing', tagLabel: '#카페대화', status: 'live', createdAt: now }],
       },
     });
   });
@@ -131,6 +131,8 @@ test('renders the map-first Anigeunde home without old map globals', async ({ pa
   await page.goto('/');
 
   await expect(page.getByRole('heading', { name: '아니근데' })).toBeVisible();
+  await expect(page.getByTestId('brand-logo')).toContainText('🤔');
+  await expect(page.getByTestId('brand-logo')).toContainText('아니근데');
   await expect(page.getByText('🤔')).toBeVisible();
   await expect(page.getByText('지금 뜨는 태그')).toBeVisible();
   await expect(page.getByText('지금 나만 이 생각해?')).toBeVisible();
@@ -148,6 +150,9 @@ test('renders the map-first Anigeunde home without old map globals', async ({ pa
   await expect(page.getByRole('button', { name: '500m' })).toBeVisible();
   await expect(page.getByRole('button', { name: '전국' })).toBeVisible();
   await expect(page.getByRole('button', { name: '생각 띄우기' })).toBeVisible();
+  await page.getByRole('button', { name: '생각 띄우기' }).click();
+  await expect(page.getByTestId('range-control')).toHaveCount(0);
+  await expect(page.getByRole('dialog', { name: '생각 띄우기' })).toBeVisible();
 
   await expect.poll(async () => page.evaluate(() => ({
     googleMaps: Boolean((window as unknown as { google?: { maps?: unknown } }).google?.maps),
@@ -167,7 +172,11 @@ test('creates a flame through the sheet using mocked edge functions', async ({ p
   await expect(page.getByText('캐릭터')).toBeVisible();
   await page.getByRole('textbox', { name: '지금 떠오른 생각' }).fill('새로 띄운 생각이에요.');
   await page.getByLabel('생각 태그').fill('#카페대화');
+  await page.getByRole('button', { name: '레드' }).click();
+  await page.getByRole('button', { name: '캐릭터 chick' }).click();
   await page.getByRole('button', { name: '생각 띄우기', exact: true }).click();
 
   await expect(page.getByTestId('thought-character')).toHaveCount(4);
+  await expect(page.getByTestId('flame-glyph').first()).toHaveText('🐥');
+  await expect(page.getByTestId('thought-tag-label').first()).toHaveAttribute('data-strength', '3');
 });

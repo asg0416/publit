@@ -69,6 +69,26 @@ body {
   animation: anigeunde-aura-pulse 2.2s ease-in-out infinite;
 }
 
+.anigeunde-glitter {
+  position: relative;
+  isolation: isolate;
+}
+
+.anigeunde-glitter::after {
+  content: "";
+  position: absolute;
+  inset: -7px;
+  z-index: -1;
+  border-radius: inherit;
+  background:
+    radial-gradient(circle at 18% 24%, rgba(255, 255, 255, 0.95) 0 2px, transparent 3px),
+    radial-gradient(circle at 76% 18%, rgba(255, 218, 104, 0.95) 0 2px, transparent 3px),
+    radial-gradient(circle at 82% 76%, rgba(255, 138, 160, 0.8) 0 2px, transparent 3px),
+    radial-gradient(circle at 22% 82%, rgba(168, 221, 193, 0.9) 0 2px, transparent 3px);
+  opacity: 0.82;
+  animation: anigeunde-glitter-twinkle 1.9s ease-in-out infinite;
+}
+
 button,
 input,
 textarea {
@@ -136,6 +156,19 @@ button {
   50% {
     opacity: 0.8;
     scale: 1.06;
+  }
+}
+
+@keyframes anigeunde-glitter-twinkle {
+  0%, 100% {
+    opacity: 0.42;
+    scale: 0.94;
+    rotate: 0deg;
+  }
+  50% {
+    opacity: 0.92;
+    scale: 1.05;
+    rotate: 4deg;
   }
 }
 
