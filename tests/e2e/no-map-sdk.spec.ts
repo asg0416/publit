@@ -26,7 +26,7 @@ function collectFiles(path: string): string[] {
   });
 }
 
-test('repository does not ship map SDKs or map widgets', async () => {
+test('repository does not ship legacy map SDK packages', async () => {
   const files = scannedRoots.flatMap(collectFiles);
 
   for (const file of files) {

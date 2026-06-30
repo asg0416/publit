@@ -16,6 +16,7 @@
 - Poll nearby thoughts while a location is active so anonymous thoughts from other devices appear without a manual reload.
 - Call moving-location refresh no more than once per 30 seconds and only after meaningful movement or grid change.
 - Generate character overlay positions on the client. API coordinates are forbidden.
+- Load MapGlot only in the browser with `NEXT_PUBLIC_MAPGLOT_KEY`; never add MapGlot markers for thoughts.
 
 ## Components
 
@@ -34,4 +35,4 @@
 
 ## No-Map Rule
 
-Do not install or import map SDKs. Do not render map pins, map marker UI, or actual coordinate markers. MapGlot is represented as a full-screen background provider surface only.
+Do not install or import map SDK packages. Load the official MapGlot browser SDK for the full-screen background map only. Do not render map pins, map marker UI, or actual coordinate markers for thoughts.

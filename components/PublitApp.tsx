@@ -199,7 +199,7 @@ export function PublitApp() {
 
   return (
     <main data-testid="publit-shell" className="relative min-h-[100svh] overflow-hidden bg-[#e9ece6] text-[#252520]">
-      <MapBackground />
+      <MapBackground center={lastPosition} />
       <div className="pointer-events-none absolute inset-0 z-20">
         <div className="pointer-events-auto absolute left-3 right-3 top-3 sm:left-4 sm:right-4">
           <HotTagTicker topics={topics} />

@@ -19,7 +19,7 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'npm run dev -- --port 3217',
+    command: 'NEXT_PUBLIC_MAPGLOT_DISABLED=1 npm run dev -- --port 3217',
     url: 'http://localhost:3217',
     reuseExistingServer: false,
     timeout: 120_000,
