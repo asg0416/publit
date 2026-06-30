@@ -17,12 +17,6 @@ const CATEGORY_BY_KEYWORD: Array<[RegExp, FlameCategory]> = [
   [/카페|대화|날씨|점심|공부|일상/, 'daily'],
 ];
 
-const SOFTENED_TAGS: Array<[RegExp, string]> = [
-  [/부정\s*선거|선거.*확정|확정.*선거/, '선거의혹'],
-  [/투표\s*용지|용지\s*부족/, '투표용지이슈'],
-  [/선관위|선거\s*관리/, '선거관리이슈'],
-];
-
 const RULE_SUGGESTIONS: Array<{
   pattern: RegExp;
   tags: Array<{ displayLabel: string; normalizedKey: string; category: FlameCategory; source: 'text' }>;
@@ -118,12 +112,6 @@ export function encodeGrid(latitudeValue: number, longitudeValue: number, precis
 
 export function normalizeTag(rawTag: string): { label: string; normalized: string } {
   const raw = String(rawTag ?? '').trim();
-  for (const [pattern, softened] of SOFTENED_TAGS) {
-    if (pattern.test(raw.replace(/^#/, ''))) {
-      return { label: `#${softened}`, normalized: softened };
-    }
-  }
-
   const normalized = raw
     .replace(/^#+/, '')
     .replace(/[^\p{Letter}\p{Number}_가-힣]/gu, '')

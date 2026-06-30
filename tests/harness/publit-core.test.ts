@@ -145,10 +145,14 @@ describe('Publit shared Edge Function core', () => {
     assert.deepEqual(state.activeFlames.map((flame) => flame.id), ['2', '1']);
   });
 
-  it('normalizes, softens, suggests, and blocks unsafe tags', () => {
+  it('keeps user-entered tags intact while still suggesting and blocking unsafe content', () => {
+    assert.deepEqual(normalizeTag('  #부정선거!! '), {
+      label: '#부정선거',
+      normalized: '부정선거',
+    });
     assert.deepEqual(normalizeTag('  #투표용지 부족!! '), {
-      label: '#투표용지이슈',
-      normalized: '투표용지이슈',
+      label: '#투표용지부족',
+      normalized: '투표용지부족',
     });
     assert.equal(detectBlockedContent('특정인 주소를 공개하고 찾아가자').blocked, true);
     assert.equal(getHeatLabel(0), '방금 떠오른 생각');
