@@ -25,7 +25,7 @@ export function MyFlameSlots({ slots, onExtinguish }: MyFlameSlotsProps) {
         {(slots?.activeFlames ?? []).map((flame) => (
           <div key={flame.id} className="flex items-center justify-between gap-3 rounded-lg bg-[#fbfbf7] px-3 py-2">
             <span className="min-w-0 truncate text-sm text-[#5d5a51]">{flame.tagLabel} · 지금 떠 있음</span>
-            <Button variant="ghost" className="min-h-8 px-2 text-xs" onClick={() => onExtinguish(flame.id)}>내리기</Button>
+            <Button type="button" variant="ghost" className="min-h-8 px-2 text-xs" onClick={() => onExtinguish(flame.id)}>내리기</Button>
           </div>
         ))}
         {Array.from({ length: Math.max(0, limit - used) }).map((_, index) => (

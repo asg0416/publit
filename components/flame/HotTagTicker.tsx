@@ -5,47 +5,75 @@ import type { HotTopic } from '@/lib/flame/types';
 
 type HotTagTickerProps = {
   topics: HotTopic[];
+  compact?: boolean;
 };
 
-export function HotTagTicker({ topics }: HotTagTickerProps) {
+export function HotTagTicker({ topics, compact = false }: HotTagTickerProps) {
   const [index, setIndex] = useState(0);
   const [expanded, setExpanded] = useState(false);
+  const current = topics[index % Math.max(topics.length, 1)];
 
   useEffect(() => {
     if (topics.length <= 1) return undefined;
-    const interval = window.setInterval(() => setIndex((current) => (current + 1) % topics.length), 2_000);
+    const interval = window.setInterval(() => setIndex((current) => (current + 1) % topics.length), 2_400);
     return () => window.clearInterval(interval);
   }, [topics.length]);
 
   if (topics.length === 0) {
     return (
-      <div className="relative z-[90] rounded-[14px] bg-white/95 px-4 py-3 text-sm font-bold text-[#5d5a51] shadow-[2px_2px_0_rgba(35,35,31,0.72)]">
+      <div
+        data-testid="hot-tag-ticker"
+        className={`relative rounded-[14px] bg-white/95 text-sm font-bold text-[#5d5a51] ${
+          compact ? 'min-w-0 flex-1 px-2.5 py-2' : 'z-[90] px-4 py-3 shadow-[2px_2px_0_rgba(35,35,31,0.72)]'
+        }`}
+      >
         지금 뜨는 태그를 모으는 중이에요.
       </div>
     );
   }
 
   return (
-    <button
-      type="button"
-      onClick={() => setExpanded((current) => !current)}
-      className="relative z-[90] w-full rounded-[14px] bg-white/95 px-4 py-3 text-left shadow-[2px_2px_0_rgba(35,35,31,0.72)] transition-[transform,background-color] hover:bg-white active:scale-[0.96]"
-      aria-expanded={expanded}
+    <div
+      data-testid="hot-tag-ticker"
+      className={`relative min-w-0 ${compact ? 'flex-1' : 'z-[90] w-full'}`}
     >
-      <div className="flex items-center justify-between gap-3">
-        <span className="shrink-0 text-xs font-black text-[#6f6b61]">지금 뜨는 태그</span>
-        <span className="publit-ticker-snap min-w-0 truncate text-sm font-black text-[#0b6975]">{topics[index]?.displayLabel}</span>
-      </div>
+      <button
+        type="button"
+        onClick={() => setExpanded((current) => !current)}
+        className={`w-full text-left transition-[transform,background-color,box-shadow] hover:bg-white active:scale-[0.96] ${
+          compact
+            ? 'rounded-[13px] bg-[#fbfbf7] px-2.5 py-2'
+            : 'rounded-[14px] bg-white/95 px-4 py-3 shadow-[2px_2px_0_rgba(35,35,31,0.72)]'
+        }`}
+        aria-expanded={expanded}
+      >
+        <div className="flex min-w-0 items-center justify-between gap-2">
+          <span className={`shrink-0 font-black text-[#6f6b61] ${compact ? 'text-[11px]' : 'text-xs'}`}>지금 뜨는 태그</span>
+          <span className="relative min-w-0 flex-1 overflow-hidden text-right">
+            <span
+              key={`${current.normalizedKey}-${index}`}
+              data-testid="hot-tag-current"
+              className={`anigeunde-hot-tag-item inline-block max-w-full truncate font-black text-[#0b6975] ${compact ? 'text-xs' : 'text-sm'}`}
+            >
+              {current.displayLabel}
+            </span>
+          </span>
+        </div>
+      </button>
       {expanded ? (
-        <ol className="relative z-[91] mt-3 grid gap-2">
+        <ol
+          className={`anigeunde-hot-tag-list z-[150] grid gap-2 rounded-[14px] bg-white/98 p-3 shadow-[2px_2px_0_rgba(35,35,31,0.72)] backdrop-blur-md ${
+            compact ? 'absolute left-0 right-0 top-[calc(100%+0.5rem)]' : 'relative mt-3'
+          }`}
+        >
           {topics.slice(0, 10).map((topic, topicIndex) => (
-            <li key={`${topic.scope}-${topic.normalizedKey}`} className="flex items-center justify-between gap-3 text-xs text-[#5d5a51]">
-              <span>{topicIndex + 1}. {topic.displayLabel}</span>
-              <span className="text-right text-[#6f6b61]">{topic.heatLabel}</span>
+            <li key={`${topic.scope}-${topic.normalizedKey}`} className="flex items-center justify-between gap-3 rounded-lg bg-[#fbfbf7] px-3 py-2 text-xs text-[#5d5a51]">
+              <span className="truncate font-black">{topicIndex + 1}. {topic.displayLabel}</span>
+              <span className="shrink-0 text-right text-[#6f6b61]">{topic.heatLabel}</span>
             </li>
           ))}
         </ol>
       ) : null}
-    </button>
+    </div>
   );
 }

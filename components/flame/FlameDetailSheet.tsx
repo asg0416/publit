@@ -55,6 +55,7 @@ function isGlittery(label: string) {
 
 export function FlameDetailSheet({ flame, flames, onClose, onSelect, onReact, onReport }: FlameDetailSheetProps) {
   const [reportOpen, setReportOpen] = useState(false);
+  const [swipeDirection, setSwipeDirection] = useState<'idle' | 'forward' | 'back'>('idle');
   const touchStartX = useRef<number | null>(null);
   const activeFlame = flame ? flames.find((item) => item.id === flame.id) ?? flame : null;
   const currentIndex = activeFlame ? flames.findIndex((item) => item.id === activeFlame.id) : -1;
@@ -63,12 +64,18 @@ export function FlameDetailSheet({ flame, flames, onClose, onSelect, onReact, on
   const goTo = (direction: -1 | 1) => {
     if (!canSwipe) return;
     const nextIndex = (currentIndex + direction + flames.length) % flames.length;
+    setSwipeDirection(direction > 0 ? 'forward' : 'back');
     onSelect(flames[nextIndex]);
+  };
+
+  const handleClose = () => {
+    setSwipeDirection('idle');
+    onClose();
   };
 
   return (
     <>
-      <BottomSheet open={Boolean(activeFlame)} title={activeFlame?.tagLabel ?? '생각'} onClose={onClose}>
+      <BottomSheet open={Boolean(activeFlame)} title={activeFlame?.tagLabel ?? '생각'} onClose={handleClose}>
         {activeFlame ? (
           <div className="grid gap-4">
             <section
@@ -88,10 +95,11 @@ export function FlameDetailSheet({ flame, flames, onClose, onSelect, onReact, on
               }}
             >
               <div
+                key={activeFlame.id}
                 data-testid="thought-speech-bubble"
                 className={`relative grid grid-cols-[auto_minmax(0,1fr)] gap-3 rounded-[22px] p-3 ${strengthBubbleClass(activeFlame.selfStrength)} ${
                   isGlittery(activeFlame.heatLabel) ? 'anigeunde-glitter' : ''
-                }`}
+                } ${swipeDirection === 'forward' ? 'anigeunde-swipe-card-forward' : ''} ${swipeDirection === 'back' ? 'anigeunde-swipe-card-back' : ''}`}
               >
                 <span className="grid size-12 place-items-center rounded-[16px] bg-white text-2xl shadow-[1px_1px_0_rgba(35,35,31,0.52)]">
                   {CHARACTER_EMOJI[characterKeyForThought({

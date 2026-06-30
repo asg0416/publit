@@ -96,7 +96,7 @@ test('keeps the full map controls separated on desktop', async ({ page }) => {
   const shell = page.getByTestId('publit-shell');
   const map = page.getByTestId('mapglot-background');
   const thoughtMap = page.getByTestId('thought-map');
-  const composeToolbar = page.getByTestId('thought-compose-toolbar');
+  const composer = page.getByTestId('inline-thought-composer');
   const rangeButton = page.getByRole('button', { name: '반경 설정' });
 
   await expect(map).toBeVisible();
@@ -108,20 +108,18 @@ test('keeps the full map controls separated on desktop', async ({ page }) => {
 
   const shellBox = await requiredBox(shell);
   const thoughtBox = await requiredBox(thoughtMap);
-  const toolbarBox = await requiredBox(composeToolbar);
+  const composerBox = await requiredBox(composer);
 
   expectInside(thoughtBox, shellBox);
-  expectBelow(thoughtBox, toolbarBox, 16);
-  expect(toolbarBox.y + toolbarBox.height).toBeLessThanOrEqual(shellBox.y + shellBox.height - 8);
+  expectBelow(thoughtBox, composerBox, 16);
+  expect(composerBox.y + composerBox.height).toBeLessThanOrEqual(shellBox.y + shellBox.height - 8);
 
   await rangeButton.click();
   const rangeBox = await requiredBox(page.getByTestId('range-control'));
   expectInside(rangeBox, shellBox);
 
-  await composeToolbar.click();
-  const sheetBox = await requiredBox(page.getByTestId('bottom-sheet-panel'));
-  expect(sheetBox.width).toBeLessThanOrEqual(560);
-  expect(sheetBox.x).toBeGreaterThan(300);
+  await composer.getByRole('textbox', { name: '지금 떠오른 생각' }).click();
+  await expect(page.getByTestId('bottom-sheet-panel')).toHaveCount(0);
 });
 
 test('keeps the full map controls separated on mobile', async ({ page }) => {
@@ -131,7 +129,7 @@ test('keeps the full map controls separated on mobile', async ({ page }) => {
 
   const shell = page.getByTestId('publit-shell');
   const thoughtMap = page.getByTestId('thought-map');
-  const composeToolbar = page.getByTestId('thought-compose-toolbar');
+  const composer = page.getByTestId('inline-thought-composer');
   const rangeButton = page.getByRole('button', { name: '반경 설정' });
 
   await expect(page.getByTestId('mapglot-background')).toBeVisible();
@@ -142,19 +140,17 @@ test('keeps the full map controls separated on mobile', async ({ page }) => {
 
   const shellBox = await requiredBox(shell);
   const thoughtBox = await requiredBox(thoughtMap);
-  const toolbarBox = await requiredBox(composeToolbar);
+  const composerBox = await requiredBox(composer);
 
   expect(shellBox.width).toBeLessThanOrEqual(390);
   expectInside(thoughtBox, shellBox);
-  expectBelow(thoughtBox, toolbarBox, 12);
-  expect(toolbarBox.y + toolbarBox.height).toBeLessThanOrEqual(shellBox.y + shellBox.height - 8);
+  expectBelow(thoughtBox, composerBox, 12);
+  expect(composerBox.y + composerBox.height).toBeLessThanOrEqual(shellBox.y + shellBox.height - 8);
 
   await rangeButton.click();
   const rangeBox = await requiredBox(page.getByTestId('range-control'));
   expectInside(rangeBox, shellBox);
 
-  await composeToolbar.click();
-  const sheetBox = await requiredBox(page.getByTestId('bottom-sheet-panel'));
-  expect(sheetBox.width).toBeGreaterThan(340);
-  expect(sheetBox.x).toBeLessThan(8);
+  await composer.getByRole('textbox', { name: '지금 떠오른 생각' }).click();
+  await expect(page.getByTestId('bottom-sheet-panel')).toHaveCount(0);
 });

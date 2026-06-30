@@ -95,6 +95,7 @@ test('opens details, reacts without counts, and removes a hidden report', async 
     changedTouches: [{ identifier: 1, target: await panel.getByTestId('thought-detail-swipe-area').elementHandle(), clientX: 80, clientY: 520 }],
   });
   await expect(page.getByRole('dialog', { name: '#지역교통' })).toBeVisible();
+  await expect(panel.getByTestId('thought-speech-bubble')).toHaveClass(/anigeunde-swipe-card-forward/);
   await expect(panel.getByTestId('thought-speech-bubble')).toContainText('🐥');
   await expect(panel.getByTestId('thought-speech-bubble')).toContainText('버스 정류장 앞 신호가 오늘 유난히 길어요.');
 

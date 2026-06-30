@@ -46,9 +46,8 @@ test.beforeEach(async ({ page }) => {
 test('expands hot tags, accepts suggested tags, and blocks unsafe text', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: /위치 허용/ }).click();
-  await page.getByRole('button', { name: '생각 띄우기' }).click();
 
-  await page.getByRole('button', { name: /지금 뜨는 태그/ }).last().click();
+  await page.getByRole('button', { name: /지금 뜨는 태그/ }).click();
   await expect(page.getByText('1. #투표용지이슈')).toBeVisible();
   await expect(page.getByText(/사용\s*수|조회수|반응\s*\d+개/)).toHaveCount(0);
 

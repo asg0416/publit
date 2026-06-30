@@ -131,11 +131,19 @@ test('renders the map-first Anigeunde home without old map globals', async ({ pa
   await page.goto('/');
 
   await expect(page.getByRole('heading', { name: '아니근데' })).toBeVisible();
+  await expect(page.getByTestId('top-brand-bar')).toBeVisible();
   await expect(page.getByTestId('brand-logo')).toContainText('🤔');
   await expect(page.getByTestId('brand-logo')).toContainText('아니근데');
+  await expect(page.getByTestId('hot-tag-ticker')).toBeVisible();
+  await expect(page.getByTestId('hot-tag-current')).toHaveClass(/anigeunde-hot-tag-item/);
   await expect(page.getByText('🤔')).toBeVisible();
   await expect(page.getByText('지금 뜨는 태그')).toBeVisible();
   await expect(page.getByText('지금 나만 이 생각해?')).toBeVisible();
+  const brandBox = await page.getByTestId('brand-logo').boundingBox();
+  const tickerBox = await page.getByTestId('hot-tag-ticker').boundingBox();
+  expect(brandBox).not.toBeNull();
+  expect(tickerBox).not.toBeNull();
+  expect(Math.abs(brandBox!.y - tickerBox!.y)).toBeLessThan(10);
   await page.getByRole('button', { name: /위치 허용/ }).click();
 
   await expect(page.getByTestId('mapglot-background')).toBeVisible();
@@ -149,10 +157,9 @@ test('renders the map-first Anigeunde home without old map globals', async ({ pa
   await expect(page.getByRole('button', { name: '50m' })).toBeVisible();
   await expect(page.getByRole('button', { name: '500m' })).toBeVisible();
   await expect(page.getByRole('button', { name: '전국' })).toBeVisible();
-  await expect(page.getByRole('button', { name: '생각 띄우기' })).toBeVisible();
-  await page.getByRole('button', { name: '생각 띄우기' }).click();
-  await expect(page.getByTestId('range-control')).toHaveCount(0);
-  await expect(page.getByRole('dialog', { name: '생각 띄우기' })).toBeVisible();
+  await expect(page.getByTestId('inline-thought-composer')).toBeVisible();
+  await expect(page.getByRole('button', { name: '생각 띄우기', exact: true })).toBeVisible();
+  await expect(page.getByRole('dialog', { name: '생각 띄우기' })).toHaveCount(0);
 
   await expect.poll(async () => page.evaluate(() => ({
     googleMaps: Boolean((window as unknown as { google?: { maps?: unknown } }).google?.maps),
@@ -161,14 +168,11 @@ test('renders the map-first Anigeunde home without old map globals', async ({ pa
   }))).toEqual({ googleMaps: false, mapbox: false, leaflet: false });
 });
 
-test('creates a flame through the sheet using mocked edge functions', async ({ page }) => {
+test('creates a flame through the inline composer using mocked edge functions', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: /위치 허용/ }).click();
 
-  await page.getByRole('button', { name: '생각 띄우기' }).click();
-  await expect(page.getByRole('dialog', { name: '생각 띄우기' })).toBeVisible();
-  await expect(page.getByText('생각 분위기')).toBeVisible();
-  await expect(page.getByText('생각 크기')).toBeVisible();
+  await expect(page.getByTestId('inline-thought-composer')).toBeVisible();
   await expect(page.getByText('캐릭터')).toBeVisible();
   await page.getByRole('textbox', { name: '지금 떠오른 생각' }).fill('새로 띄운 생각이에요.');
   await page.getByLabel('생각 태그').fill('#카페대화');

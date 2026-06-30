@@ -1,20 +1,20 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { LocateFixed, Plus, RefreshCw, SlidersHorizontal } from 'lucide-react';
+import { LocateFixed, RefreshCw, SlidersHorizontal } from 'lucide-react';
 import { LocationGate } from '@/components/location/LocationGate';
 import { useMovingLocation } from '@/components/location/useMovingLocation';
 import { MapBackground } from '@/components/map/MapBackground';
 import { RANGE_OPTIONS, RangeControl } from '@/components/map/RangeControl';
 import { ThoughtOverlay } from '@/components/map/ThoughtOverlay';
-import { CreateFlameSheet } from '@/components/flame/CreateFlameSheet';
 import { FlameDetailSheet } from '@/components/flame/FlameDetailSheet';
 import { HotTagTicker } from '@/components/flame/HotTagTicker';
+import { InlineThoughtComposer } from '@/components/flame/InlineThoughtComposer';
 import { getDeviceHash } from '@/lib/device';
 import { publitApi } from '@/lib/supabaseClient';
 import { encodeGrid } from '@/lib/location/geohash';
 import { distanceMeters } from '@/lib/location/useMovingLocationCore';
-import type { CharacterKey, Flame as FlameType, HotTopic, ReactionType, ReportReason, TagSuggestion, ThoughtRangeValue } from '@/lib/flame/types';
+import type { CharacterKey, Flame as FlameType, FlameCategory, FlameMood, HotTopic, ReactionType, ReportReason, TagSuggestion, ThoughtRangeValue } from '@/lib/flame/types';
 
 const NEARBY_REFRESH_INTERVAL_MS = 12_000;
 type PositionState = { lat: number; lng: number; grid: string };
@@ -32,7 +32,6 @@ export function PublitApp() {
   const [suggestions, setSuggestions] = useState<TagSuggestion[]>([]);
   const [slots, setSlots] = useState<{ used: number; limit: number; activeFlames: Array<{ id: string; tagLabel: string; status: string; createdAt: string }> } | null>(null);
   const [selected, setSelected] = useState<FlameType | null>(null);
-  const [createOpen, setCreateOpen] = useState(false);
   const [viewPosition, setViewPosition] = useState<PositionState | null>(null);
   const [devicePosition, setDevicePosition] = useState<PositionState | null>(null);
   const [, setStatus] = useState('지금 이곳에 떠도는 생각을 확인해보세요.');
@@ -139,19 +138,19 @@ export function PublitApp() {
     }
   }, [viewPosition]);
 
-  const handleCreate = useCallback(async (input: { text: string; tagLabel: string; category: string; mood: string; selfStrength: number; characterKey: CharacterKey }) => {
+  const handleCreate = useCallback(async (input: { text: string; tagLabel: string; category: FlameCategory; mood: FlameMood; selfStrength: 1 | 2 | 3; characterKey: CharacterKey }) => {
     if (!deviceHash) {
       const message = '기기 확인이 아직 끝나지 않았어요. 잠시 후 다시 눌러주세요.';
       setCreateFeedback(message);
       setStatus(message);
-      return;
+      return false;
     }
     if (!devicePosition) {
       const message = '위치 권한을 먼저 허용하면 생각을 띄울 수 있어요.';
       setCreateFeedback(message);
       setStatus(message);
       requestLocation();
-      return;
+      return false;
     }
     setCreateFeedback('');
     try {
@@ -170,7 +169,6 @@ export function PublitApp() {
         };
         setViewPosition(devicePosition);
         setFlames((current) => [createdFlame, ...current.filter((flame) => flame.id !== createdFlame.id)]);
-        setCreateOpen(false);
         setCreateFeedback('');
         setStatus('내 생각이 지도 위에 떠올랐어요.');
       }
@@ -179,11 +177,13 @@ export function PublitApp() {
       } else {
         void refreshSlots();
       }
+      return Boolean(result.flame);
     } catch (error) {
       const message = error instanceof Error && error.message === 'FLAME_SLOT_FULL' ? '내 생각 슬롯이 모두 차 있어요.' : '생각을 띄우지 못했어요. 잠시 후 다시 시도해보세요.';
       setCreateFeedback(message);
       setStatus(message);
     }
+    return false;
   }, [deviceHash, devicePosition, refreshSlots, requestLocation, selectedRange.displayScope, selectedRange.value]);
 
   const handleExtinguish = useCallback(async (flameId: string) => {
@@ -228,22 +228,22 @@ export function PublitApp() {
   return (
     <main data-testid="publit-shell" className="relative min-h-[100svh] overflow-hidden bg-[#e9ece6] text-[#252520]">
       <MapBackground center={viewPosition} rangeValue={rangeValue} onCenterChange={handleMapCenterChange} />
-      <div className="pointer-events-none absolute left-3 right-3 top-3 z-50 sm:left-4 sm:right-4">
-        <div data-testid="brand-logo" className="inline-flex items-center gap-2 rounded-[18px] bg-white/92 px-3 py-2 shadow-[1px_1px_0_rgba(35,35,31,0.68)] backdrop-blur-sm">
-          <span className="text-xl leading-none" aria-hidden="true">🤔</span>
-          <div className="min-w-0">
-            <h1 className="text-[1.28rem] font-black leading-none tracking-normal text-[#252520]">아니근데</h1>
-            <p className="mt-0.5 text-[10px] font-black leading-tight text-[#6f6b61]">지금 나만 이 생각해?</p>
+      <div data-testid="top-brand-bar" className="pointer-events-auto absolute left-3 right-3 top-3 z-[120] sm:left-4 sm:right-4">
+        <div className="flex min-h-[58px] items-center gap-2 rounded-[18px] bg-white/94 p-2 shadow-[1px_1px_0_rgba(35,35,31,0.58)] backdrop-blur-md">
+          <div data-testid="brand-logo" className="flex shrink-0 items-center gap-2 rounded-[14px] bg-white px-2 py-1.5">
+            <span className="text-xl leading-none" aria-hidden="true">🤔</span>
+            <div className="min-w-0">
+              <h1 className="text-[1.15rem] font-black leading-none tracking-normal text-[#252520]">아니근데</h1>
+              <p className="mt-0.5 text-[10px] font-black leading-tight text-[#6f6b61]">지금 나만 이 생각해?</p>
+            </div>
           </div>
+          <div className="h-9 w-px shrink-0 bg-[#e7e5df]" />
+          <HotTagTicker topics={topics} compact />
         </div>
       </div>
 
-      <div className="pointer-events-auto absolute left-3 right-3 top-[4.6rem] z-[90] sm:left-4 sm:right-4">
-        <HotTagTicker topics={topics} />
-      </div>
-
       {shouldShowLocationGate ? (
-        <div className="absolute left-3 right-3 top-[8.75rem] z-40 mx-auto max-w-md sm:left-4 sm:right-4">
+        <div className="absolute left-3 right-3 top-[5.6rem] z-40 mx-auto max-w-md sm:left-4 sm:right-4">
           <LocationGate state={locationState} onRequest={requestLocation} onQuietBrowse={() => setStatus('조용히 둘러보는 중이에요.')} />
         </div>
       ) : null}
@@ -259,7 +259,7 @@ export function PublitApp() {
         />
       </div>
 
-      <div className="absolute right-3 top-[8.75rem] z-[60] grid gap-2 sm:right-4">
+      <div className="absolute right-3 top-[5.6rem] z-[60] grid gap-2 sm:right-4">
         <button
           type="button"
           onClick={() => setRangeOpen((current) => !current)}
@@ -290,7 +290,7 @@ export function PublitApp() {
       </div>
 
       {rangeOpen ? (
-        <div className="absolute right-[3.6rem] top-[8.75rem] z-[70] sm:right-[4.1rem]">
+        <div className="absolute right-[3.6rem] top-[5.6rem] z-[70] sm:right-[4.1rem]">
           <RangeControl
             value={rangeValue}
             onChange={(next) => {
@@ -301,18 +301,16 @@ export function PublitApp() {
         </div>
       ) : null}
 
-      <button
-        type="button"
-        aria-label="생각 띄우기 열기"
-        data-testid="thought-compose-toolbar"
-        onClick={() => { setCreateFeedback(''); setRangeOpen(false); setCreateOpen(true); }}
-        className="absolute bottom-4 right-4 z-40 flex min-h-11 items-center gap-2 rounded-full bg-white/95 px-3 py-2 text-left shadow-[2px_2px_0_rgba(35,35,31,0.82)] transition-transform active:scale-[0.96] sm:right-5"
-      >
-        <span className="block text-sm font-black leading-tight text-[#252520]">생각 띄우기</span>
-        <span className="grid size-9 place-items-center rounded-full bg-[#a8ddc1] text-[#153424] shadow-[1px_1px_0_rgba(35,35,31,0.68)]">
-          <Plus size={19} />
-        </span>
-      </button>
+      <InlineThoughtComposer
+        topics={topics}
+        remoteSuggestions={suggestions}
+        slots={slots}
+        onFocus={() => setRangeOpen(false)}
+        onSuggest={handleSuggest}
+        onSubmit={handleCreate}
+        onExtinguish={handleExtinguish}
+        submitMessage={createFeedback}
+      />
 
       {displayedFlames.length === 0 && !shouldShowLocationGate ? (
         <div className="pointer-events-none absolute left-5 right-5 top-1/2 z-20 mx-auto max-w-xs -translate-y-1/2 rounded-[14px] bg-white/92 px-4 py-3 text-center shadow-[2px_2px_0_rgba(35,35,31,0.72)]">
@@ -321,18 +319,6 @@ export function PublitApp() {
         </div>
       ) : null}
 
-      <CreateFlameSheet
-        key={createOpen ? 'create-open' : 'create-closed'}
-        open={createOpen}
-        topics={topics}
-        remoteSuggestions={suggestions}
-        slots={slots}
-        onClose={() => setCreateOpen(false)}
-        onSuggest={handleSuggest}
-        onSubmit={handleCreate}
-        onExtinguish={handleExtinguish}
-        submitMessage={createFeedback}
-      />
       <FlameDetailSheet
         flame={selected}
         flames={displayedFlames}
