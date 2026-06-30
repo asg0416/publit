@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { getZoomForThoughtRange } from '@/lib/map/rangeViewport';
+import type { ThoughtRangeValue } from '@/lib/flame/types';
 
 type MapCenter = {
   lat: number;
@@ -9,9 +11,15 @@ type MapCenter = {
 
 type MapBackgroundProps = {
   center?: MapCenter | null;
+  rangeValue: ThoughtRangeValue;
+  onCenterChange?: (center: MapCenter) => void;
 };
 
 type MapGlotMap = {
+  easeTo?: (options: { center?: [number, number]; zoom?: number; duration?: number; essential?: boolean }) => void;
+  getCenter?: () => { lat: number; lng: number };
+  off?: (event: 'moveend', handler: () => void) => void;
+  on?: (event: 'moveend', handler: () => void) => void;
   remove?: () => void;
   resize?: () => void;
   setCenter?: (center: [number, number]) => void;
@@ -91,18 +99,37 @@ function toMapglotCenter(center?: MapCenter | null): [number, number] {
   return [center.lng, center.lat];
 }
 
-export function MapBackground({ center }: MapBackgroundProps) {
+function moveMap(map: MapGlotMap, center: [number, number], zoom: number, animated: boolean) {
+  if (map.easeTo) {
+    map.easeTo({ center, zoom, duration: animated ? 280 : 0, essential: true });
+    return;
+  }
+  map.setCenter?.(center);
+  map.setZoom?.(zoom);
+}
+
+export function MapBackground({ center, rangeValue, onCenterChange }: MapBackgroundProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<MapGlotMap | null>(null);
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
+  const onCenterChangeRef = useRef(onCenterChange);
   const [initialMapOptions] = useState(() => ({
     center: toMapglotCenter(center),
-    hasLocation: Boolean(center),
   }));
   const [state, setState] = useState<'fallback' | 'loading' | 'ready'>(
     mapglotKey && !mapglotDisabled ? 'loading' : 'fallback',
   );
   const mapCenter = useMemo(() => toMapglotCenter(center), [center]);
+  const mapZoom = useMemo(() => getZoomForThoughtRange(rangeValue, center?.lat ?? 37.5665), [center?.lat, rangeValue]);
+  const latestCameraRef = useRef({ center: mapCenter, zoom: mapZoom });
+
+  useEffect(() => {
+    onCenterChangeRef.current = onCenterChange;
+  }, [onCenterChange]);
+
+  useEffect(() => {
+    latestCameraRef.current = { center: mapCenter, zoom: mapZoom };
+  }, [mapCenter, mapZoom]);
 
   useEffect(() => {
     if (!mapglotKey || mapglotDisabled || !containerRef.current) {
@@ -113,6 +140,7 @@ export function MapBackground({ center }: MapBackgroundProps) {
     let cancelled = false;
     let resizeTimer: number | null = null;
     let cleanupResize: (() => void) | null = null;
+    let cleanupMoveEnd: (() => void) | null = null;
     setState('loading');
 
     ensureMapglotAssets()
@@ -121,7 +149,7 @@ export function MapBackground({ center }: MapBackgroundProps) {
         mapRef.current = window.MapGlot.map(containerRef.current, {
           key: mapglotKey,
           center: initialMapOptions.center,
-          zoom: initialMapOptions.hasLocation ? 14 : 11,
+          zoom: latestCameraRef.current.zoom,
           style: 'positron',
           view: 'minimal',
           search: false,
@@ -138,6 +166,11 @@ export function MapBackground({ center }: MapBackgroundProps) {
         const resizeMap = () => {
           window.requestAnimationFrame(() => mapRef.current?.resize?.());
         };
+        const handleMoveEnd = () => {
+          const nextCenter = mapRef.current?.getCenter?.();
+          if (!nextCenter) return;
+          onCenterChangeRef.current?.({ lat: nextCenter.lat, lng: nextCenter.lng });
+        };
 
         resizeObserverRef.current?.disconnect();
         if ('ResizeObserver' in window) {
@@ -148,6 +181,9 @@ export function MapBackground({ center }: MapBackgroundProps) {
         cleanupResize = () => window.removeEventListener('resize', resizeMap);
         resizeMap();
         resizeTimer = window.setTimeout(resizeMap, 250);
+        mapRef.current.on?.('moveend', handleMoveEnd);
+        cleanupMoveEnd = () => mapRef.current?.off?.('moveend', handleMoveEnd);
+        moveMap(mapRef.current, latestCameraRef.current.center, latestCameraRef.current.zoom, false);
         setState('ready');
       })
       .catch(() => {
@@ -158,6 +194,7 @@ export function MapBackground({ center }: MapBackgroundProps) {
       cancelled = true;
       if (resizeTimer) window.clearTimeout(resizeTimer);
       cleanupResize?.();
+      cleanupMoveEnd?.();
       resizeObserverRef.current?.disconnect();
       resizeObserverRef.current = null;
       mapRef.current?.remove?.();
@@ -167,14 +204,15 @@ export function MapBackground({ center }: MapBackgroundProps) {
 
   useEffect(() => {
     if (!mapRef.current) return;
-    mapRef.current.setCenter?.(mapCenter);
-    mapRef.current.setZoom?.(center ? 14 : 11);
-  }, [center, mapCenter]);
+    moveMap(mapRef.current, mapCenter, mapZoom, true);
+  }, [mapCenter, mapZoom]);
 
   return (
     <div
       data-testid="mapglot-background"
       data-map-provider="mapglot"
+      data-map-range={rangeValue}
+      data-map-zoom={mapZoom.toFixed(2)}
       data-map-state={state}
       className="absolute inset-0 overflow-hidden bg-[#e9ece6]"
       aria-hidden="true"

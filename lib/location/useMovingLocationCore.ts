@@ -12,6 +12,7 @@ export type NextLocationSignal = {
   lng: number;
   grid?: string;
   now: number;
+  force?: boolean;
 };
 
 export function distanceMeters(a: { lat: number; lng: number }, b: { lat: number; lng: number }): number {
@@ -27,6 +28,7 @@ export function distanceMeters(a: { lat: number; lng: number }, b: { lat: number
 }
 
 export function shouldRefreshLocation(previous: LastLocationFetch | null, next: NextLocationSignal): boolean {
+  if (next.force) return true;
   if (!previous) return true;
   if (next.now - previous.fetchedAt < 30_000) return false;
 

@@ -12,6 +12,8 @@ import { FlameDetailSheet } from '@/components/flame/FlameDetailSheet';
 import { HotTagTicker } from '@/components/flame/HotTagTicker';
 import { getDeviceHash } from '@/lib/device';
 import { publitApi } from '@/lib/supabaseClient';
+import { encodeGrid } from '@/lib/location/geohash';
+import { distanceMeters } from '@/lib/location/useMovingLocationCore';
 import type { CharacterKey, Flame as FlameType, HotTopic, ReactionType, ReportReason, TagSuggestion, ThoughtRangeValue } from '@/lib/flame/types';
 
 const NEARBY_REFRESH_INTERVAL_MS = 12_000;
@@ -103,6 +105,19 @@ export function PublitApp() {
   const hotSummary = useMemo(() => topics.slice(0, 3), [topics]);
   const selectedRange = useMemo(() => RANGE_OPTIONS.find((option) => option.value === rangeValue) ?? RANGE_OPTIONS[3], [rangeValue]);
   const shouldShowLocationGate = locationState.status !== 'granted';
+
+  const handleMapCenterChange = useCallback((position: { lat: number; lng: number }) => {
+    if (locationState.status !== 'granted') return;
+
+    const next = {
+      lat: position.lat,
+      lng: position.lng,
+      grid: encodeGrid(position.lat, position.lng),
+    };
+    if (lastPosition && distanceMeters(lastPosition, next) < 25) return;
+
+    void refreshNearby(next, { silent: true });
+  }, [lastPosition, locationState.status, refreshNearby]);
 
   const handleSuggest = useCallback(async (text: string) => {
     try {
@@ -199,7 +214,7 @@ export function PublitApp() {
 
   return (
     <main data-testid="publit-shell" className="relative min-h-[100svh] overflow-hidden bg-[#e9ece6] text-[#252520]">
-      <MapBackground center={lastPosition} />
+      <MapBackground center={lastPosition} rangeValue={rangeValue} onCenterChange={handleMapCenterChange} />
       <div className="pointer-events-none absolute inset-0 z-20">
         <div className="pointer-events-auto absolute left-3 right-3 top-3 sm:left-4 sm:right-4">
           <HotTagTicker topics={topics} />
@@ -221,14 +236,14 @@ export function PublitApp() {
         </div>
       ) : null}
 
-      <div data-testid="thought-panel" className="absolute inset-0">
+      <div data-testid="thought-panel" className="pointer-events-none absolute inset-0">
         <ThoughtOverlay thoughts={displayedFlames} rangeLabel={selectedRange.label} onSelect={setSelected} />
       </div>
 
       <div className="absolute right-3 top-[8rem] z-30 grid gap-2 sm:right-4">
         <button
           type="button"
-          onClick={() => lastPosition ? void refreshNearby(lastPosition) : requestLocation()}
+          onClick={() => lastPosition ? void refreshNearby({ ...lastPosition }) : requestLocation({ forceRefresh: true })}
           className="grid size-9 place-items-center rounded-[10px] bg-white text-[#252520] shadow-[2px_2px_0_rgba(35,35,31,0.72)] transition-transform active:scale-[0.96]"
           aria-label="새로고침"
         >
@@ -236,9 +251,9 @@ export function PublitApp() {
         </button>
         <button
           type="button"
-          onClick={requestLocation}
+          onClick={() => requestLocation({ forceRefresh: true })}
           className="grid size-9 place-items-center rounded-[10px] bg-white text-[#252520] shadow-[2px_2px_0_rgba(35,35,31,0.72)] transition-transform active:scale-[0.96]"
-          aria-label="위치 새로고침"
+          aria-label="현재 위치로 이동"
         >
           <LocateFixed size={16} />
         </button>

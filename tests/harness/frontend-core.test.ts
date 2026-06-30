@@ -8,6 +8,7 @@ import {
   simulateParticles,
   summarizeClusters,
 } from '../../lib/flame/particleSimulation.ts';
+import { getThoughtRangeMeters, getZoomForThoughtRange } from '../../lib/map/rangeViewport.ts';
 import { CHARACTER_EMOJI, characterKeyForThought } from '../../components/map/character.ts';
 
 describe('Publit frontend core harness', () => {
@@ -32,6 +33,22 @@ describe('Publit frontend core harness', () => {
     assert.equal(shouldRefreshLocation(previous, { lat: 35.1806, lng: 129.0768, grid: 'g:wydm6', now: 20_000 }), false);
     assert.equal(shouldRefreshLocation(previous, { lat: 35.1806, lng: 129.0768, grid: 'g:wydm6', now: 40_000 }), true);
     assert.equal(shouldRefreshLocation(previous, { lat: 35.1796, lng: 129.0757, grid: 'g:wydm7', now: 40_000 }), true);
+    assert.equal(shouldRefreshLocation(previous, { lat: 35.1795, lng: 129.0756, grid: 'g:wydm6', now: 2_000, force: true }), true);
+  });
+
+  it('maps thought ranges to camera zoom levels around the current center', () => {
+    assert.equal(getThoughtRangeMeters('50m'), 50);
+    assert.equal(getThoughtRangeMeters('500m'), 500);
+    assert.equal(getThoughtRangeMeters('national'), null);
+
+    const zoom50m = getZoomForThoughtRange('50m', 37.5665);
+    const zoom500m = getZoomForThoughtRange('500m', 37.5665);
+    const zoomNational = getZoomForThoughtRange('national', 37.5665);
+
+    assert.ok(zoom50m > zoom500m);
+    assert.ok(zoom500m > zoomNational);
+    assert.ok(zoom50m <= 18);
+    assert.ok(zoomNational >= 5);
   });
 
   it('keeps same-topic particles moving as one visible cluster', () => {

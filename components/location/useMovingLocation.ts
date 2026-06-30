@@ -12,6 +12,10 @@ export type LocationState = {
   message?: string;
 };
 
+type RequestLocationOptions = {
+  forceRefresh?: boolean;
+};
+
 const LOCATION_UNSUPPORTED_MESSAGE = '이 브라우저에서는 위치 권한을 사용할 수 없어요.';
 const LOCATION_DENIED_MESSAGE = '브라우저나 OS에서 위치 권한이 막혀 있어요. 주소창 또는 시스템 위치 설정을 확인해주세요.';
 const LOCATION_UNAVAILABLE_MESSAGE = '권한은 요청됐지만 현재 위치를 가져오지 못했어요. PC의 위치 서비스나 네트워크 위치를 확인한 뒤 다시 시도해주세요.';
@@ -34,7 +38,7 @@ export function useMovingLocation(onRefresh: (position: { lat: number; lng: numb
   const lastFetch = useRef<LastLocationFetch | null>(null);
   const requestInFlight = useRef(false);
 
-  const acceptPosition = useCallback((position: GeolocationPosition) => {
+  const acceptPosition = useCallback((position: GeolocationPosition, options: RequestLocationOptions = {}) => {
     const lat = position.coords.latitude;
     const lng = position.coords.longitude;
     const grid = encodeGrid(lat, lng);
@@ -42,7 +46,7 @@ export function useMovingLocation(onRefresh: (position: { lat: number; lng: numb
     restoredGrantedPermissionInPage = true;
     setState({ status: 'granted', lat, lng, grid });
 
-    if (shouldRefreshLocation(lastFetch.current, { lat, lng, grid, now })) {
+    if (shouldRefreshLocation(lastFetch.current, { lat, lng, grid, now, force: options.forceRefresh })) {
       lastFetch.current = { lat, lng, grid, fetchedAt: now };
       onRefresh({ lat, lng, grid });
     }
@@ -54,7 +58,7 @@ export function useMovingLocation(onRefresh: (position: { lat: number; lng: numb
     setState((current) => ({ ...current, ...next }));
   }, []);
 
-  const requestLocation = useCallback(() => {
+  const requestLocation = useCallback((options: RequestLocationOptions = {}) => {
     if (!('geolocation' in navigator)) {
       setState({ status: 'unsupported', message: LOCATION_UNSUPPORTED_MESSAGE });
       return;
@@ -66,7 +70,7 @@ export function useMovingLocation(onRefresh: (position: { lat: number; lng: numb
     navigator.geolocation.getCurrentPosition(
       (position) => {
         requestInFlight.current = false;
-        acceptPosition(position);
+        acceptPosition(position, options);
       },
       rejectPosition,
       { enableHighAccuracy: false, maximumAge: 30_000, timeout: 10_000 },
