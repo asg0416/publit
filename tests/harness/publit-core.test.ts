@@ -41,7 +41,7 @@ describe('Publit shared Edge Function core', () => {
       lat: 35.1795,
       lng: 129.0756,
       reactionCount: 7,
-    });
+    }, new Date('2026-06-28T02:00:00.000Z'));
 
     assert.deepEqual(Object.keys(response).sort(), [
       'category',
