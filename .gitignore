@@ -6,3 +6,4 @@ supabase/.temp/
 out/
 test-results/
 playwright-report/
+.superpowers/
