@@ -94,6 +94,7 @@ function toMapglotCenter(center?: MapCenter | null): [number, number] {
 export function MapBackground({ center }: MapBackgroundProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<MapGlotMap | null>(null);
+  const resizeObserverRef = useRef<ResizeObserver | null>(null);
   const [initialMapOptions] = useState(() => ({
     center: toMapglotCenter(center),
     hasLocation: Boolean(center),
@@ -110,6 +111,8 @@ export function MapBackground({ center }: MapBackgroundProps) {
     }
 
     let cancelled = false;
+    let resizeTimer: number | null = null;
+    let cleanupResize: (() => void) | null = null;
     setState('loading');
 
     ensureMapglotAssets()
@@ -131,7 +134,20 @@ export function MapBackground({ center }: MapBackgroundProps) {
           compass: false,
           geolocate: false,
         });
-        mapRef.current.resize?.();
+
+        const resizeMap = () => {
+          window.requestAnimationFrame(() => mapRef.current?.resize?.());
+        };
+
+        resizeObserverRef.current?.disconnect();
+        if ('ResizeObserver' in window) {
+          resizeObserverRef.current = new ResizeObserver(resizeMap);
+          resizeObserverRef.current.observe(containerRef.current);
+        }
+        window.addEventListener('resize', resizeMap);
+        cleanupResize = () => window.removeEventListener('resize', resizeMap);
+        resizeMap();
+        resizeTimer = window.setTimeout(resizeMap, 250);
         setState('ready');
       })
       .catch(() => {
@@ -140,6 +156,10 @@ export function MapBackground({ center }: MapBackgroundProps) {
 
     return () => {
       cancelled = true;
+      if (resizeTimer) window.clearTimeout(resizeTimer);
+      cleanupResize?.();
+      resizeObserverRef.current?.disconnect();
+      resizeObserverRef.current = null;
       mapRef.current?.remove?.();
       mapRef.current = null;
     };
@@ -159,7 +179,11 @@ export function MapBackground({ center }: MapBackgroundProps) {
       className="absolute inset-0 overflow-hidden bg-[#e9ece6]"
       aria-hidden="true"
     >
-      <div ref={containerRef} className="absolute inset-0" />
+      <div
+        ref={containerRef}
+        className="absolute inset-0 h-full w-full"
+        style={{ position: 'absolute', inset: 0, width: '100%', height: '100%' }}
+      />
       {state !== 'ready' ? <div className="anigeunde-map-surface absolute inset-0" /> : null}
       <div className="absolute bottom-3 left-3 rounded-full bg-white/90 px-2 py-1 text-[10px] font-black text-[#252520] shadow-[1px_1px_0_rgba(35,35,31,0.68)]">
         MapGlot
