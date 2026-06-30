@@ -1,11 +1,13 @@
 import {
   detectBlockedContent,
+  deriveCharacterKey,
   encodeGrid,
   normalizeTag,
   sanitizeFlameForResponse,
   selectActiveSlotState,
   validateCategory,
   validateDeviceHash,
+  validateDisplayScope,
   validateMood,
   validateStrength,
 } from '../_shared/publit.ts';
@@ -37,6 +39,9 @@ Deno.serve(async (req: Request) => {
     const mood = validateMood(body.mood);
     const selfStrength = validateStrength(body.selfStrength);
     const category = validateCategory(body.category, text, tag.normalized);
+    const characterKey = deriveCharacterKey(body.characterKey ?? `${deviceHash}:${tag.normalized}`);
+    const displayScope = validateDisplayScope(body.displayScope);
+    const regionCode = typeof body.regionCode === 'string' ? body.regionCode.slice(0, 40) : null;
     const positionLatitude = Number(body.lat);
     const positionLongitude = Number(body.lng);
     const geohash = encodeGrid(positionLatitude, positionLongitude);
@@ -74,6 +79,9 @@ Deno.serve(async (req: Request) => {
       mood,
       self_strength: selfStrength,
       geohash,
+      character_key: characterKey,
+      display_scope: displayScope,
+      region_code: regionCode,
       device_hash: deviceHash,
       status: 'live',
       live_until: liveUntil.toISOString(),
@@ -84,7 +92,7 @@ Deno.serve(async (req: Request) => {
     const { data: flame, error } = await supabase
       .from('flames')
       .insert(flameInsert)
-      .select('id, text, tag_label, tag_normalized, category, mood, self_strength, heat_score, status, created_at, live_until, ember_until, trace_until')
+      .select('id, text, tag_label, tag_normalized, category, mood, self_strength, heat_score, status, created_at, live_until, ember_until, trace_until, character_key, region_label, region_code, display_scope')
       .single();
 
     if (error) throw new PublitHttpError('FLAME_CREATE_FAILED', 500);

@@ -42,6 +42,9 @@ describe('Publit Edge Function contract', () => {
   it('uses server-side grid derivation and response sanitizers instead of raw coordinate persistence', () => {
     assert.match(source, /encodeGrid/);
     assert.match(source, /sanitizeFlameForResponse/);
+    assert.match(source, /character_key/);
+    assert.match(source, /display_scope/);
+    assert.match(source, /region_code/);
     assert.doesNotMatch(source, /\.insert\([^)]*(lat|lng|latitude|longitude|coordinates|raw_location)/is);
     assert.doesNotMatch(source, /json\([^)]*(reactionCount|reportCount|viewCount|userCount)/is);
   });

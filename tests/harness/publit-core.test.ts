@@ -36,6 +36,10 @@ describe('Publit shared Edge Function core', () => {
       live_until: '2026-06-28T04:00:00.000Z',
       ember_until: '2026-06-29T04:00:00.000Z',
       trace_until: '2026-07-06T04:00:00.000Z',
+      character_key: 'fox',
+      region_label: '근처',
+      region_code: 'busan',
+      display_scope: 'nearby',
       geohash: 'g:wydm6',
       device_hash: 'secret-device-hash',
       lat: 35.1795,
@@ -45,19 +49,27 @@ describe('Publit shared Edge Function core', () => {
 
     assert.deepEqual(Object.keys(response).sort(), [
       'category',
+      'characterKey',
       'createdAt',
+      'displayScope',
       'emberUntil',
       'heatLabel',
       'id',
       'lifecycle',
       'liveUntil',
       'mood',
+      'regionCode',
+      'regionLabel',
       'selfStrength',
       'tagLabel',
       'tagNormalized',
       'text',
     ]);
-    assert.equal(response.heatLabel, '이 불꽃이 조금 커지고 있어요');
+    assert.equal(response.characterKey, 'fox');
+    assert.equal(response.displayScope, 'nearby');
+    assert.equal(response.regionLabel, '근처');
+    assert.equal(response.regionCode, 'busan');
+    assert.equal(response.heatLabel, '요즘 이 태그가 모여요');
     assert.equal(JSON.stringify(response).includes('35.1795'), false);
     assert.equal(JSON.stringify(response).includes('129.0756'), false);
     assert.equal(JSON.stringify(response).includes('secret-device-hash'), false);
@@ -139,8 +151,8 @@ describe('Publit shared Edge Function core', () => {
       normalized: '투표용지이슈',
     });
     assert.equal(detectBlockedContent('특정인 주소를 공개하고 찾아가자').blocked, true);
-    assert.equal(getHeatLabel(0), '방금 켜진 불꽃');
-    assert.equal(getHeatLabel(18), '주변에서 이 불꽃이 뜨거워지고 있어요');
+    assert.equal(getHeatLabel(0), '방금 떠오른 생각');
+    assert.equal(getHeatLabel(18), '근처에서 자주 보여요');
 
     const suggestions = suggestTagsForText('부산 카페에서 선거랑 투표 얘기를 들었다', [
       { display_label: '#지역교통', normalized_key: '지역교통', category: 'local', scope: 'local', heat_score: 5 },

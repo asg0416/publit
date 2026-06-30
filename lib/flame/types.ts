@@ -4,6 +4,9 @@ export type FlameLifecycle = 'live' | 'ember' | 'trace';
 export type HeatLevel = 'fresh' | 'warming' | 'hot' | 'cluster';
 export type ReactionType = 'similar' | 'curious' | 'need_source' | 'watching';
 export type ReportReason = 'misinformation' | 'doxxing' | 'violence' | 'illegal' | 'hate' | 'spam' | 'privacy' | 'other';
+export type CharacterKey = 'turtle' | 'chick' | 'fox' | 'dog' | 'butterfly' | 'bug';
+export type DisplayScope = 'nearby' | 'district' | 'regional' | 'national';
+export type ThoughtRangeValue = '50m' | '100m' | '300m' | '500m' | '1km' | '3km' | '10km' | 'region' | 'national';
 
 export type Flame = {
   id: string;
@@ -18,7 +21,13 @@ export type Flame = {
   createdAt: string;
   liveUntil?: string;
   emberUntil?: string;
+  characterKey?: CharacterKey;
+  displayScope?: DisplayScope;
+  regionLabel?: string;
+  regionCode?: string;
 };
+
+export type Thought = Flame;
 
 export type HotTopic = {
   displayLabel: string;

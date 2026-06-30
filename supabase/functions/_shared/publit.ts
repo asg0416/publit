@@ -3,8 +3,11 @@ export type FlameMood = 'quiet' | 'curious' | 'serious' | 'want_talk';
 export type FlameStatus = 'live' | 'ember' | 'trace' | 'extinguished' | 'reported' | 'hidden' | 'expired';
 export type ReactionType = 'similar' | 'curious' | 'need_source' | 'watching';
 export type ReportReason = 'misinformation' | 'doxxing' | 'violence' | 'illegal' | 'hate' | 'spam' | 'privacy' | 'other';
+export type CharacterKey = 'turtle' | 'chick' | 'fox' | 'dog' | 'butterfly' | 'bug';
+export type DisplayScope = 'nearby' | 'district' | 'regional' | 'national';
 
 const GEOHASH_ALPHABET = '0123456789bcdefghjkmnpqrstuvwxyz';
+const CHARACTER_KEYS: CharacterKey[] = ['turtle', 'chick', 'fox', 'dog', 'butterfly', 'bug'];
 
 const CATEGORY_BY_KEYWORD: Array<[RegExp, FlameCategory]> = [
   [/선거|투표|정치|정책|후보|의혹|관리/, 'politics'],
@@ -149,11 +152,27 @@ export function detectBlockedContent(input: string): { blocked: boolean; reason?
 }
 
 export function getHeatLabel(heatScore: number): string {
-  if (heatScore >= 30) return '이야기가 번지고 있어요';
-  if (heatScore >= 15) return '주변에서 이 불꽃이 뜨거워지고 있어요';
-  if (heatScore >= 5) return '이 불꽃이 조금 커지고 있어요';
+  if (heatScore >= 30) return '이야기가 모이고 있어요';
+  if (heatScore >= 15) return '근처에서 자주 보여요';
+  if (heatScore >= 5) return '요즘 이 태그가 모여요';
   if (heatScore >= 1) return '반응이 생기고 있어요';
-  return '방금 켜진 불꽃';
+  return '방금 떠오른 생각';
+}
+
+export function deriveCharacterKey(input: unknown): CharacterKey {
+  const value = String(input ?? '');
+  if ((CHARACTER_KEYS as string[]).includes(value)) return value as CharacterKey;
+
+  let hash = 0;
+  for (const char of value || 'thought') {
+    hash = (hash * 31 + char.charCodeAt(0)) >>> 0;
+  }
+  return CHARACTER_KEYS[hash % CHARACTER_KEYS.length];
+}
+
+export function validateDisplayScope(value: unknown): DisplayScope {
+  if (value === 'nearby' || value === 'district' || value === 'regional' || value === 'national') return value;
+  return 'nearby';
 }
 
 export function computeLifecycle(
@@ -187,6 +206,10 @@ export function sanitizeFlameForResponse(row: Record<string, unknown>, now = new
     selfStrength: row.self_strength,
     heatLabel: getHeatLabel(Number(row.heat_score ?? 0)),
     lifecycle,
+    characterKey: deriveCharacterKey(row.character_key ?? row.id ?? row.tag_normalized),
+    displayScope: validateDisplayScope(row.display_scope),
+    regionLabel: row.region_label ?? '근처',
+    regionCode: row.region_code ?? 'nearby',
     createdAt: row.created_at,
     liveUntil: row.live_until,
     emberUntil: row.ember_until,
