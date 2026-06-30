@@ -8,6 +8,7 @@ import {
   simulateParticles,
   summarizeClusters,
 } from '../../lib/flame/particleSimulation.ts';
+import { CHARACTER_EMOJI, characterKeyForThought } from '../../components/map/character.ts';
 
 describe('Publit frontend core harness', () => {
   it('normalizes local device ids and hashes without exposing the raw id', async () => {
@@ -69,5 +70,16 @@ describe('Publit frontend core harness', () => {
     }
 
     assert.equal(clusters.some((cluster) => cluster.tagNormalized === '카페대화' && cluster.count >= 3), true);
+  });
+
+  it('uses stable character keys instead of raw emoji in thought data', () => {
+    const first = characterKeyForThought({ id: 'thought-1', tagNormalized: '카페대화' });
+    const second = characterKeyForThought({ id: 'thought-1', tagNormalized: '카페대화' });
+    const explicit = characterKeyForThought({ id: 'thought-2', tagNormalized: '지역교통', characterKey: 'fox' });
+
+    assert.equal(CHARACTER_EMOJI.turtle, '🐢');
+    assert.match(first, /^(turtle|chick|fox|dog|butterfly|bug)$/);
+    assert.equal(first, second);
+    assert.equal(explicit, 'fox');
   });
 });
