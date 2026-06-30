@@ -1,11 +1,12 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import type { FlameCategory, FlameMood, HotTopic, TagSuggestion } from '@/lib/flame/types';
+import type { CharacterKey, FlameCategory, FlameMood, HotTopic, TagSuggestion } from '@/lib/flame/types';
 import { suggestTagsFromText } from '@/lib/flame/tagNormalize';
 import { isBlockedText } from '@/lib/moderation/rules';
 import { Button } from '@/components/ui/Button';
 import { BottomSheet } from '@/components/ui/BottomSheet';
+import { CHARACTER_EMOJI } from '@/components/map/character';
 import { HotTagTicker } from './HotTagTicker';
 import { TagInput } from './TagInput';
 import { MyFlameSlots } from './MyFlameSlots';
@@ -21,17 +22,19 @@ type CreateFlameSheetProps = {
   } | null;
   onClose: () => void;
   onSuggest: (text: string) => void;
-  onSubmit: (input: { text: string; tagLabel: string; category: FlameCategory; mood: FlameMood; selfStrength: 1 | 2 | 3 }) => void;
+  onSubmit: (input: { text: string; tagLabel: string; category: FlameCategory; mood: FlameMood; selfStrength: 1 | 2 | 3; characterKey: CharacterKey }) => void;
   onExtinguish: (flameId: string) => void;
   submitMessage?: string;
 };
 
 const moods: Array<{ value: FlameMood; label: string }> = [
-  { value: 'quiet', label: '조용한 불씨' },
-  { value: 'curious', label: '궁금한 불꽃' },
-  { value: 'serious', label: '강한 문제의식' },
-  { value: 'want_talk', label: '대화하고 싶음' },
+  { value: 'quiet', label: '조용함' },
+  { value: 'curious', label: '궁금함' },
+  { value: 'serious', label: '진지함' },
+  { value: 'want_talk', label: '나누고싶음' },
 ];
+
+const characterKeys = Object.keys(CHARACTER_EMOJI) as CharacterKey[];
 
 export function CreateFlameSheet({ open, topics, remoteSuggestions, slots, onClose, onSuggest, onSubmit, onExtinguish, submitMessage }: CreateFlameSheetProps) {
   const [text, setText] = useState('');
@@ -39,6 +42,7 @@ export function CreateFlameSheet({ open, topics, remoteSuggestions, slots, onClo
   const [manualCategory, setManualCategory] = useState<FlameCategory>('other');
   const [mood, setMood] = useState<FlameMood>('curious');
   const [selfStrength, setSelfStrength] = useState<1 | 2 | 3>(2);
+  const [characterKey, setCharacterKey] = useState<CharacterKey>('turtle');
 
   const localSuggestions = useMemo(() => suggestTagsFromText(text).map((item) => ({
     displayLabel: item.displayLabel,
@@ -64,19 +68,19 @@ export function CreateFlameSheet({ open, topics, remoteSuggestions, slots, onClo
   }, [onSuggest, text]);
 
   return (
-    <BottomSheet open={open} title="내 불꽃 띄우기" onClose={onClose}>
+    <BottomSheet open={open} title="생각 띄우기" onClose={onClose}>
       <div className="grid gap-5">
         <HotTagTicker topics={topics} />
         <label className="grid gap-2">
-          <span className="text-xs font-semibold text-[#807d72]">지금 떠오른 생각</span>
+          <span className="text-xs font-black text-[#6f6b61]">지금 떠오른 생각</span>
           <textarea
             value={text}
             maxLength={80}
             onChange={(event) => setText(event.target.value)}
-            className="min-h-24 resize-none rounded-lg border border-[#cfcdc4] bg-white p-3 text-sm leading-6 text-[#26251e] outline-none transition-[border-color,background-color] placeholder:text-[#a09c92] focus:border-[#f54e00]"
-            placeholder="지금 이 공간에서 떠오른 생각을 짧게 적어보세요."
+            className="min-h-24 resize-none rounded-[12px] border border-[#d5d2c8] bg-white p-3 text-sm leading-6 text-[#252520] outline-none transition-[border-color,background-color] placeholder:text-[#9a968c] focus:border-[#0b6975]"
+            placeholder="아니근데… 나만 이런 생각해?"
           />
-          <span className="text-right font-mono text-xs tabular-nums text-[#807d72]">{text.length}/80</span>
+          <span className="text-right font-mono text-xs tabular-nums text-[#6f6b61]">{text.length}/80</span>
         </label>
         <TagInput
           value={tagLabel}
@@ -87,41 +91,63 @@ export function CreateFlameSheet({ open, topics, remoteSuggestions, slots, onClo
             setManualCategory(selected?.category ?? 'other');
           }}
         />
-        <div className="grid grid-cols-2 gap-2">
-          {moods.map((item) => (
-            <button
-              type="button"
-              key={item.value}
-              onClick={() => setMood(item.value)}
-              className={`min-h-11 rounded-lg border px-3 text-xs font-semibold transition-[transform,background-color,border-color] active:scale-[0.97] ${mood === item.value ? 'border-[#f54e00] bg-[#f54e00] text-white' : 'border-[#e6e5e0] bg-white text-[#5a5852]'}`}
-            >
-              {item.label}
-            </button>
-          ))}
-        </div>
-        <div className="grid grid-cols-3 gap-2">
-          {([1, 2, 3] as const).map((value) => (
-            <button
-              type="button"
-              key={value}
-              onClick={() => setSelfStrength(value)}
-              className={`min-h-11 rounded-lg border px-3 text-xs font-semibold transition-[transform,background-color,border-color] active:scale-[0.97] ${selfStrength === value ? 'border-[#c08532] bg-[#c08532] text-white' : 'border-[#e6e5e0] bg-white text-[#5a5852]'}`}
-            >
-              {value === 1 ? '작게' : value === 2 ? '보통' : '크게'}
-            </button>
-          ))}
-        </div>
-        {blocked ? <p className="rounded-lg bg-[#cf2d56]/10 px-3 py-2 text-sm text-[#9e1d3e]">위험하거나 사생활을 침해할 수 있는 문구는 불꽃으로 띄울 수 없어요.</p> : null}
+        <section className="grid gap-2">
+          <h3 className="text-xs font-black text-[#6f6b61]">생각 분위기</h3>
+          <div className="grid grid-cols-2 gap-2">
+            {moods.map((item) => (
+              <button
+                type="button"
+                key={item.value}
+                onClick={() => setMood(item.value)}
+                className={`min-h-11 rounded-[12px] px-3 text-xs font-black shadow-[1px_1px_0_rgba(35,35,31,0.45)] transition-[transform,background-color,color] active:scale-[0.96] ${mood === item.value ? 'bg-[#ffda68] text-[#252520]' : 'bg-white text-[#5d5a51]'}`}
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+        </section>
+        <section className="grid gap-2">
+          <h3 className="text-xs font-black text-[#6f6b61]">생각 크기</h3>
+          <div className="grid grid-cols-3 gap-2">
+            {([1, 2, 3] as const).map((value) => (
+              <button
+                type="button"
+                key={value}
+                onClick={() => setSelfStrength(value)}
+                className={`min-h-11 rounded-[12px] px-3 text-xs font-black shadow-[1px_1px_0_rgba(35,35,31,0.45)] transition-[transform,background-color,color] active:scale-[0.96] ${selfStrength === value ? 'bg-[#a8ddc1] text-[#153424]' : 'bg-white text-[#5d5a51]'}`}
+              >
+                {value === 1 ? '작게' : value === 2 ? '보통' : '크게'}
+              </button>
+            ))}
+          </div>
+        </section>
+        <section className="grid gap-2">
+          <h3 className="text-xs font-black text-[#6f6b61]">캐릭터</h3>
+          <div className="grid grid-cols-6 gap-2">
+            {characterKeys.map((key) => (
+              <button
+                type="button"
+                key={key}
+                onClick={() => setCharacterKey(key)}
+                className={`grid min-h-11 place-items-center rounded-[12px] bg-white text-xl shadow-[1px_1px_0_rgba(35,35,31,0.45)] transition-[transform,background-color] active:scale-[0.96] ${characterKey === key ? 'outline outline-2 outline-[#0b6975]' : ''}`}
+                aria-label={`캐릭터 ${key}`}
+              >
+                {CHARACTER_EMOJI[key]}
+              </button>
+            ))}
+          </div>
+        </section>
+        {blocked ? <p className="rounded-lg bg-[#cf2d56]/10 px-3 py-2 text-sm text-[#9e1d3e]">위험하거나 사생활을 침해할 수 있는 문구는 생각으로 띄울 수 없어요.</p> : null}
         {submitMessage ? <p role="status" className="rounded-lg bg-[#9fbbe0]/20 px-3 py-2 text-sm text-[#27476b]">{submitMessage}</p> : null}
         {slots && slots.used === slots.limit ? (
-          <p className="rounded-lg bg-[#f54e00]/10 px-3 py-2 text-sm text-[#8a2d00]">내 불꽃이 모두 켜져 있어요. 새 불꽃을 띄우려면 기존 불꽃 하나를 꺼주세요.</p>
+          <p className="rounded-lg bg-[#ffda68]/35 px-3 py-2 text-sm font-bold text-[#6d4e00]">내 생각 슬롯이 모두 차 있어요. 새 생각을 띄우려면 기존 생각 하나를 내려주세요.</p>
         ) : null}
         <MyFlameSlots slots={slots} onExtinguish={onExtinguish} />
         <Button
           disabled={!text.trim() || !tagLabel || blocked}
-          onClick={() => onSubmit({ text, tagLabel, category, mood, selfStrength })}
+          onClick={() => onSubmit({ text, tagLabel, category, mood, selfStrength, characterKey })}
         >
-          불꽃 띄우기
+          생각 띄우기
         </Button>
       </div>
     </BottomSheet>

@@ -15,12 +15,21 @@ type ThoughtOverlayProps = {
 const overlaySize = 320;
 
 export function ThoughtOverlay({ thoughts, rangeLabel, onSelect }: ThoughtOverlayProps) {
+  const overlayKey = thoughts.map((thought) => `${thought.id}:${thought.tagNormalized}:${thought.characterKey ?? ''}`).join('|');
+
+  return (
+    <ThoughtOverlaySimulation
+      key={overlayKey}
+      thoughts={thoughts}
+      rangeLabel={rangeLabel}
+      onSelect={onSelect}
+    />
+  );
+}
+
+function ThoughtOverlaySimulation({ thoughts, rangeLabel, onSelect }: ThoughtOverlayProps) {
   const initial = useMemo(() => createInitialParticles(thoughts, overlaySize), [thoughts]);
   const [particles, setParticles] = useState<FlameParticleType[]>(initial);
-
-  useEffect(() => {
-    setParticles(initial);
-  }, [initial]);
 
   useEffect(() => {
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return undefined;
@@ -33,8 +42,8 @@ export function ThoughtOverlay({ thoughts, rangeLabel, onSelect }: ThoughtOverla
   const clusters = summarizeClusters(particles);
 
   return (
-    <section data-testid="thought-overlay" className="pointer-events-none absolute inset-x-2 bottom-[7rem] top-[6.75rem] z-10">
-      <div className="relative mx-auto h-full max-h-[420px] min-h-[300px] w-full max-w-[390px]" data-testid="thought-map">
+    <section data-testid="thought-overlay" className="pointer-events-none absolute inset-x-2 bottom-[12rem] top-[7.25rem] z-10">
+      <div className="relative mx-auto h-full max-h-[420px] min-h-[240px] w-full max-w-[390px]" data-testid="thought-map">
         <RangeCircle label={rangeLabel} />
         {clusters.map((cluster) => (
           <div
@@ -58,7 +67,7 @@ export function ThoughtOverlay({ thoughts, rangeLabel, onSelect }: ThoughtOverla
               key={particle.id}
               type="button"
               data-testid="thought-character"
-              className="anigeunde-character pointer-events-auto absolute grid w-24 -translate-x-1/2 -translate-y-1/2 justify-items-center gap-1 text-[9px] font-black text-[#252520] transition-[opacity] active:scale-[0.96]"
+              className="pointer-events-auto absolute grid w-24 -translate-x-1/2 -translate-y-1/2 justify-items-center gap-1 text-[9px] font-black text-[#252520] transition-[opacity] active:scale-[0.96]"
               style={{ left: `${(particle.x / overlaySize) * 100}%`, top: `${(particle.y / overlaySize) * 100}%` }}
               onClick={() => onSelect(thought)}
               aria-label={`${particle.tagLabel} 생각`}
@@ -69,7 +78,7 @@ export function ThoughtOverlay({ thoughts, rangeLabel, onSelect }: ThoughtOverla
               <span data-testid="flame-particle" className="contents">
                 <span
                   data-testid="flame-glyph"
-                  className="grid size-9 place-items-center rounded-[10px] bg-white text-xl shadow-[2px_2px_0_rgba(35,35,31,0.72)]"
+                  className="anigeunde-character grid size-9 place-items-center rounded-[10px] bg-white text-xl shadow-[2px_2px_0_rgba(35,35,31,0.72)]"
                 >
                   {CHARACTER_EMOJI[characterKey]}
                 </span>

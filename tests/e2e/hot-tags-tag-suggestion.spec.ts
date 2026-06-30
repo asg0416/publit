@@ -5,7 +5,7 @@ const topics = Array.from({ length: 10 }, (_, index) => ({
   normalizedKey: ['투표용지이슈', '청년정책', '지역교통', '카페대화', '안전', '부산', '정치대화', '지역이슈', '자료확인', '동네소식'][index],
   category: index === 0 || index === 6 || index === 8 ? 'politics' : index === 4 ? 'safety' : index === 3 ? 'daily' : 'local',
   scope: index < 5 ? 'local' : 'global',
-  heatLabel: index < 5 ? '근처에서 켜지고 있어요' : '오늘 많이 켜진 불꽃',
+  heatLabel: index < 5 ? '근처에서 자주 보여요' : '이야기가 모이고 있어요',
 }));
 
 test.beforeEach(async ({ page }) => {
@@ -46,22 +46,22 @@ test.beforeEach(async ({ page }) => {
 test('expands hot tags, accepts suggested tags, and blocks unsafe text', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: /위치 허용/ }).click();
-  await page.getByRole('button', { name: '내 불꽃 띄우기' }).click();
+  await page.getByRole('button', { name: '생각 띄우기' }).click();
 
-  await page.getByRole('button', { name: /지금 뜨거운 불꽃/ }).click();
+  await page.getByRole('button', { name: /지금 뜨는 태그/ }).last().click();
   await expect(page.getByText('1. #투표용지이슈')).toBeVisible();
   await expect(page.getByText(/사용\s*수|조회수|반응\s*\d+개/)).toHaveCount(0);
 
   await page.getByRole('textbox', { name: '지금 떠오른 생각' }).fill('카페에서 투표 이야기를 들었어요.');
   await expect(page.locator('button', { hasText: '#투표용지이슈' }).last()).toBeVisible();
   await page.locator('button', { hasText: '#투표용지이슈' }).last().click();
-  const tagInput = page.getByLabel('불꽃 태그');
+  const tagInput = page.getByLabel('생각 태그');
   await expect(tagInput).toHaveValue('#투표용지이슈');
 
   await tagInput.fill('');
   await expect(tagInput).toHaveValue('');
-  await expect(page.getByRole('button', { name: '불꽃 띄우기', exact: true })).toBeDisabled();
+  await expect(page.getByRole('button', { name: '생각 띄우기', exact: true })).toBeDisabled();
 
   await page.getByRole('textbox', { name: '지금 떠오른 생각' }).fill('전화번호 공개하자');
-  await expect(page.getByText('위험하거나 사생활을 침해할 수 있는 문구는 불꽃으로 띄울 수 없어요.')).toBeVisible();
+  await expect(page.getByText('위험하거나 사생활을 침해할 수 있는 문구는 생각으로 띄울 수 없어요.')).toBeVisible();
 });

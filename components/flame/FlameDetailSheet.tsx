@@ -20,19 +20,19 @@ export function FlameDetailSheet({ flame, onClose, onReact, onReport }: FlameDet
 
   return (
     <>
-      <BottomSheet open={Boolean(flame)} title={flame?.tagLabel ?? '불꽃'} onClose={onClose}>
+      <BottomSheet open={Boolean(flame)} title={flame?.tagLabel ?? '생각'} onClose={onClose}>
         {flame ? (
           <div className="grid gap-4">
             <div>
-              <p className="text-lg font-semibold text-[#f54e00]">{flame.tagLabel}</p>
-              {flame.text ? <p className="mt-3 text-base leading-7 text-[#26251e]">{flame.text}</p> : <p className="mt-3 text-sm text-[#807d72]">이 흔적은 본문 없이 공간의 분위기로만 남아 있어요.</p>}
+              <p className="text-lg font-black text-[#0b6975]">{flame.tagLabel}</p>
+              {flame.text ? <p className="mt-3 text-base leading-7 text-[#252520]">{flame.text}</p> : <p className="mt-3 text-sm text-[#6f6b61]">이 생각은 본문 없이 공간의 분위기로만 남아 있어요.</p>}
             </div>
             <div className="flex flex-wrap gap-2">
               <Badge>{flame.mood}</Badge>
-              <Badge>강도 {flame.selfStrength}</Badge>
+              <Badge>생각 크기 {flame.selfStrength}</Badge>
               <Badge>{flame.lifecycle}</Badge>
             </div>
-            <p className="rounded-lg bg-[#f54e00]/10 px-4 py-3 text-sm font-semibold text-[#8a2d00]">{flame.heatLabel}</p>
+            <p className="rounded-lg bg-[#ffda68]/35 px-4 py-3 text-sm font-black text-[#6d4e00]">{flame.heatLabel}</p>
             {flame.lifecycle !== 'trace' ? <ReactionBar onReact={(reaction) => onReact(flame.id, reaction)} /> : null}
             <Button variant="secondary" onClick={() => setReportOpen(true)}>신고</Button>
           </div>

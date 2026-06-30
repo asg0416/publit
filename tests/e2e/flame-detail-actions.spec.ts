@@ -2,7 +2,7 @@ import { expect, test } from '@playwright/test';
 
 const now = new Date('2026-06-28T00:00:00.000Z').toISOString();
 const topics = [
-  { displayLabel: '#카페대화', normalizedKey: '카페대화', category: 'daily', scope: 'local', heatLabel: '근처에서 켜지고 있어요' },
+  { displayLabel: '#카페대화', normalizedKey: '카페대화', category: 'daily', scope: 'local', heatLabel: '근처에서 자주 보여요' },
 ];
 const flame = {
   id: 'flame-detail',
@@ -14,6 +14,10 @@ const flame = {
   selfStrength: 2,
   heatLabel: '반응이 생기고 있어요',
   lifecycle: 'live',
+  characterKey: 'turtle',
+  displayScope: 'nearby',
+  regionLabel: '근처',
+  regionCode: 'nearby',
   createdAt: now,
 };
 
@@ -48,7 +52,7 @@ test.beforeEach(async ({ page }) => {
     await route.fulfill({ status: 200, json: { used: 0, limit: 3, isFull: false, activeFlames: [] } });
   });
   await page.route('**/functions/v1/react-flame', async (route) => {
-    await route.fulfill({ status: 200, json: { heatLabel: '이 불꽃이 조금 커지고 있어요' } });
+    await route.fulfill({ status: 200, json: { heatLabel: '요즘 이 태그가 모여요' } });
   });
   await page.route('**/functions/v1/report-flame', async (route) => {
     await route.fulfill({ status: 200, json: { ok: true, status: 'hidden' } });
@@ -59,16 +63,16 @@ test('opens details, reacts without counts, and removes a hidden report', async 
   await page.goto('/');
   await page.getByRole('button', { name: /위치 허용/ }).click();
 
-  await page.getByTestId('flame-particle').first().click();
+  await page.getByTestId('thought-character').first().click();
   await expect(page.getByRole('dialog', { name: '#카페대화' })).toBeVisible();
   await expect(page.getByText('근처 카페 자리가 조용해서 작업하기 좋아요.')).toBeVisible();
   await expect(page.getByText(/반응 \d+개|\d+명|조회수/)).toHaveCount(0);
 
   await page.getByRole('button', { name: '궁금해요' }).click();
-  await expect(page.getByText('이 불꽃이 조금 커지고 있어요')).toBeVisible();
+  await expect(page.getByText('요즘 이 태그가 모여요')).toBeVisible();
 
   await page.getByRole('button', { name: '신고' }).click();
   await page.getByRole('button', { name: '오정보' }).click();
   await expect(page.getByText('신고를 접수했어요.')).toBeVisible();
-  await expect(page.getByTestId('flame-particle')).toHaveCount(0);
+  await expect(page.getByTestId('thought-character')).toHaveCount(0);
 });

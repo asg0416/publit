@@ -21,7 +21,7 @@ export function RangeControl({ value, onChange }: RangeControlProps) {
   return (
     <div
       data-testid="range-control"
-      className="absolute bottom-[7.75rem] left-3 right-3 z-30 grid grid-cols-5 gap-1 rounded-[14px] bg-white/95 p-1.5 shadow-[2px_2px_0_rgba(35,35,31,0.72)] sm:left-4 sm:right-4"
+      className="absolute bottom-[8.5rem] left-3 right-3 z-30 grid grid-cols-5 gap-1 rounded-[14px] bg-white/95 p-1.5 shadow-[2px_2px_0_rgba(35,35,31,0.72)] sm:left-4 sm:right-4"
     >
       {RANGE_OPTIONS.map((option) => (
         <button

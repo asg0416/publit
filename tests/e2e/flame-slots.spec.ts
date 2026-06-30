@@ -31,7 +31,7 @@ test.beforeEach(async ({ page }) => {
   });
 
   await page.route('**/functions/v1/get-hot-topics', async (route) => {
-    await route.fulfill({ status: 200, json: [{ displayLabel: '#카페대화', normalizedKey: '카페대화', category: 'daily', scope: 'global', heatLabel: '오늘 많이 켜진 불꽃' }] });
+    await route.fulfill({ status: 200, json: [{ displayLabel: '#카페대화', normalizedKey: '카페대화', category: 'daily', scope: 'global', heatLabel: '요즘 이 태그가 모여요' }] });
   });
   await page.route('**/functions/v1/nearby-flames', async (route) => {
     await route.fulfill({ status: 200, json: [] });
@@ -54,14 +54,18 @@ test.beforeEach(async ({ page }) => {
 
     const created = {
       id: 'created-after-extinguish',
-      text: '빈 슬롯에 새 불꽃을 띄웠어요.',
+      text: '빈 슬롯에 새 생각을 띄웠어요.',
       tagLabel: '#카페대화',
       tagNormalized: '카페대화',
       category: 'daily',
       mood: 'curious',
       selfStrength: 2,
-      heatLabel: '방금 켜진 불꽃',
+      heatLabel: '방금 떠오른 생각',
       lifecycle: 'live',
+      characterKey: 'dog',
+      displayScope: 'nearby',
+      regionLabel: '근처',
+      regionCode: 'nearby',
       createdAt: now,
     };
     activeFlames = [{ id: created.id, tagLabel: created.tagLabel, status: 'live', createdAt: now }, ...activeFlames];
@@ -72,21 +76,21 @@ test.beforeEach(async ({ page }) => {
 test('shows full live slots, lets the user extinguish one, then creates again', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: /위치 허용/ }).click();
-  await page.getByRole('button', { name: '내 불꽃 띄우기' }).click();
+  await page.getByRole('button', { name: '생각 띄우기' }).click();
 
   await expect(page.getByText('3 / 3')).toBeVisible();
-  await expect(page.getByText('내 불꽃이 모두 켜져 있어요. 새 불꽃을 띄우려면 기존 불꽃 하나를 꺼주세요.')).toBeVisible();
+  await expect(page.getByText('내 생각 슬롯이 모두 차 있어요. 새 생각을 띄우려면 기존 생각 하나를 내려주세요.')).toBeVisible();
 
-  await page.getByRole('textbox', { name: '지금 떠오른 생각' }).fill('빈 슬롯을 확인하는 불꽃이에요.');
-  await page.getByLabel('불꽃 태그').fill('#카페대화');
-  await page.getByRole('button', { name: '불꽃 띄우기', exact: true }).click();
-  await expect(page.getByTestId('bottom-sheet-panel').getByText('내 불꽃이 모두 켜져 있어요.', { exact: true })).toBeVisible();
+  await page.getByRole('textbox', { name: '지금 떠오른 생각' }).fill('빈 슬롯을 확인하는 생각이에요.');
+  await page.getByLabel('생각 태그').fill('#카페대화');
+  await page.getByRole('button', { name: '생각 띄우기', exact: true }).click();
+  await expect(page.getByTestId('bottom-sheet-panel').getByText('내 생각 슬롯이 모두 차 있어요.', { exact: true })).toBeVisible();
 
-  await page.getByRole('button', { name: '끄기' }).first().click();
-  await expect(page.getByText('내 불꽃을 껐어요.')).toBeVisible();
+  await page.getByRole('button', { name: '내리기' }).first().click();
+  await expect(page.getByText('내 생각을 내렸어요.')).toBeVisible();
   await expect(page.getByText('2 / 3')).toBeVisible();
 
-  await page.getByRole('button', { name: '불꽃 띄우기', exact: true }).click();
-  await expect(page.getByText('내 불꽃이 레이더에 켜졌어요.')).toBeVisible();
-  await expect(page.getByTestId('flame-particle')).toHaveCount(1);
+  await page.getByRole('button', { name: '생각 띄우기', exact: true }).click();
+  await expect(page.getByText('내 생각이 지도 위에 떠올랐어요.')).toBeVisible();
+  await expect(page.getByTestId('thought-character')).toHaveCount(1);
 });

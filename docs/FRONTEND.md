@@ -13,17 +13,18 @@
 - Hash the device id with SHA-256 before sending `deviceHash`.
 - Request browser Geolocation only after an explicit user action in the foreground.
 - Use single-shot Geolocation reads for the MVP; do not start continuous `watchPosition` tracking.
-- Poll nearby flames while a location is active so anonymous flames from other devices appear without a manual reload.
+- Poll nearby thoughts while a location is active so anonymous thoughts from other devices appear without a manual reload.
 - Call moving-location refresh no more than once per 30 seconds and only after meaningful movement or grid change.
-- Generate radar screen coordinates on the client. API coordinates are forbidden.
+- Generate character overlay positions on the client. API coordinates are forbidden.
 
 ## Components
 
 - `components/location/LocationGate.tsx`
 - `components/location/useMovingLocation.ts`
-- `components/radar/FlameRadar.tsx`
-- `components/radar/FlameParticle.tsx`
-- `components/radar/ClusterAura.tsx`
+- `components/map/MapBackground.tsx`
+- `components/map/ThoughtOverlay.tsx`
+- `components/map/RangeControl.tsx`
+- `components/map/RangeCircle.tsx`
 - `components/flame/CreateFlameSheet.tsx`
 - `components/flame/FlameDetailSheet.tsx`
 - `components/flame/HotTagTicker.tsx`
@@ -33,4 +34,4 @@
 
 ## No-Map Rule
 
-Do not install or import map SDKs. Do not render map tiles, map pins, map marker UI, or actual coordinate markers.
+Do not install or import map SDKs. Do not render map pins, map marker UI, or actual coordinate markers. MapGlot is represented as a full-screen background provider surface only.

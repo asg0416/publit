@@ -2,15 +2,15 @@ import type { Metadata, Viewport } from 'next';
 import './globals.css';
 
 export const metadata: Metadata = {
-  title: 'Publit',
-  description: '지금 이 공간의 불꽃을 보는 익명 생각 레이더',
+  title: '아니근데',
+  description: '지금 이곳에 떠도는 생각과 태그를 귀여운 캐릭터로 보는 모바일 웹 서비스',
 };
 
 export const viewport: Viewport = {
   width: 'device-width',
   initialScale: 1,
   maximumScale: 1,
-  themeColor: '#f7f7f4',
+  themeColor: '#f7f7f2',
 };
 
 export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {

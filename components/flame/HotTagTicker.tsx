@@ -19,8 +19,8 @@ export function HotTagTicker({ topics }: HotTagTickerProps) {
 
   if (topics.length === 0) {
     return (
-      <div className="rounded-lg border border-[#e6e5e0] bg-white px-4 py-3 text-sm text-[#5a5852]">
-        지금 뜨거운 불꽃을 모으는 중이에요.
+      <div className="rounded-[14px] bg-white/95 px-4 py-3 text-sm font-bold text-[#5d5a51] shadow-[2px_2px_0_rgba(35,35,31,0.72)]">
+        지금 뜨는 태그를 모으는 중이에요.
       </div>
     );
   }
@@ -29,19 +29,19 @@ export function HotTagTicker({ topics }: HotTagTickerProps) {
     <button
       type="button"
       onClick={() => setExpanded((current) => !current)}
-      className="w-full rounded-lg border border-[#e6e5e0] bg-white px-4 py-3 text-left transition-[background-color] hover:bg-[#fafaf7]"
+      className="w-full rounded-[14px] bg-white/95 px-4 py-3 text-left shadow-[2px_2px_0_rgba(35,35,31,0.72)] transition-[transform,background-color] hover:bg-white active:scale-[0.96]"
       aria-expanded={expanded}
     >
       <div className="flex items-center justify-between gap-3">
-        <span className="text-xs font-semibold text-[#807d72]">지금 뜨거운 불꽃</span>
-        <span className="publit-ticker-snap text-sm font-semibold text-[#f54e00]">{topics[index]?.displayLabel}</span>
+        <span className="shrink-0 text-xs font-black text-[#6f6b61]">지금 뜨는 태그</span>
+        <span className="publit-ticker-snap min-w-0 truncate text-sm font-black text-[#0b6975]">{topics[index]?.displayLabel}</span>
       </div>
       {expanded ? (
         <ol className="mt-3 grid gap-2">
           {topics.slice(0, 10).map((topic, topicIndex) => (
-            <li key={`${topic.scope}-${topic.normalizedKey}`} className="flex items-center justify-between gap-3 text-xs text-[#5a5852]">
+            <li key={`${topic.scope}-${topic.normalizedKey}`} className="flex items-center justify-between gap-3 text-xs text-[#5d5a51]">
               <span>{topicIndex + 1}. {topic.displayLabel}</span>
-              <span className="text-right text-[#807d72]">{topic.heatLabel}</span>
+              <span className="text-right text-[#6f6b61]">{topic.heatLabel}</span>
             </li>
           ))}
         </ol>

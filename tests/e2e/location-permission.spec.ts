@@ -3,20 +3,24 @@ import { expect, test, type Page } from '@playwright/test';
 const now = new Date('2026-06-28T00:00:00.000Z').toISOString();
 
 const hotTopics = [
-  { displayLabel: '#지금생각', normalizedKey: '지금생각', category: 'daily', scope: 'global', heatLabel: '오늘 많이 켜진 불꽃' },
+  { displayLabel: '#지금생각', normalizedKey: '지금생각', category: 'daily', scope: 'global', heatLabel: '요즘 이 태그가 모여요' },
 ];
 
 const nearbyFlames = [
   {
     id: 'flame-nearby',
-    text: '권한을 누른 뒤에만 보이는 근처 불꽃이에요.',
+    text: '권한을 누른 뒤에만 보이는 근처 생각이에요.',
     tagLabel: '#지금생각',
     tagNormalized: '지금생각',
     category: 'daily',
     mood: 'curious',
     selfStrength: 2,
-    heatLabel: '방금 켜진 불꽃',
+    heatLabel: '방금 떠오른 생각',
     lifecycle: 'live',
+    characterKey: 'fox',
+    displayScope: 'nearby',
+    regionLabel: '근처',
+    regionCode: 'nearby',
     createdAt: now,
   },
 ];
@@ -135,7 +139,7 @@ test('requests browser location only after an explicit user action without start
     watchPositionCalls: 0,
     clearWatchCalls: 0,
   });
-  await expect(page.getByText('근처 불꽃이 레이더에 떠 있어요.')).toBeVisible();
+  await expect(page.getByText('근처 생각이 지도 위에 떠 있어요.')).toBeVisible();
 });
 
 test('does not describe desktop position lookup failures as missing permission after the user allows location', async ({ page }) => {
@@ -171,7 +175,7 @@ test('restores an already granted desktop location without showing the permissio
     clearWatchCalls: 0,
   });
   await expect(page.getByTestId('location-gate')).toHaveCount(0);
-  await expect(page.getByText('근처 불꽃이 레이더에 떠 있어요.')).toBeVisible();
+  await expect(page.getByText('근처 생각이 지도 위에 떠 있어요.')).toBeVisible();
 });
 
 test('hides the permission gate after the user grants location', async ({ page }) => {
@@ -183,5 +187,5 @@ test('hides the permission gate after the user grants location', async ({ page }
   await page.getByRole('button', { name: /위치 허용/ }).click();
 
   await expect(page.getByTestId('location-gate')).toHaveCount(0);
-  await expect(page.getByText('근처 불꽃이 레이더에 떠 있어요.')).toBeVisible();
+  await expect(page.getByText('근처 생각이 지도 위에 떠 있어요.')).toBeVisible();
 });

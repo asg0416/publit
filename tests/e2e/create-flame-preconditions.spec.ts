@@ -12,20 +12,20 @@ test.beforeEach(async ({ page }) => {
 test('shows sheet-visible guidance instead of silently failing when location is missing', async ({ page }) => {
   await page.goto('/');
 
-  await page.getByRole('button', { name: '내 불꽃 띄우기' }).click();
-  await page.getByRole('textbox', { name: '지금 떠오른 생각' }).fill('위치 없이 생성해보는 불꽃이에요.');
-  await page.getByLabel('불꽃 태그').fill('#테스트');
-  await page.getByRole('button', { name: '불꽃 띄우기', exact: true }).click();
+  await page.getByRole('button', { name: '생각 띄우기' }).click();
+  await page.getByRole('textbox', { name: '지금 떠오른 생각' }).fill('위치 없이 생성해보는 생각이에요.');
+  await page.getByLabel('생각 태그').fill('#테스트');
+  await page.getByRole('button', { name: '생각 띄우기', exact: true }).click();
 
-  await expect(page.getByRole('dialog', { name: '내 불꽃 띄우기' })).toContainText('위치 권한을 먼저 허용하면 불꽃을 띄울 수 있어요.');
+  await expect(page.getByRole('dialog', { name: '생각 띄우기' })).toContainText('위치 권한을 먼저 허용하면 생각을 띄울 수 있어요.');
 });
 
 test('keeps create enabled with a safe default tag when suggestions are unavailable', async ({ page }) => {
   await page.goto('/');
 
-  await page.getByRole('button', { name: '내 불꽃 띄우기' }).click();
+  await page.getByRole('button', { name: '생각 띄우기' }).click();
   await page.getByRole('textbox', { name: '지금 떠오른 생각' }).fill('그냥 남겨보는 짧은 생각');
 
-  await expect(page.getByLabel('불꽃 태그')).toHaveValue('#지금생각');
-  await expect(page.getByRole('button', { name: '불꽃 띄우기', exact: true })).toBeEnabled();
+  await expect(page.getByLabel('생각 태그')).toHaveValue('#지금생각');
+  await expect(page.getByRole('button', { name: '생각 띄우기', exact: true })).toBeEnabled();
 });

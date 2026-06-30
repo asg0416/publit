@@ -4,14 +4,18 @@ const now = new Date('2026-06-28T00:00:00.000Z').toISOString();
 
 const otherDeviceFlame = {
   id: 'flame-from-mobile',
-  text: '모바일에서 띄운 불꽃이에요.',
+  text: '모바일에서 띄운 생각이에요.',
   tagLabel: '#지금생각',
   tagNormalized: '지금생각',
   category: 'daily',
   mood: 'curious',
   selfStrength: 2,
-  heatLabel: '방금 켜진 불꽃',
+  heatLabel: '방금 떠오른 생각',
   lifecycle: 'live',
+  characterKey: 'chick',
+  displayScope: 'nearby',
+  regionLabel: '근처',
+  regionCode: 'nearby',
   createdAt: now,
 };
 
@@ -51,13 +55,13 @@ test('refreshes nearby flames from other devices after location is active', asyn
   await page.goto('/');
   await page.getByRole('button', { name: /위치 허용/ }).click();
 
-  await expect(page.getByText('아직 이 공간에 떠 있는 불꽃이 없어요.').first()).toBeVisible();
+  await expect(page.getByText('아직 이 공간에 떠 있는 생각이 없어요.').first()).toBeVisible();
   await expect.poll(() => nearbyRequests).toBe(1);
 
   await page.clock.runFor(12_000);
 
   await expect.poll(() => nearbyRequests).toBeGreaterThan(1);
-  await expect(page.getByTestId('flame-particle')).toHaveCount(1);
-  await page.getByTestId('flame-particle').click();
-  await expect(page.getByText('모바일에서 띄운 불꽃이에요.')).toBeVisible();
+  await expect(page.getByTestId('thought-character')).toHaveCount(1);
+  await page.getByTestId('thought-character').click();
+  await expect(page.getByText('모바일에서 띄운 생각이에요.')).toBeVisible();
 });

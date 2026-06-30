@@ -3,9 +3,9 @@ import { expect, test } from '@playwright/test';
 const now = new Date('2026-06-28T00:00:00.000Z').toISOString();
 
 const topics = [
-  { displayLabel: '#카페대화', normalizedKey: '카페대화', category: 'daily', scope: 'local', heatLabel: '근처에서 켜지고 있어요' },
-  { displayLabel: '#지역교통', normalizedKey: '지역교통', category: 'local', scope: 'local', heatLabel: '오늘 많이 켜진 불꽃' },
-  { displayLabel: '#안전', normalizedKey: '안전', category: 'safety', scope: 'global', heatLabel: '이 공간에서 번지고 있어요' },
+  { displayLabel: '#카페대화', normalizedKey: '카페대화', category: 'daily', scope: 'local', heatLabel: '근처에서 자주 보여요' },
+  { displayLabel: '#지역교통', normalizedKey: '지역교통', category: 'local', scope: 'local', heatLabel: '요즘 이 태그가 모여요' },
+  { displayLabel: '#안전', normalizedKey: '안전', category: 'safety', scope: 'global', heatLabel: '이야기가 모이고 있어요' },
 ];
 
 const nearbyFlames = [
@@ -17,8 +17,12 @@ const nearbyFlames = [
     category: 'daily',
     mood: 'curious',
     selfStrength: 2,
-    heatLabel: '반응이 생기고 있어요',
+    heatLabel: '근처에서 자주 보여요',
     lifecycle: 'live',
+    characterKey: 'turtle',
+    displayScope: 'nearby',
+    regionLabel: '근처',
+    regionCode: 'nearby',
     createdAt: now,
   },
   {
@@ -29,8 +33,12 @@ const nearbyFlames = [
     category: 'local',
     mood: 'quiet',
     selfStrength: 1,
-    heatLabel: '방금 켜진 불꽃',
+    heatLabel: '방금 떠오른 생각',
     lifecycle: 'live',
+    characterKey: 'fox',
+    displayScope: 'nearby',
+    regionLabel: '근처',
+    regionCode: 'nearby',
     createdAt: now,
   },
   {
@@ -41,8 +49,12 @@ const nearbyFlames = [
     category: 'daily',
     mood: 'want_talk',
     selfStrength: 3,
-    heatLabel: '이 불꽃이 조금 커지고 있어요',
+    heatLabel: '요즘 이 태그가 모여요',
     lifecycle: 'ember',
+    characterKey: 'chick',
+    displayScope: 'nearby',
+    regionLabel: '근처',
+    regionCode: 'nearby',
     createdAt: now,
   },
 ];
@@ -95,14 +107,18 @@ test.beforeEach(async ({ page }) => {
       json: {
         flame: {
           id: 'flame-created',
-          text: '새로 띄운 불꽃이에요.',
+          text: '새로 띄운 생각이에요.',
           tagLabel: '#카페대화',
           tagNormalized: '카페대화',
           category: 'daily',
           mood: 'curious',
           selfStrength: 2,
-          heatLabel: '방금 켜진 불꽃',
+          heatLabel: '방금 떠오른 생각',
           lifecycle: 'live',
+          characterKey: 'dog',
+          displayScope: 'nearby',
+          regionLabel: '근처',
+          regionCode: 'nearby',
           createdAt: now,
         },
         activeFlames: [{ id: 'flame-created', tagLabel: '#카페대화', status: 'live', createdAt: now }],
@@ -111,17 +127,23 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
-test('renders the privacy-first radar home without map globals', async ({ page }) => {
+test('renders the map-first Anigeunde home without old map globals', async ({ page }) => {
   await page.goto('/');
 
-  await expect(page.getByRole('heading', { name: '지금 이 공간의 불꽃' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: '아니근데' })).toBeVisible();
+  await expect(page.getByText('지금 뜨는 태그')).toBeVisible();
+  await expect(page.getByText('나만 이런 생각한 거 아니었네')).toBeVisible();
   await page.getByRole('button', { name: /위치 허용/ }).click();
 
-  await expect(page.getByTestId('flame-radar')).toBeVisible();
-  await expect(page.getByTestId('flame-particle')).toHaveCount(3);
+  await expect(page.getByTestId('mapglot-background')).toBeVisible();
+  await expect(page.getByTestId('thought-map')).toBeVisible();
+  await expect(page.getByTestId('thought-character')).toHaveCount(3);
   await expect(page.getByTestId('flame-glyph')).toHaveCount(3);
-  await expect(page.getByText('근처 불꽃이 레이더에 떠 있어요.')).toBeVisible();
-  await expect(page.getByText('#카페대화').first()).toBeVisible();
+  await expect(page.getByText('근처 생각이 지도 위에 떠 있어요.')).toBeVisible();
+  await expect(page.getByRole('button', { name: '50m' })).toBeVisible();
+  await expect(page.getByRole('button', { name: '500m' })).toBeVisible();
+  await expect(page.getByRole('button', { name: '전국' })).toBeVisible();
+  await expect(page.getByRole('button', { name: '생각 띄우기' })).toBeVisible();
 
   await expect.poll(async () => page.evaluate(() => ({
     googleMaps: Boolean((window as unknown as { google?: { maps?: unknown } }).google?.maps),
@@ -134,11 +156,15 @@ test('creates a flame through the sheet using mocked edge functions', async ({ p
   await page.goto('/');
   await page.getByRole('button', { name: /위치 허용/ }).click();
 
-  await page.getByRole('button', { name: '내 불꽃 띄우기' }).click();
-  await page.getByRole('textbox', { name: '지금 떠오른 생각' }).fill('새로 띄운 불꽃이에요.');
-  await page.getByLabel('불꽃 태그').fill('#카페대화');
-  await page.getByRole('button', { name: '불꽃 띄우기', exact: true }).click();
+  await page.getByRole('button', { name: '생각 띄우기' }).click();
+  await expect(page.getByRole('dialog', { name: '생각 띄우기' })).toBeVisible();
+  await expect(page.getByText('생각 분위기')).toBeVisible();
+  await expect(page.getByText('생각 크기')).toBeVisible();
+  await expect(page.getByText('캐릭터')).toBeVisible();
+  await page.getByRole('textbox', { name: '지금 떠오른 생각' }).fill('새로 띄운 생각이에요.');
+  await page.getByLabel('생각 태그').fill('#카페대화');
+  await page.getByRole('button', { name: '생각 띄우기', exact: true }).click();
 
-  await expect(page.getByText('내 불꽃이 레이더에 켜졌어요.')).toBeVisible();
-  await expect(page.getByTestId('flame-particle')).toHaveCount(4);
+  await expect(page.getByText('내 생각이 지도 위에 떠올랐어요.')).toBeVisible();
+  await expect(page.getByTestId('thought-character')).toHaveCount(4);
 });

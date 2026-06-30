@@ -1,8 +1,8 @@
 import { expect, test } from '@playwright/test';
 
 const topics = [
-  { displayLabel: '#카페대화', normalizedKey: '카페대화', category: 'daily', scope: 'global', heatLabel: '오늘 많이 켜진 불꽃' },
-  { displayLabel: '#지역교통', normalizedKey: '지역교통', category: 'local', scope: 'local', heatLabel: '근처에서 켜지고 있어요' },
+  { displayLabel: '#카페대화', normalizedKey: '카페대화', category: 'daily', scope: 'global', heatLabel: '요즘 이 태그가 모여요' },
+  { displayLabel: '#지역교통', normalizedKey: '지역교통', category: 'local', scope: 'local', heatLabel: '근처에서 자주 보여요' },
 ];
 
 test.beforeEach(async ({ page }) => {
@@ -40,13 +40,13 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
-test('shows an inviting empty radar without exposing exact coordinates', async ({ page }) => {
+test('shows an inviting empty map without exposing exact coordinates', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: /위치 허용/ }).click();
 
-  await expect(page.getByText('아직 이 공간에 떠 있는 불꽃이 없어요.').first()).toBeVisible();
-  await expect(page.getByText('첫 불꽃을 띄워볼까요?')).toBeVisible();
-  await expect(page.getByRole('button', { name: '내 불꽃 띄우기' })).toBeVisible();
+  await expect(page.getByText('아직 이 공간에 떠 있는 생각이 없어요.').first()).toBeVisible();
+  await expect(page.getByText('첫 생각을 띄워볼까요?')).toBeVisible();
+  await expect(page.getByRole('button', { name: '생각 띄우기' })).toBeVisible();
   await expect(page.getByText('#카페대화').first()).toBeVisible();
   await expect(page.getByText(/35\.1795|129\.0756|latitude|longitude|coordinates/i)).toHaveCount(0);
 });
