@@ -1,6 +1,9 @@
 import { heatLevelFromLabel } from './heatLabel.ts';
 import type { ClusterSummary, Flame, FlameParticle } from './types.ts';
 
+const PARTICLE_BOUNDARY_PADDING = 54;
+const MIN_CLICK_DISTANCE = 40;
+
 function hashString(value: string): number {
   let hash = 2166136261;
   for (let index = 0; index < value.length; index += 1) {
@@ -12,7 +15,7 @@ function hashString(value: string): number {
 
 function clampToCircle(particle: FlameParticle, size: number): FlameParticle {
   const center = size / 2;
-  const radius = size / 2;
+  const radius = size / 2 - PARTICLE_BOUNDARY_PADDING;
   const dx = particle.x - center;
   const dy = particle.y - center;
   const distance = Math.hypot(dx, dy);
@@ -32,11 +35,60 @@ function anchorForTag(tagNormalized: string, size: number) {
   const center = size / 2;
   const seed = hashString(tagNormalized || 'other');
   const angle = ((seed % 360) * Math.PI) / 180;
-  const radius = size * (0.18 + ((seed >>> 8) % 100) / 560);
+  const radius = size * (0.1 + ((seed >>> 8) % 100) / 900);
   return {
     x: center + Math.cos(angle) * radius,
     y: center + Math.sin(angle) * radius,
   };
+}
+
+function separateParticles(particles: FlameParticle[], size: number): FlameParticle[] {
+  let next = particles.map((particle) => ({ ...particle }));
+
+  for (let pass = 0; pass < 6; pass += 1) {
+    for (let index = 0; index < next.length; index += 1) {
+      for (let otherIndex = index + 1; otherIndex < next.length; otherIndex += 1) {
+        const particle = next[index];
+        const other = next[otherIndex];
+        let dx = particle.x - other.x;
+        let dy = particle.y - other.y;
+        let distance = Math.hypot(dx, dy);
+
+        if (distance === 0) {
+          const seed = hashString(`${particle.id}:${other.id}`);
+          const angle = ((seed % 360) * Math.PI) / 180;
+          dx = Math.cos(angle);
+          dy = Math.sin(angle);
+          distance = 1;
+        }
+
+        if (distance >= MIN_CLICK_DISTANCE) continue;
+
+        const push = (MIN_CLICK_DISTANCE - distance) / 2;
+        const nx = dx / distance;
+        const ny = dy / distance;
+
+        next[index] = {
+          ...particle,
+          x: particle.x + nx * push,
+          y: particle.y + ny * push,
+          vx: particle.vx + nx * 0.01,
+          vy: particle.vy + ny * 0.01,
+        };
+        next[otherIndex] = {
+          ...other,
+          x: other.x - nx * push,
+          y: other.y - ny * push,
+          vx: other.vx - nx * 0.01,
+          vy: other.vy - ny * 0.01,
+        };
+      }
+    }
+
+    next = next.map((particle) => clampToCircle(particle, size));
+  }
+
+  return next;
 }
 
 export function createInitialParticles(flames: readonly Flame[], size: number): FlameParticle[] {
@@ -101,10 +153,10 @@ export function simulateParticles(particles: readonly FlameParticle[], size: num
       if (tag && tag.count > 1) {
         const tagX = tag.x / tag.count;
         const tagY = tag.y / tag.count;
-        vx += ((tagX - particle.x) / size) * 0.16;
-        vy += ((tagY - particle.y) / size) * 0.16;
-        vx += Math.sin(step * 0.045 + tagSeed * 0.00008) * 0.018;
-        vy += Math.cos(step * 0.04 + tagSeed * 0.00011) * 0.018;
+        vx += ((tagX - particle.x) / size) * 0.1;
+        vy += ((tagY - particle.y) / size) * 0.1;
+        vx += Math.sin(step * 0.045 + tagSeed * 0.00008) * 0.01;
+        vy += Math.cos(step * 0.04 + tagSeed * 0.00011) * 0.01;
       }
 
       if (category && category.count > 1) {
@@ -130,6 +182,8 @@ export function simulateParticles(particles: readonly FlameParticle[], size: num
 
       return clampToCircle({ ...particle, vx, vy, x: particle.x + vx, y: particle.y + vy }, size);
     });
+
+    current = separateParticles(current, size);
   }
 
   return current;

@@ -87,10 +87,8 @@ test('shows full live slots, lets the user extinguish one, then creates again', 
   await expect(page.getByTestId('bottom-sheet-panel').getByText('내 생각 슬롯이 모두 차 있어요.', { exact: true })).toBeVisible();
 
   await page.getByRole('button', { name: '내리기' }).first().click();
-  await expect(page.getByText('내 생각을 내렸어요.')).toBeVisible();
   await expect(page.getByText('2 / 3')).toBeVisible();
 
   await page.getByRole('button', { name: '생각 띄우기', exact: true }).click();
-  await expect(page.getByText('내 생각이 지도 위에 떠올랐어요.')).toBeVisible();
   await expect(page.getByTestId('thought-character')).toHaveCount(1);
 });

@@ -8,6 +8,7 @@ import {
   simulateParticles,
   summarizeClusters,
 } from '../../lib/flame/particleSimulation.ts';
+import type { Flame } from '../../lib/flame/types.ts';
 import { getThoughtRangeMeters, getZoomForThoughtRange } from '../../lib/map/rangeViewport.ts';
 import { CHARACTER_EMOJI, characterKeyForThought } from '../../components/map/character.ts';
 
@@ -66,6 +67,36 @@ describe('Publit frontend core harness', () => {
     ));
 
     assert.ok(maxDistance < 58);
+  });
+
+  it('keeps thought particles inside the visible range while preserving click separation', () => {
+    const flames = Array.from({ length: 10 }, (_, index) => ({
+      id: `dense-${index}`,
+      tagNormalized: index < 7 ? '카페대화' : '지역교통',
+      tagLabel: index < 7 ? '#카페대화' : '#지역교통',
+      category: index < 7 ? 'daily' as const : 'local' as const,
+      mood: 'curious' as const,
+      selfStrength: 2 as const,
+      heatLabel: '요즘 이 태그가 모여요',
+      lifecycle: 'live' as const,
+      createdAt: '2026-06-28T00:00:00.000Z',
+    })) as readonly Flame[];
+
+    const size = 320;
+    const center = size / 2;
+    const visibleRadius = 106;
+    const particles = simulateParticles(createInitialParticles(flames, size), size, 240);
+
+    for (const particle of particles) {
+      assert.ok(Math.hypot(particle.x - center, particle.y - center) <= visibleRadius);
+    }
+
+    for (let index = 0; index < particles.length; index += 1) {
+      for (let otherIndex = index + 1; otherIndex < particles.length; otherIndex += 1) {
+        const distance = Math.hypot(particles[index].x - particles[otherIndex].x, particles[index].y - particles[otherIndex].y);
+        assert.ok(distance >= 30);
+      }
+    }
   });
 
   it('creates simulated radar particles without API coordinates and keeps them inside the radar', () => {

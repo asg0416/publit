@@ -8,5 +8,6 @@ test('keeps buttons interactive when opened through 127.0.0.1 dev origin', async
   await page.goto('http://127.0.0.1:3217/');
   await page.getByRole('button', { name: '조용히 둘러보기' }).click();
 
-  await expect(page.getByText('조용히 둘러보는 중이에요.')).toBeVisible();
+  await expect(page.getByTestId('publit-shell')).toBeVisible();
+  await expect(page.getByTestId('summary-panel')).toHaveCount(0);
 });

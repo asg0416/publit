@@ -139,7 +139,8 @@ test('requests browser location only after an explicit user action without start
     watchPositionCalls: 0,
     clearWatchCalls: 0,
   });
-  await expect(page.getByText('근처 생각이 지도 위에 떠 있어요.')).toBeVisible();
+  await expect(page.getByTestId('location-gate')).toHaveCount(0);
+  await expect(page.getByTestId('thought-character')).toHaveCount(1);
 });
 
 test('does not describe desktop position lookup failures as missing permission after the user allows location', async ({ page }) => {
@@ -175,7 +176,7 @@ test('restores an already granted desktop location without showing the permissio
     clearWatchCalls: 0,
   });
   await expect(page.getByTestId('location-gate')).toHaveCount(0);
-  await expect(page.getByText('근처 생각이 지도 위에 떠 있어요.')).toBeVisible();
+  await expect(page.getByTestId('thought-character')).toHaveCount(1);
 });
 
 test('hides the permission gate after the user grants location', async ({ page }) => {
@@ -187,5 +188,5 @@ test('hides the permission gate after the user grants location', async ({ page }
   await page.getByRole('button', { name: /위치 허용/ }).click();
 
   await expect(page.getByTestId('location-gate')).toHaveCount(0);
-  await expect(page.getByText('근처 생각이 지도 위에 떠 있어요.')).toBeVisible();
+  await expect(page.getByTestId('thought-character')).toHaveCount(1);
 });

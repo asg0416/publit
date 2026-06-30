@@ -1,7 +1,7 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { LocateFixed, Plus, RefreshCw } from 'lucide-react';
+import { LocateFixed, Plus, RefreshCw, SlidersHorizontal } from 'lucide-react';
 import { LocationGate } from '@/components/location/LocationGate';
 import { useMovingLocation } from '@/components/location/useMovingLocation';
 import { MapBackground } from '@/components/map/MapBackground';
@@ -33,9 +33,10 @@ export function PublitApp() {
   const [selected, setSelected] = useState<FlameType | null>(null);
   const [createOpen, setCreateOpen] = useState(false);
   const [lastPosition, setLastPosition] = useState<{ lat: number; lng: number; grid: string } | null>(null);
-  const [status, setStatus] = useState('지금 이곳에 떠도는 생각을 확인해보세요.');
+  const [, setStatus] = useState('지금 이곳에 떠도는 생각을 확인해보세요.');
   const [createFeedback, setCreateFeedback] = useState('');
   const [rangeValue, setRangeValue] = useState<ThoughtRangeValue>('500m');
+  const [rangeOpen, setRangeOpen] = useState(false);
 
   useEffect(() => {
     getDeviceHash().then(setDeviceHash).catch(() => setStatus('device hash를 만들 수 없어요.'));
@@ -102,7 +103,6 @@ export function PublitApp() {
     return () => window.clearInterval(interval);
   }, [lastPosition, refreshNearby]);
 
-  const hotSummary = useMemo(() => topics.slice(0, 3), [topics]);
   const selectedRange = useMemo(() => RANGE_OPTIONS.find((option) => option.value === rangeValue) ?? RANGE_OPTIONS[3], [rangeValue]);
   const shouldShowLocationGate = locationState.status !== 'granted';
 
@@ -215,23 +215,24 @@ export function PublitApp() {
   return (
     <main data-testid="publit-shell" className="relative min-h-[100svh] overflow-hidden bg-[#e9ece6] text-[#252520]">
       <MapBackground center={lastPosition} rangeValue={rangeValue} onCenterChange={handleMapCenterChange} />
-      <div className="pointer-events-none absolute inset-0 z-20">
-        <div className="pointer-events-auto absolute left-3 right-3 top-3 sm:left-4 sm:right-4">
-          <HotTagTicker topics={topics} />
+      <div className="pointer-events-none absolute left-3 right-3 top-3 z-50 sm:left-4 sm:right-4">
+        <div className="flex items-center gap-2">
+          <span className="grid size-9 shrink-0 place-items-center rounded-[10px] bg-white/95 text-xl shadow-[1px_1px_0_rgba(35,35,31,0.68)]">
+            🤔
+          </span>
+          <div className="min-w-0 rounded-[12px] bg-white/90 px-3 py-1.5 shadow-[1px_1px_0_rgba(35,35,31,0.58)] backdrop-blur-sm">
+            <h1 className="text-[1.3rem] font-black leading-none tracking-normal text-[#252520]">아니근데</h1>
+            <p className="mt-0.5 text-[10px] font-black leading-tight text-[#6f6b61]">지금 나만 이 생각해?</p>
+          </div>
         </div>
-        <header className="absolute left-4 right-4 top-[4.7rem] flex items-start justify-between gap-4">
-          <div className="min-w-0">
-            <p className="text-[10px] font-black text-[#6f6b61]">나만 이런 생각한 거 아니었네</p>
-            <h1 className="mt-1 text-[1.65rem] font-black leading-none tracking-normal text-[#252520] text-balance">아니근데</h1>
-          </div>
-          <div className="grid size-[34px] shrink-0 place-items-center rounded-[10px] bg-white text-sm font-black shadow-[2px_2px_0_rgba(35,35,31,0.82)]">
-            ▣
-          </div>
-        </header>
+      </div>
+
+      <div className="pointer-events-auto absolute left-3 right-3 top-[4.6rem] z-[90] sm:left-4 sm:right-4">
+        <HotTagTicker topics={topics} />
       </div>
 
       {shouldShowLocationGate ? (
-        <div className="absolute left-3 right-3 top-[8.25rem] z-40 mx-auto max-w-md sm:left-4 sm:right-4">
+        <div className="absolute left-3 right-3 top-[8.75rem] z-40 mx-auto max-w-md sm:left-4 sm:right-4">
           <LocationGate state={locationState} onRequest={requestLocation} onQuietBrowse={() => setStatus('조용히 둘러보는 중이에요.')} />
         </div>
       ) : null}
@@ -240,7 +241,18 @@ export function PublitApp() {
         <ThoughtOverlay thoughts={displayedFlames} rangeLabel={selectedRange.label} onSelect={setSelected} />
       </div>
 
-      <div className="absolute right-3 top-[8rem] z-30 grid gap-2 sm:right-4">
+      <div className="absolute right-3 top-[8.75rem] z-[60] grid gap-2 sm:right-4">
+        <button
+          type="button"
+          onClick={() => setRangeOpen((current) => !current)}
+          className={`grid size-9 place-items-center rounded-[10px] bg-white text-[#252520] shadow-[2px_2px_0_rgba(35,35,31,0.72)] transition-[transform,background-color] active:scale-[0.96] ${
+            rangeOpen ? 'bg-[#ffda68]' : ''
+          }`}
+          aria-label="반경 설정"
+          aria-expanded={rangeOpen}
+        >
+          <SlidersHorizontal size={16} />
+        </button>
         <button
           type="button"
           onClick={() => lastPosition ? void refreshNearby({ ...lastPosition }) : requestLocation({ forceRefresh: true })}
@@ -259,26 +271,28 @@ export function PublitApp() {
         </button>
       </div>
 
-      <RangeControl value={rangeValue} onChange={setRangeValue} />
-
-      <section data-testid="summary-panel" className="absolute bottom-[5rem] left-3 right-3 z-30 flex min-h-10 items-center justify-between gap-3 rounded-[14px] bg-white/95 px-3 py-2 text-[10px] font-black text-[#252520] shadow-[2px_2px_0_rgba(35,35,31,0.78)] sm:left-4 sm:right-4">
-        <span className="min-w-0 truncate">{status}</span>
-        <span className="shrink-0 text-[#0b6975]">{hotSummary[0]?.displayLabel ?? '#근처생각'}</span>
-      </section>
+      {rangeOpen ? (
+        <div className="absolute right-[3.6rem] top-[8.75rem] z-[70] sm:right-[4.1rem]">
+          <RangeControl
+            value={rangeValue}
+            onChange={(next) => {
+              setRangeValue(next);
+              setRangeOpen(false);
+            }}
+          />
+        </div>
+      ) : null}
 
       <button
         type="button"
         aria-label="생각 띄우기 열기"
         data-testid="thought-compose-toolbar"
         onClick={() => { setCreateFeedback(''); setCreateOpen(true); }}
-        className="absolute bottom-3 left-3 right-3 z-30 grid min-h-[3.25rem] grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-[16px] bg-white px-3 py-2 text-left shadow-[2px_2px_0_rgba(35,35,31,0.88)] transition-transform active:scale-[0.98] sm:left-4 sm:right-4"
+        className="absolute bottom-4 right-4 z-40 flex min-h-11 items-center gap-2 rounded-full bg-white/95 px-3 py-2 text-left shadow-[2px_2px_0_rgba(35,35,31,0.82)] transition-transform active:scale-[0.96] sm:right-5"
       >
-        <span className="min-w-0">
-          <span className="block text-sm font-black leading-tight text-[#252520]">생각 띄우기</span>
-          <span className="block truncate text-[10px] font-bold text-[#6f6b61]">아니근데… 나만 이런 생각해?</span>
-        </span>
-        <span className="grid size-10 place-items-center rounded-[12px] bg-[#a8ddc1] text-[#153424] shadow-[2px_2px_0_rgba(35,35,31,0.82)]">
-          <Plus size={20} />
+        <span className="block text-sm font-black leading-tight text-[#252520]">생각 띄우기</span>
+        <span className="grid size-9 place-items-center rounded-full bg-[#a8ddc1] text-[#153424] shadow-[1px_1px_0_rgba(35,35,31,0.68)]">
+          <Plus size={19} />
         </span>
       </button>
 

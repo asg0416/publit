@@ -131,15 +131,19 @@ test('renders the map-first Anigeunde home without old map globals', async ({ pa
   await page.goto('/');
 
   await expect(page.getByRole('heading', { name: '아니근데' })).toBeVisible();
+  await expect(page.getByText('🤔')).toBeVisible();
   await expect(page.getByText('지금 뜨는 태그')).toBeVisible();
-  await expect(page.getByText('나만 이런 생각한 거 아니었네')).toBeVisible();
+  await expect(page.getByText('지금 나만 이 생각해?')).toBeVisible();
   await page.getByRole('button', { name: /위치 허용/ }).click();
 
   await expect(page.getByTestId('mapglot-background')).toBeVisible();
   await expect(page.getByTestId('thought-map')).toBeVisible();
   await expect(page.getByTestId('thought-character')).toHaveCount(3);
   await expect(page.getByTestId('flame-glyph')).toHaveCount(3);
-  await expect(page.getByText('근처 생각이 지도 위에 떠 있어요.')).toBeVisible();
+  await expect(page.getByTestId('summary-panel')).toHaveCount(0);
+  await expect(page.getByTestId('range-control')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: '반경 설정' })).toBeVisible();
+  await page.getByRole('button', { name: '반경 설정' }).click();
   await expect(page.getByRole('button', { name: '50m' })).toBeVisible();
   await expect(page.getByRole('button', { name: '500m' })).toBeVisible();
   await expect(page.getByRole('button', { name: '전국' })).toBeVisible();
@@ -165,6 +169,5 @@ test('creates a flame through the sheet using mocked edge functions', async ({ p
   await page.getByLabel('생각 태그').fill('#카페대화');
   await page.getByRole('button', { name: '생각 띄우기', exact: true }).click();
 
-  await expect(page.getByText('내 생각이 지도 위에 떠올랐어요.')).toBeVisible();
   await expect(page.getByTestId('thought-character')).toHaveCount(4);
 });

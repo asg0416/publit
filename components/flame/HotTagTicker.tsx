@@ -19,7 +19,7 @@ export function HotTagTicker({ topics }: HotTagTickerProps) {
 
   if (topics.length === 0) {
     return (
-      <div className="rounded-[14px] bg-white/95 px-4 py-3 text-sm font-bold text-[#5d5a51] shadow-[2px_2px_0_rgba(35,35,31,0.72)]">
+      <div className="relative z-[90] rounded-[14px] bg-white/95 px-4 py-3 text-sm font-bold text-[#5d5a51] shadow-[2px_2px_0_rgba(35,35,31,0.72)]">
         지금 뜨는 태그를 모으는 중이에요.
       </div>
     );
@@ -29,7 +29,7 @@ export function HotTagTicker({ topics }: HotTagTickerProps) {
     <button
       type="button"
       onClick={() => setExpanded((current) => !current)}
-      className="w-full rounded-[14px] bg-white/95 px-4 py-3 text-left shadow-[2px_2px_0_rgba(35,35,31,0.72)] transition-[transform,background-color] hover:bg-white active:scale-[0.96]"
+      className="relative z-[90] w-full rounded-[14px] bg-white/95 px-4 py-3 text-left shadow-[2px_2px_0_rgba(35,35,31,0.72)] transition-[transform,background-color] hover:bg-white active:scale-[0.96]"
       aria-expanded={expanded}
     >
       <div className="flex items-center justify-between gap-3">
@@ -37,7 +37,7 @@ export function HotTagTicker({ topics }: HotTagTickerProps) {
         <span className="publit-ticker-snap min-w-0 truncate text-sm font-black text-[#0b6975]">{topics[index]?.displayLabel}</span>
       </div>
       {expanded ? (
-        <ol className="mt-3 grid gap-2">
+        <ol className="relative z-[91] mt-3 grid gap-2">
           {topics.slice(0, 10).map((topic, topicIndex) => (
             <li key={`${topic.scope}-${topic.normalizedKey}`} className="flex items-center justify-between gap-3 text-xs text-[#5d5a51]">
               <span>{topicIndex + 1}. {topic.displayLabel}</span>

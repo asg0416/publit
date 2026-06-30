@@ -73,6 +73,5 @@ test('opens details, reacts without counts, and removes a hidden report', async 
 
   await page.getByRole('button', { name: '신고' }).click();
   await page.getByRole('button', { name: '오정보' }).click();
-  await expect(page.getByText('신고를 접수했어요.')).toBeVisible();
   await expect(page.getByTestId('thought-character')).toHaveCount(0);
 });

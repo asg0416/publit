@@ -5,7 +5,7 @@ type RangeCircleProps = {
 export function RangeCircle({ label }: RangeCircleProps) {
   return (
     <div
-      className="pointer-events-none absolute left-1/2 top-1/2 size-[min(58vw,178px)] max-h-[178px] max-w-[178px] -translate-x-1/2 -translate-y-1/2 rounded-full border border-dashed border-[#252520]/35 bg-white/15"
+      className="pointer-events-none absolute inset-0 rounded-full border border-dashed border-[#252520]/35 bg-white/10"
       data-testid="range-circle"
     >
       <span

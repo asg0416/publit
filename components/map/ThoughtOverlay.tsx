@@ -42,14 +42,14 @@ function ThoughtOverlaySimulation({ thoughts, rangeLabel, onSelect }: ThoughtOve
   const clusters = summarizeClusters(particles);
 
   return (
-    <section data-testid="thought-overlay" className="pointer-events-none absolute inset-x-2 bottom-[12rem] top-[7.25rem] z-10">
-      <div className="relative mx-auto h-full max-h-[420px] min-h-[240px] w-full max-w-[390px]" data-testid="thought-map">
+    <section data-testid="thought-overlay" className="pointer-events-none absolute inset-x-2 bottom-[5.75rem] top-[8.75rem] z-10 grid place-items-center">
+      <div className="relative size-[min(78vw,320px)] max-h-[320px] max-w-[320px]" data-testid="thought-map">
         <RangeCircle label={rangeLabel} />
         {clusters.map((cluster) => (
           <div
             key={cluster.tagNormalized}
             data-testid="cluster-aura"
-            className="anigeunde-aura absolute size-24 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#ffdb68]/25"
+            className="anigeunde-aura absolute size-20 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#ffdb68]/25"
             style={{ left: `${(cluster.x / overlaySize) * 100}%`, top: `${(cluster.y / overlaySize) * 100}%` }}
           />
         ))}
@@ -63,27 +63,34 @@ function ThoughtOverlaySimulation({ thoughts, rangeLabel, onSelect }: ThoughtOve
           });
 
           return (
-            <button
+            <div
               key={particle.id}
-              type="button"
-              data-testid="thought-character"
-              className="pointer-events-auto absolute grid w-24 -translate-x-1/2 -translate-y-1/2 justify-items-center gap-1 text-[9px] font-black text-[#252520] transition-[opacity] active:scale-[0.96]"
+              className="pointer-events-none absolute grid w-16 -translate-x-1/2 -translate-y-1/2 justify-items-center gap-1 text-[9px] font-black text-[#252520]"
               style={{ left: `${(particle.x / overlaySize) * 100}%`, top: `${(particle.y / overlaySize) * 100}%` }}
-              onClick={() => onSelect(thought)}
-              aria-label={`${particle.tagLabel} 생각`}
             >
-              <span className="max-w-[5.75rem] overflow-hidden text-ellipsis whitespace-nowrap rounded-lg bg-white px-2 py-1 shadow-[2px_2px_0_rgba(35,35,31,0.78)]">
+              <span className="pointer-events-none max-w-[4rem] overflow-hidden text-ellipsis whitespace-nowrap rounded-lg bg-white px-2 py-1 shadow-[1px_1px_0_rgba(35,35,31,0.68)]">
                 {particle.tagLabel}
               </span>
-              <span data-testid="flame-particle" className="contents">
+              <button
+                type="button"
+                data-testid="thought-character"
+                className="pointer-events-auto grid size-9 place-items-center transition-transform active:scale-[0.94]"
+                onClick={() => onSelect(thought)}
+                aria-label={`${particle.tagLabel} 생각`}
+              >
                 <span
-                  data-testid="flame-glyph"
-                  className="anigeunde-character grid size-9 place-items-center rounded-[10px] bg-white text-xl shadow-[2px_2px_0_rgba(35,35,31,0.72)]"
+                  data-testid="flame-particle"
+                  className="contents"
                 >
-                  {CHARACTER_EMOJI[characterKey]}
+                  <span
+                    data-testid="flame-glyph"
+                    className="anigeunde-character grid size-9 place-items-center rounded-[10px] bg-white text-xl shadow-[1px_1px_0_rgba(35,35,31,0.68)]"
+                  >
+                    {CHARACTER_EMOJI[characterKey]}
+                  </span>
                 </span>
-              </span>
-            </button>
+              </button>
+            </div>
           );
         })}
       </div>
