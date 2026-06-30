@@ -56,6 +56,7 @@ function isGlittery(label: string) {
 export function FlameDetailSheet({ flame, flames, onClose, onSelect, onReact, onReport }: FlameDetailSheetProps) {
   const [reportOpen, setReportOpen] = useState(false);
   const [swipeDirection, setSwipeDirection] = useState<'idle' | 'forward' | 'back'>('idle');
+  const [dragOffset, setDragOffset] = useState(0);
   const touchStartX = useRef<number | null>(null);
   const activeFlame = flame ? flames.find((item) => item.id === flame.id) ?? flame : null;
   const currentIndex = activeFlame ? flames.findIndex((item) => item.id === activeFlame.id) : -1;
@@ -64,13 +65,29 @@ export function FlameDetailSheet({ flame, flames, onClose, onSelect, onReact, on
   const goTo = (direction: -1 | 1) => {
     if (!canSwipe) return;
     const nextIndex = (currentIndex + direction + flames.length) % flames.length;
+    setDragOffset(0);
     setSwipeDirection(direction > 0 ? 'forward' : 'back');
     onSelect(flames[nextIndex]);
   };
 
   const handleClose = () => {
+    setDragOffset(0);
     setSwipeDirection('idle');
     onClose();
+  };
+
+  const handleDragEnd = (end: number | undefined) => {
+    const start = touchStartX.current;
+    touchStartX.current = null;
+    if (start === null || end === undefined) {
+      setDragOffset(0);
+      return;
+    }
+
+    const delta = end - start;
+    setDragOffset(0);
+    if (Math.abs(delta) < 56) return;
+    goTo(delta < 0 ? 1 : -1);
   };
 
   return (
@@ -83,21 +100,32 @@ export function FlameDetailSheet({ flame, flames, onClose, onSelect, onReact, on
               className="grid gap-2"
               onTouchStart={(event) => {
                 touchStartX.current = event.touches[0]?.clientX ?? null;
+                setDragOffset(0);
+              }}
+              onTouchMove={(event) => {
+                const start = touchStartX.current;
+                const current = event.touches[0]?.clientX;
+                if (start === null || current === undefined) return;
+                const delta = Math.max(-96, Math.min(96, current - start));
+                setDragOffset(delta);
               }}
               onTouchEnd={(event) => {
-                const start = touchStartX.current;
+                handleDragEnd(event.changedTouches[0]?.clientX);
+              }}
+              onTouchCancel={() => {
                 touchStartX.current = null;
-                const end = event.changedTouches[0]?.clientX;
-                if (start === null || end === undefined) return;
-                const delta = end - start;
-                if (Math.abs(delta) < 56) return;
-                goTo(delta < 0 ? 1 : -1);
+                setDragOffset(0);
               }}
             >
               <div
                 key={activeFlame.id}
                 data-testid="thought-speech-bubble"
-                className={`relative grid grid-cols-[auto_minmax(0,1fr)] gap-3 rounded-[22px] p-3 ${strengthBubbleClass(activeFlame.selfStrength)} ${
+                data-dragging={dragOffset !== 0 ? 'true' : undefined}
+                style={dragOffset !== 0 ? {
+                  opacity: 1 - Math.min(Math.abs(dragOffset) / 260, 0.22),
+                  transform: `translateX(${dragOffset}px) rotate(${dragOffset / 32}deg)`,
+                } : undefined}
+                className={`relative grid grid-cols-[auto_minmax(0,1fr)] gap-3 rounded-[22px] p-3 ${dragOffset !== 0 ? 'transition-none' : 'transition-[opacity,transform] duration-150'} ${strengthBubbleClass(activeFlame.selfStrength)} ${
                   isGlittery(activeFlame.heatLabel) ? 'anigeunde-glitter' : ''
                 } ${swipeDirection === 'forward' ? 'anigeunde-swipe-card-forward' : ''} ${swipeDirection === 'back' ? 'anigeunde-swipe-card-back' : ''}`}
               >

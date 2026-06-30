@@ -36,6 +36,7 @@ export function InlineThoughtComposer({ topics, remoteSuggestions, slots, submit
   const [manualCategory, setManualCategory] = useState<FlameCategory>('other');
   const [selfStrength, setSelfStrength] = useState<1 | 2 | 3>(2);
   const [characterKey, setCharacterKey] = useState<CharacterKey>('turtle');
+  const [optionsOpen, setOptionsOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
   const localSuggestions = useMemo(() => suggestTagsFromText(text).map((item) => ({
@@ -60,6 +61,7 @@ export function InlineThoughtComposer({ topics, remoteSuggestions, slots, submit
   const blocked = isBlockedText(`${text} ${tagLabel}`);
   const isFull = slots ? slots.used >= slots.limit : false;
   const canSubmit = Boolean(text.trim() && tagLabel && !blocked && !submitting);
+  const selectedStrength = strengthOptions.find((option) => option.value === selfStrength) ?? strengthOptions[1];
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
@@ -97,6 +99,7 @@ export function InlineThoughtComposer({ topics, remoteSuggestions, slots, submit
       if (result === true) {
         setText('');
         setTagOverride(null);
+        setOptionsOpen(false);
       }
     } finally {
       setSubmitting(false);
@@ -106,43 +109,24 @@ export function InlineThoughtComposer({ topics, remoteSuggestions, slots, submit
   return (
     <form
       data-testid="inline-thought-composer"
-      className="anigeunde-inline-composer pointer-events-auto absolute inset-x-3 bottom-3 z-[80] mx-auto grid max-w-2xl gap-2 rounded-[18px] border border-white/80 bg-white/95 p-2.5 shadow-[2px_2px_0_rgba(35,35,31,0.72)] backdrop-blur-md sm:bottom-4"
+      className="anigeunde-inline-composer pointer-events-auto absolute inset-x-3 bottom-3 z-[80] mx-auto grid max-w-2xl gap-1.5 rounded-[18px] border border-white/80 bg-white/95 p-2 shadow-[2px_2px_0_rgba(35,35,31,0.72)] backdrop-blur-md sm:bottom-4"
       onSubmit={handleSubmit}
       onFocus={onFocus}
     >
-      <div className="flex items-center justify-between gap-2">
-        <span className="shrink-0 text-[11px] font-black text-[#6f6b61]">캐릭터</span>
-        <div className="flex min-w-0 flex-1 gap-1 overflow-x-auto pb-0.5" role="group" aria-label="캐릭터">
-          {characterKeys.map((key) => (
-            <button
-              type="button"
-              key={key}
-              onClick={() => setCharacterKey(key)}
-              className={`grid size-9 shrink-0 place-items-center rounded-[11px] bg-[#fbfbf7] text-lg shadow-[1px_1px_0_rgba(35,35,31,0.38)] transition-[transform,background-color,outline-color] active:scale-[0.94] ${characterKey === key ? 'outline outline-2 outline-[#0b6975]' : 'outline outline-0 outline-transparent'}`}
-              aria-label={`캐릭터 ${key}`}
-            >
-              {CHARACTER_EMOJI[key]}
-            </button>
-          ))}
-        </div>
-        <div className="flex shrink-0 gap-1" role="group" aria-label="생각 크기">
-          {strengthOptions.map((option) => (
-            <button
-              type="button"
-              key={option.value}
-              onClick={() => setSelfStrength(option.value)}
-              className={`min-h-8 rounded-[10px] px-2 text-[11px] font-black shadow-[1px_1px_0_rgba(35,35,31,0.32)] transition-[transform,background-color,color] active:scale-[0.95] ${
-                selfStrength === option.value ? option.className : 'bg-[#fbfbf7] text-[#6f6b61]'
-              }`}
-              aria-pressed={selfStrength === option.value}
-            >
-              {option.label}
-            </button>
-          ))}
-        </div>
-      </div>
-
-      <div className="grid grid-cols-[minmax(0,1fr)_auto] gap-2">
+      <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] gap-2">
+        <button
+          type="button"
+          data-testid="composer-options-toggle"
+          onClick={() => setOptionsOpen((current) => !current)}
+          className="relative grid size-11 shrink-0 place-items-center rounded-[13px] bg-[#fbfbf7] text-xl shadow-[1px_1px_0_rgba(35,35,31,0.42)] transition-[transform,background-color] active:scale-[0.96]"
+          aria-label="작성 옵션"
+          aria-expanded={optionsOpen}
+        >
+          {CHARACTER_EMOJI[characterKey]}
+          <span className={`absolute -right-1 -top-1 rounded-full px-1.5 py-0.5 text-[9px] font-black leading-none ${selectedStrength.className}`}>
+            {selectedStrength.label}
+          </span>
+        </button>
         <label className="sr-only" htmlFor="inline-thought-text">지금 떠오른 생각</label>
         <input
           id="inline-thought-text"
@@ -176,18 +160,53 @@ export function InlineThoughtComposer({ topics, remoteSuggestions, slots, submit
         <span className="font-mono text-[10px] font-black tabular-nums text-[#9a968c]">{text.length}/80</span>
       </div>
 
-      {suggestions.length ? (
-        <div className="flex gap-1 overflow-x-auto pb-0.5" aria-label="추천 태그">
-          {suggestions.slice(0, 6).map((suggestion) => (
-            <button
-              type="button"
-              key={`${suggestion.source}-${suggestion.normalizedKey}`}
-              onClick={() => handleSuggestionSelect(suggestion)}
-              className="min-h-8 shrink-0 rounded-full bg-[#fbfbf7] px-3 text-[11px] font-black text-[#5d5a51] shadow-[1px_1px_0_rgba(35,35,31,0.28)] transition-[transform,background-color,color] hover:bg-[#efeee8] active:scale-[0.96]"
-            >
-              {suggestion.displayLabel}
-            </button>
-          ))}
+      {optionsOpen ? (
+        <div data-testid="composer-options-panel" className="anigeunde-options-panel grid gap-2 rounded-[14px] bg-[#fbfbf7] p-2 shadow-[inset_0_0_0_1px_rgba(35,35,31,0.06)]">
+          <div className="grid gap-1">
+            <span className="text-[10px] font-black text-[#6f6b61]">캐릭터</span>
+            <div className="flex gap-1 overflow-x-auto pb-0.5" role="group" aria-label="캐릭터">
+              {characterKeys.map((key) => (
+                <button
+                  type="button"
+                  key={key}
+                  onClick={() => setCharacterKey(key)}
+                  className={`grid size-9 shrink-0 place-items-center rounded-[11px] bg-white text-lg shadow-[1px_1px_0_rgba(35,35,31,0.34)] transition-[transform,background-color,outline-color] active:scale-[0.96] ${characterKey === key ? 'outline outline-2 outline-[#0b6975]' : 'outline outline-0 outline-transparent'}`}
+                  aria-label={`캐릭터 ${key}`}
+                >
+                  {CHARACTER_EMOJI[key]}
+                </button>
+              ))}
+            </div>
+          </div>
+          <div className="flex gap-1 overflow-x-auto" role="group" aria-label="생각 크기">
+            {strengthOptions.map((option) => (
+              <button
+                type="button"
+                key={option.value}
+                onClick={() => setSelfStrength(option.value)}
+                className={`min-h-8 shrink-0 rounded-[10px] px-3 text-[11px] font-black shadow-[1px_1px_0_rgba(35,35,31,0.28)] transition-[transform,background-color,color] active:scale-[0.96] ${
+                  selfStrength === option.value ? option.className : 'bg-white text-[#6f6b61]'
+                }`}
+                aria-pressed={selfStrength === option.value}
+              >
+                {option.label}
+              </button>
+            ))}
+          </div>
+          {suggestions.length ? (
+            <div className="flex gap-1 overflow-x-auto pb-0.5" aria-label="추천 태그">
+              {suggestions.slice(0, 6).map((suggestion) => (
+                <button
+                  type="button"
+                  key={`${suggestion.source}-${suggestion.normalizedKey}`}
+                  onClick={() => handleSuggestionSelect(suggestion)}
+                  className="min-h-8 shrink-0 rounded-full bg-white px-3 text-[11px] font-black text-[#5d5a51] shadow-[1px_1px_0_rgba(35,35,31,0.24)] transition-[transform,background-color,color] hover:bg-[#efeee8] active:scale-[0.96]"
+                >
+                  {suggestion.displayLabel}
+                </button>
+              ))}
+            </div>
+          ) : null}
         </div>
       ) : null}
 

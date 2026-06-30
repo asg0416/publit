@@ -229,15 +229,13 @@ export function PublitApp() {
     <main data-testid="publit-shell" className="relative min-h-[100svh] overflow-hidden bg-[#e9ece6] text-[#252520]">
       <MapBackground center={viewPosition} rangeValue={rangeValue} onCenterChange={handleMapCenterChange} />
       <div data-testid="top-brand-bar" className="pointer-events-auto absolute left-3 right-3 top-3 z-[120] sm:left-4 sm:right-4">
-        <div className="flex min-h-[58px] items-center gap-2 rounded-[18px] bg-white/94 p-2 shadow-[1px_1px_0_rgba(35,35,31,0.58)] backdrop-blur-md">
-          <div data-testid="brand-logo" className="flex shrink-0 items-center gap-2 rounded-[14px] bg-white px-2 py-1.5">
-            <span className="text-xl leading-none" aria-hidden="true">🤔</span>
-            <div className="min-w-0">
-              <h1 className="text-[1.15rem] font-black leading-none tracking-normal text-[#252520]">아니근데</h1>
-              <p className="mt-0.5 text-[10px] font-black leading-tight text-[#6f6b61]">지금 나만 이 생각해?</p>
+        <div className="grid h-12 grid-cols-[auto_minmax(0,1fr)] items-center gap-2 rounded-[16px] bg-white/94 p-1.5 shadow-[1px_1px_0_rgba(35,35,31,0.58)] backdrop-blur-md">
+          <div data-testid="brand-logo" className="grid h-full w-[78px] shrink-0 place-items-center rounded-[12px] bg-white px-1.5">
+            <div className="grid justify-items-center">
+              <h1 className="-skew-x-6 text-[1.22rem] font-black leading-[0.9] tracking-normal text-[#252520]">ANGD</h1>
+              <p className="mt-0.5 whitespace-nowrap text-[9px] font-black leading-none text-[#6f6b61]">아니근데 나만?</p>
             </div>
           </div>
-          <div className="h-9 w-px shrink-0 bg-[#e7e5df]" />
           <HotTagTicker topics={topics} compact />
         </div>
       </div>

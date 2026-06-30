@@ -91,6 +91,11 @@ test('opens details, reacts without counts, and removes a hidden report', async 
   await panel.getByTestId('thought-detail-swipe-area').dispatchEvent('touchstart', {
     touches: [{ identifier: 1, target: await panel.getByTestId('thought-detail-swipe-area').elementHandle(), clientX: 320, clientY: 520 }],
   });
+  await panel.getByTestId('thought-detail-swipe-area').dispatchEvent('touchmove', {
+    touches: [{ identifier: 1, target: await panel.getByTestId('thought-detail-swipe-area').elementHandle(), clientX: 230, clientY: 520 }],
+  });
+  await expect(panel.getByTestId('thought-speech-bubble')).toHaveAttribute('data-dragging', 'true');
+  await expect(panel.getByTestId('thought-speech-bubble')).toHaveAttribute('style', /translateX\(-90px\)/);
   await panel.getByTestId('thought-detail-swipe-area').dispatchEvent('touchend', {
     changedTouches: [{ identifier: 1, target: await panel.getByTestId('thought-detail-swipe-area').elementHandle(), clientX: 80, clientY: 520 }],
   });

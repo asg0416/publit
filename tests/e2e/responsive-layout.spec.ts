@@ -94,6 +94,9 @@ test('keeps the full map controls separated on desktop', async ({ page }) => {
   await page.getByRole('button', { name: /위치 허용/ }).click();
 
   const shell = page.getByTestId('publit-shell');
+  const topBar = page.getByTestId('top-brand-bar');
+  const brand = page.getByTestId('brand-logo');
+  const ticker = page.getByTestId('hot-tag-ticker');
   const map = page.getByTestId('mapglot-background');
   const thoughtMap = page.getByTestId('thought-map');
   const composer = page.getByTestId('inline-thought-composer');
@@ -107,9 +110,14 @@ test('keeps the full map controls separated on desktop', async ({ page }) => {
   await expect(rangeButton).toBeVisible();
 
   const shellBox = await requiredBox(shell);
+  const topBarBox = await requiredBox(topBar);
+  const brandBox = await requiredBox(brand);
+  const tickerBox = await requiredBox(ticker);
   const thoughtBox = await requiredBox(thoughtMap);
   const composerBox = await requiredBox(composer);
 
+  expect(topBarBox.height).toBeLessThanOrEqual(58);
+  expect(tickerBox.width).toBeGreaterThan(brandBox.width);
   expectInside(thoughtBox, shellBox);
   expectBelow(thoughtBox, composerBox, 16);
   expect(composerBox.y + composerBox.height).toBeLessThanOrEqual(shellBox.y + shellBox.height - 8);
@@ -128,6 +136,9 @@ test('keeps the full map controls separated on mobile', async ({ page }) => {
   await page.getByRole('button', { name: /위치 허용/ }).click();
 
   const shell = page.getByTestId('publit-shell');
+  const topBar = page.getByTestId('top-brand-bar');
+  const brand = page.getByTestId('brand-logo');
+  const ticker = page.getByTestId('hot-tag-ticker');
   const thoughtMap = page.getByTestId('thought-map');
   const composer = page.getByTestId('inline-thought-composer');
   const rangeButton = page.getByRole('button', { name: '반경 설정' });
@@ -139,10 +150,16 @@ test('keeps the full map controls separated on mobile', async ({ page }) => {
   await expect(rangeButton).toBeVisible();
 
   const shellBox = await requiredBox(shell);
+  const topBarBox = await requiredBox(topBar);
+  const brandBox = await requiredBox(brand);
+  const tickerBox = await requiredBox(ticker);
   const thoughtBox = await requiredBox(thoughtMap);
   const composerBox = await requiredBox(composer);
 
   expect(shellBox.width).toBeLessThanOrEqual(390);
+  expect(topBarBox.height).toBeLessThanOrEqual(58);
+  expect(composerBox.height).toBeLessThanOrEqual(124);
+  expect(tickerBox.width).toBeGreaterThan(brandBox.width);
   expectInside(thoughtBox, shellBox);
   expectBelow(thoughtBox, composerBox, 12);
   expect(composerBox.y + composerBox.height).toBeLessThanOrEqual(shellBox.y + shellBox.height - 8);

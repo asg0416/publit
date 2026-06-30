@@ -130,19 +130,21 @@ test.beforeEach(async ({ page }) => {
 test('renders the map-first Anigeunde home without old map globals', async ({ page }) => {
   await page.goto('/');
 
-  await expect(page.getByRole('heading', { name: '아니근데' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'ANGD' })).toBeVisible();
   await expect(page.getByTestId('top-brand-bar')).toBeVisible();
-  await expect(page.getByTestId('brand-logo')).toContainText('🤔');
-  await expect(page.getByTestId('brand-logo')).toContainText('아니근데');
+  await expect(page.getByTestId('brand-logo')).toContainText('ANGD');
+  await expect(page.getByTestId('brand-logo')).toContainText('아니근데 나만?');
   await expect(page.getByTestId('hot-tag-ticker')).toBeVisible();
   await expect(page.getByTestId('hot-tag-current')).toHaveClass(/anigeunde-hot-tag-item/);
-  await expect(page.getByText('🤔')).toBeVisible();
-  await expect(page.getByText('지금 뜨는 태그')).toBeVisible();
-  await expect(page.getByText('지금 나만 이 생각해?')).toBeVisible();
+  await expect(page.getByText('트렌드')).toBeVisible();
   const brandBox = await page.getByTestId('brand-logo').boundingBox();
   const tickerBox = await page.getByTestId('hot-tag-ticker').boundingBox();
+  const topBarBox = await page.getByTestId('top-brand-bar').boundingBox();
   expect(brandBox).not.toBeNull();
   expect(tickerBox).not.toBeNull();
+  expect(topBarBox).not.toBeNull();
+  expect(topBarBox!.height).toBeLessThanOrEqual(58);
+  expect(tickerBox!.width).toBeGreaterThan(brandBox!.width);
   expect(Math.abs(brandBox!.y - tickerBox!.y)).toBeLessThan(10);
   await page.getByRole('button', { name: /위치 허용/ }).click();
 
@@ -158,6 +160,7 @@ test('renders the map-first Anigeunde home without old map globals', async ({ pa
   await expect(page.getByRole('button', { name: '500m' })).toBeVisible();
   await expect(page.getByRole('button', { name: '전국' })).toBeVisible();
   await expect(page.getByTestId('inline-thought-composer')).toBeVisible();
+  await expect(page.getByTestId('composer-options-panel')).toHaveCount(0);
   await expect(page.getByRole('button', { name: '생각 띄우기', exact: true })).toBeVisible();
   await expect(page.getByRole('dialog', { name: '생각 띄우기' })).toHaveCount(0);
 
@@ -173,6 +176,9 @@ test('creates a flame through the inline composer using mocked edge functions', 
   await page.getByRole('button', { name: /위치 허용/ }).click();
 
   await expect(page.getByTestId('inline-thought-composer')).toBeVisible();
+  await expect(page.getByTestId('composer-options-panel')).toHaveCount(0);
+  await page.getByRole('button', { name: '작성 옵션' }).click();
+  await expect(page.getByTestId('composer-options-panel')).toBeVisible();
   await expect(page.getByText('캐릭터')).toBeVisible();
   await page.getByRole('textbox', { name: '지금 떠오른 생각' }).fill('새로 띄운 생각이에요.');
   await page.getByLabel('생각 태그').fill('#카페대화');

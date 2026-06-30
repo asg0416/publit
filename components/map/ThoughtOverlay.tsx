@@ -52,7 +52,7 @@ function ThoughtOverlaySimulation({ thoughts, rangeLabel, onSelect }: ThoughtOve
   const clusters = summarizeClusters(particles);
 
   return (
-    <section data-testid="thought-overlay" className="pointer-events-none absolute inset-x-2 bottom-[12rem] top-[6.35rem] z-10 grid place-items-center">
+    <section data-testid="thought-overlay" className="pointer-events-none absolute inset-x-2 bottom-[8.75rem] top-[5.35rem] z-10 grid place-items-center">
       <div className="relative size-[min(78vw,320px)] max-h-[320px] max-w-[320px]" data-testid="thought-map">
         <RangeCircle label={rangeLabel} />
         {clusters.map((cluster) => (

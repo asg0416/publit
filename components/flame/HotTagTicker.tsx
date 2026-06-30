@@ -24,7 +24,7 @@ export function HotTagTicker({ topics, compact = false }: HotTagTickerProps) {
       <div
         data-testid="hot-tag-ticker"
         className={`relative rounded-[14px] bg-white/95 text-sm font-bold text-[#5d5a51] ${
-          compact ? 'min-w-0 flex-1 px-2.5 py-2' : 'z-[90] px-4 py-3 shadow-[2px_2px_0_rgba(35,35,31,0.72)]'
+          compact ? 'h-full min-w-0 px-3 py-2' : 'z-[90] px-4 py-3 shadow-[2px_2px_0_rgba(35,35,31,0.72)]'
         }`}
       >
         지금 뜨는 태그를 모으는 중이에요.
@@ -35,20 +35,20 @@ export function HotTagTicker({ topics, compact = false }: HotTagTickerProps) {
   return (
     <div
       data-testid="hot-tag-ticker"
-      className={`relative min-w-0 ${compact ? 'flex-1' : 'z-[90] w-full'}`}
+      className={`relative min-w-0 ${compact ? 'h-full' : 'z-[90] w-full'}`}
     >
       <button
         type="button"
         onClick={() => setExpanded((current) => !current)}
         className={`w-full text-left transition-[transform,background-color,box-shadow] hover:bg-white active:scale-[0.96] ${
           compact
-            ? 'rounded-[13px] bg-[#fbfbf7] px-2.5 py-2'
+            ? 'h-full rounded-[12px] bg-[#fbfbf7] px-3 py-1.5'
             : 'rounded-[14px] bg-white/95 px-4 py-3 shadow-[2px_2px_0_rgba(35,35,31,0.72)]'
         }`}
         aria-expanded={expanded}
       >
         <div className="flex min-w-0 items-center justify-between gap-2">
-          <span className={`shrink-0 font-black text-[#6f6b61] ${compact ? 'text-[11px]' : 'text-xs'}`}>지금 뜨는 태그</span>
+          <span className={`shrink-0 font-black text-[#6f6b61] ${compact ? 'text-[11px]' : 'text-xs'}`}>{compact ? '트렌드' : '지금 뜨는 태그'}</span>
           <span className="relative min-w-0 flex-1 overflow-hidden text-right">
             <span
               key={`${current.normalizedKey}-${index}`}
@@ -63,13 +63,13 @@ export function HotTagTicker({ topics, compact = false }: HotTagTickerProps) {
       {expanded ? (
         <ol
           className={`anigeunde-hot-tag-list z-[150] grid gap-2 rounded-[14px] bg-white/98 p-3 shadow-[2px_2px_0_rgba(35,35,31,0.72)] backdrop-blur-md ${
-            compact ? 'absolute left-0 right-0 top-[calc(100%+0.5rem)]' : 'relative mt-3'
+            compact ? 'absolute right-0 top-[calc(100%+0.5rem)] w-[min(72vw,320px)]' : 'relative mt-3'
           }`}
         >
           {topics.slice(0, 10).map((topic, topicIndex) => (
-            <li key={`${topic.scope}-${topic.normalizedKey}`} className="flex items-center justify-between gap-3 rounded-lg bg-[#fbfbf7] px-3 py-2 text-xs text-[#5d5a51]">
-              <span className="truncate font-black">{topicIndex + 1}. {topic.displayLabel}</span>
-              <span className="shrink-0 text-right text-[#6f6b61]">{topic.heatLabel}</span>
+            <li key={`${topic.scope}-${topic.normalizedKey}`} className={`${compact ? 'grid gap-0.5' : 'flex items-center justify-between gap-3'} rounded-lg bg-[#fbfbf7] px-3 py-2 text-xs text-[#5d5a51]`}>
+              <span className="break-words font-black">{topicIndex + 1}. {topic.displayLabel}</span>
+              <span className={`${compact ? '' : 'shrink-0 text-right'} text-[#6f6b61]`}>{topic.heatLabel}</span>
             </li>
           ))}
         </ol>
