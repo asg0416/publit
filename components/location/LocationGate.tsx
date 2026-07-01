@@ -21,9 +21,9 @@ const locationButtonLabels: Record<LocationState['status'], string> = {
 
 export function LocationGate({ state, onRequest, onQuietBrowse }: LocationGateProps) {
   return (
-    <section data-testid="location-gate" className="publit-panel-enter rounded-[16px] bg-white/96 p-4 text-[#252520] shadow-[2px_2px_0_rgba(35,35,31,0.78)]">
+    <section data-testid="location-gate" className="publit-panel-enter rounded-[16px] bg-white p-4 text-[#252520] shadow-[3px_3px_0_rgba(35,35,31,0.82),0_0_0_1px_rgba(35,35,31,0.08)]">
       <div className="flex items-start gap-3">
-        <span className="grid size-10 shrink-0 place-items-center rounded-[10px] bg-[#a8ddc1]/65 text-[#252520] shadow-[1px_1px_0_rgba(35,35,31,0.45)]">
+        <span className="grid size-10 shrink-0 place-items-center rounded-[10px] bg-[#ef3b32] text-white shadow-[1px_1px_0_rgba(35,35,31,0.58)]">
           <MapPin size={18} />
         </span>
         <div className="min-w-0 flex-1">
@@ -40,7 +40,7 @@ export function LocationGate({ state, onRequest, onQuietBrowse }: LocationGatePr
         </Button>
         <Button variant="secondary" onClick={onQuietBrowse}>조용히 둘러보기</Button>
       </div>
-      {state.message ? <p className="mt-3 rounded-lg bg-[#ffda68]/35 px-3 py-2 text-xs font-bold leading-5 text-[#6d4e00]">{state.message}</p> : null}
+      {state.message ? <p className="mt-3 rounded-lg bg-[#ef3b32]/10 px-3 py-2 text-xs font-bold leading-5 text-[#b52620]">{state.message}</p> : null}
     </section>
   );
 }

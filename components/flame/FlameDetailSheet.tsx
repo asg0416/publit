@@ -5,7 +5,8 @@ import type { Flame, ReactionType, ReportReason } from '@/lib/flame/types';
 import { BottomSheet } from '@/components/ui/BottomSheet';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
-import { CHARACTER_EMOJI, characterKeyForThought } from '@/components/map/character';
+import { emojiForThought } from '@/components/map/character';
+import { thoughtToneForFlame } from './thoughtTone';
 import { ReactionBar } from './ReactionBar';
 import { ReportDialog } from './ReportDialog';
 
@@ -31,18 +32,6 @@ const lifecycleLabels: Record<Flame['lifecycle'], string> = {
   trace: '분위기로 남음',
 };
 
-const strengthLabels: Record<Flame['selfStrength'], string> = {
-  1: '기본',
-  2: '엠버',
-  3: '레드',
-};
-
-function strengthBubbleClass(strength: Flame['selfStrength']) {
-  if (strength === 3) return 'bg-[#ffe2e4] shadow-[2px_2px_0_rgba(207,45,86,0.52)]';
-  if (strength === 2) return 'bg-[#fff0bd] shadow-[2px_2px_0_rgba(109,78,0,0.42)]';
-  return 'bg-white shadow-[2px_2px_0_rgba(35,35,31,0.58)]';
-}
-
 function displayHeatLabel(label: string) {
   return label
     .replace('방금 켜진 불꽃', '방금 떠오른 생각')
@@ -61,6 +50,7 @@ export function FlameDetailSheet({ flame, flames, onClose, onSelect, onReact, on
   const activeFlame = flame ? flames.find((item) => item.id === flame.id) ?? flame : null;
   const currentIndex = activeFlame ? flames.findIndex((item) => item.id === activeFlame.id) : -1;
   const canSwipe = currentIndex >= 0 && flames.length > 1;
+  const activeTone = activeFlame ? thoughtToneForFlame(activeFlame) : null;
 
   const goTo = (direction: -1 | 1) => {
     if (!canSwipe) return;
@@ -125,18 +115,19 @@ export function FlameDetailSheet({ flame, flames, onClose, onSelect, onReact, on
                   opacity: 1 - Math.min(Math.abs(dragOffset) / 260, 0.22),
                   transform: `translateX(${dragOffset}px) rotate(${dragOffset / 32}deg)`,
                 } : undefined}
-                className={`relative grid grid-cols-[auto_minmax(0,1fr)] gap-3 rounded-[22px] p-3 ${dragOffset !== 0 ? 'transition-none' : 'transition-[opacity,transform] duration-150'} ${strengthBubbleClass(activeFlame.selfStrength)} ${
+                className={`relative grid grid-cols-[auto_minmax(0,1fr)] gap-3 rounded-[22px] p-3 ${dragOffset !== 0 ? 'transition-none' : 'transition-[opacity,transform] duration-150'} ${activeTone?.bubbleClassName ?? 'bg-white shadow-[2px_2px_0_rgba(35,35,31,0.72)]'} ${
                   isGlittery(activeFlame.heatLabel) ? 'anigeunde-glitter' : ''
                 } ${swipeDirection === 'forward' ? 'anigeunde-swipe-card-forward' : ''} ${swipeDirection === 'back' ? 'anigeunde-swipe-card-back' : ''}`}
               >
                 <span className="grid size-12 place-items-center rounded-[16px] bg-white text-2xl shadow-[1px_1px_0_rgba(35,35,31,0.52)]">
-                  {CHARACTER_EMOJI[characterKeyForThought({
+                  {emojiForThought({
                     id: activeFlame.id,
                     tagNormalized: activeFlame.tagNormalized,
                     characterKey: activeFlame.characterKey,
-                  })]}
+                    characterEmoji: activeFlame.characterEmoji,
+                  })}
                 </span>
-                <p className="self-center text-pretty text-base font-black leading-7 text-[#252520]">
+                <p className="self-center text-pretty text-base font-black leading-7 text-inherit">
                   {activeFlame.text ?? '이 생각은 본문 없이 공간의 분위기로만 남아 있어요.'}
                 </p>
               </div>
@@ -148,10 +139,10 @@ export function FlameDetailSheet({ flame, flames, onClose, onSelect, onReact, on
             </section>
             <div className="flex flex-wrap gap-2">
               <Badge>{moodLabels[activeFlame.mood]}</Badge>
-              <Badge>{strengthLabels[activeFlame.selfStrength]}</Badge>
+              <Badge>{activeTone?.fullLabel ?? '반짝 생각남'}</Badge>
               <Badge>{lifecycleLabels[activeFlame.lifecycle]}</Badge>
             </div>
-            <p className="rounded-lg bg-[#ffda68]/35 px-4 py-3 text-sm font-black text-[#6d4e00]">{displayHeatLabel(activeFlame.heatLabel)}</p>
+            <p className="rounded-lg bg-[#ef3b32]/10 px-4 py-3 text-sm font-black text-[#b52620]">{displayHeatLabel(activeFlame.heatLabel)}</p>
             {activeFlame.lifecycle !== 'trace' ? <ReactionBar onReact={(reaction) => onReact(activeFlame.id, reaction)} /> : null}
             <Button variant="secondary" onClick={() => setReportOpen(true)}>신고</Button>
           </div>

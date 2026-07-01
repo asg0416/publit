@@ -5,7 +5,8 @@ import { SendHorizontal } from 'lucide-react';
 import type { CharacterKey, FlameCategory, FlameMood, HotTopic, TagSuggestion } from '@/lib/flame/types';
 import { normalizeTagLabel, suggestTagsFromText } from '@/lib/flame/tagNormalize';
 import { isBlockedText } from '@/lib/moderation/rules';
-import { CHARACTER_EMOJI } from '@/components/map/character';
+import { CHARACTER_EMOJI, sanitizeCustomEmoji } from '@/components/map/character';
+import { THOUGHT_TONES, thoughtToneForKey, type ThoughtToneKey } from './thoughtTone';
 import { MyFlameSlots } from './MyFlameSlots';
 
 type InlineThoughtComposerProps = {
@@ -19,23 +20,19 @@ type InlineThoughtComposerProps = {
   submitMessage?: string;
   onFocus?: () => void;
   onSuggest: (text: string) => void;
-  onSubmit: (input: { text: string; tagLabel: string; category: FlameCategory; mood: FlameMood; selfStrength: 1 | 2 | 3; characterKey: CharacterKey }) => boolean | void | Promise<boolean | void>;
+  onSubmit: (input: { text: string; tagLabel: string; category: FlameCategory; mood: FlameMood; selfStrength: 1 | 2 | 3; characterKey: CharacterKey; characterEmoji?: string }) => boolean | void | Promise<boolean | void>;
   onExtinguish: (flameId: string) => void;
 };
 
 const characterKeys = Object.keys(CHARACTER_EMOJI) as CharacterKey[];
-const strengthOptions: Array<{ value: 1 | 2 | 3; label: string; className: string }> = [
-  { value: 1, label: '기본', className: 'bg-white text-[#5d5a51]' },
-  { value: 2, label: '엠버', className: 'bg-[#ffda68] text-[#252520]' },
-  { value: 3, label: '레드', className: 'bg-[#ff8aa0] text-[#4a1020]' },
-];
 
 export function InlineThoughtComposer({ topics, remoteSuggestions, slots, submitMessage, onFocus, onSuggest, onSubmit, onExtinguish }: InlineThoughtComposerProps) {
   const [text, setText] = useState('');
   const [tagOverride, setTagOverride] = useState<string | null>(null);
   const [manualCategory, setManualCategory] = useState<FlameCategory>('other');
-  const [selfStrength, setSelfStrength] = useState<1 | 2 | 3>(2);
+  const [toneKey, setToneKey] = useState<ThoughtToneKey>('spark');
   const [characterKey, setCharacterKey] = useState<CharacterKey>('turtle');
+  const [customEmojiInput, setCustomEmojiInput] = useState('');
   const [optionsOpen, setOptionsOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
@@ -60,8 +57,11 @@ export function InlineThoughtComposer({ topics, remoteSuggestions, slots, submit
   const category = tagOverride === null ? suggestedTag?.category ?? 'other' : manualCategory;
   const blocked = isBlockedText(`${text} ${tagLabel}`);
   const isFull = slots ? slots.used >= slots.limit : false;
-  const canSubmit = Boolean(text.trim() && tagLabel && !blocked && !submitting);
-  const selectedStrength = strengthOptions.find((option) => option.value === selfStrength) ?? strengthOptions[1];
+  const selectedTone = thoughtToneForKey(toneKey);
+  const customEmoji = sanitizeCustomEmoji(customEmojiInput);
+  const hasInvalidCustomEmoji = Boolean(customEmojiInput.trim() && !customEmoji);
+  const selectedEmoji = customEmoji ?? CHARACTER_EMOJI[characterKey];
+  const canSubmit = Boolean(text.trim() && tagLabel && !blocked && !hasInvalidCustomEmoji && !submitting);
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
@@ -92,9 +92,10 @@ export function InlineThoughtComposer({ topics, remoteSuggestions, slots, submit
         text,
         tagLabel,
         category,
-        mood: 'curious',
-        selfStrength,
+        mood: selectedTone.mood,
+        selfStrength: selectedTone.selfStrength,
         characterKey,
+        characterEmoji: customEmoji ?? undefined,
       });
       if (result === true) {
         setText('');
@@ -109,7 +110,7 @@ export function InlineThoughtComposer({ topics, remoteSuggestions, slots, submit
   return (
     <form
       data-testid="inline-thought-composer"
-      className="anigeunde-inline-composer pointer-events-auto absolute inset-x-3 bottom-3 z-[80] mx-auto grid max-w-2xl gap-1.5 rounded-[18px] border border-white/80 bg-white/95 p-2 shadow-[2px_2px_0_rgba(35,35,31,0.72)] backdrop-blur-md sm:bottom-4"
+      className="anigeunde-inline-composer pointer-events-auto absolute inset-x-3 bottom-3 z-[80] mx-auto grid max-w-2xl gap-1.5 rounded-[18px] bg-white p-2 shadow-[3px_3px_0_rgba(35,35,31,0.82),0_0_0_1px_rgba(35,35,31,0.08)] sm:bottom-4"
       onSubmit={handleSubmit}
       onFocus={onFocus}
     >
@@ -118,13 +119,13 @@ export function InlineThoughtComposer({ topics, remoteSuggestions, slots, submit
           type="button"
           data-testid="composer-options-toggle"
           onClick={() => setOptionsOpen((current) => !current)}
-          className="relative grid size-11 shrink-0 place-items-center rounded-[13px] bg-[#fbfbf7] text-xl shadow-[1px_1px_0_rgba(35,35,31,0.42)] transition-[transform,background-color] active:scale-[0.96]"
+          className="relative grid size-11 shrink-0 place-items-center rounded-[13px] bg-white text-xl shadow-[1px_1px_0_rgba(35,35,31,0.62),0_0_0_1px_rgba(35,35,31,0.08)] transition-[transform,background-color] active:scale-[0.96]"
           aria-label="작성 옵션"
           aria-expanded={optionsOpen}
         >
-          {CHARACTER_EMOJI[characterKey]}
-          <span className={`absolute -right-1 -top-1 rounded-full px-1.5 py-0.5 text-[9px] font-black leading-none ${selectedStrength.className}`}>
-            {selectedStrength.label}
+          {selectedEmoji}
+          <span className={`absolute -right-1 -top-1 rounded-full px-1.5 py-0.5 text-[9px] font-black leading-none shadow-[1px_1px_0_rgba(35,35,31,0.42)] ${selectedTone.chipClassName}`}>
+            {selectedTone.label}
           </span>
         </button>
         <label className="sr-only" htmlFor="inline-thought-text">지금 떠오른 생각</label>
@@ -133,13 +134,13 @@ export function InlineThoughtComposer({ topics, remoteSuggestions, slots, submit
           value={text}
           maxLength={80}
           onChange={(event) => setText(event.target.value)}
-          className="min-h-11 min-w-0 rounded-[13px] border border-[#d5d2c8] bg-[#fbfbf7] px-3 text-sm font-bold text-[#252520] outline-none transition-[border-color,background-color,box-shadow] placeholder:text-[#9a968c] focus:border-[#0b6975] focus:bg-white focus:shadow-[0_0_0_3px_rgba(11,105,117,0.12)]"
+          className="min-h-11 min-w-0 rounded-[13px] border border-[#d5d2c8] bg-white px-3 text-sm font-bold text-[#252520] outline-none transition-[border-color,background-color,box-shadow] placeholder:text-[#9a968c] focus:border-[#ef3b32] focus:bg-white focus:shadow-[0_0_0_3px_rgba(239,59,50,0.14)]"
           placeholder="아니근데... 지금 나만 이 생각해?"
         />
         <button
           type="submit"
           disabled={!canSubmit}
-          className="grid size-11 place-items-center rounded-[13px] bg-[#a8ddc1] text-[#153424] shadow-[1px_1px_0_rgba(35,35,31,0.62)] transition-[transform,background-color,opacity] active:scale-[0.94] disabled:cursor-not-allowed disabled:opacity-45"
+          className="grid size-11 place-items-center rounded-[13px] bg-[#ef3b32] text-white shadow-[2px_2px_0_rgba(35,35,31,0.72)] transition-[transform,background-color,opacity] active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-45"
           aria-label="생각 띄우기"
         >
           <SendHorizontal size={18} />
@@ -148,46 +149,70 @@ export function InlineThoughtComposer({ topics, remoteSuggestions, slots, submit
 
       <div className="grid grid-cols-[minmax(0,1fr)_auto] items-center gap-2">
         <label className="sr-only" htmlFor="inline-flame-tag">생각 태그</label>
-        <input
-          id="inline-flame-tag"
-          value={tagLabel}
-          maxLength={20}
-          onChange={(event) => handleTagChange(event.target.value)}
-          className="min-h-9 min-w-0 rounded-[12px] border border-[#e1ded4] bg-white px-3 text-xs font-black text-[#0b6975] outline-none transition-[border-color,box-shadow] placeholder:text-[#9a968c] focus:border-[#0b6975] focus:shadow-[0_0_0_3px_rgba(11,105,117,0.1)]"
-          placeholder="#지금생각"
-          aria-label="생각 태그"
-        />
+        <div
+          data-testid="composer-tag-preview"
+          data-tone={selectedTone.key}
+          className={`rounded-[12px] p-0.5 transition-[background-color,color,box-shadow] ${selectedTone.tagClassName}`}
+        >
+          <input
+            id="inline-flame-tag"
+            value={tagLabel}
+            maxLength={20}
+            onChange={(event) => handleTagChange(event.target.value)}
+            className="min-h-8 w-full min-w-0 rounded-[10px] bg-transparent px-3 text-xs font-black text-inherit outline-none placeholder:text-current/55"
+            placeholder="#지금생각"
+            aria-label="생각 태그"
+          />
+        </div>
         <span className="font-mono text-[10px] font-black tabular-nums text-[#9a968c]">{text.length}/80</span>
       </div>
 
       {optionsOpen ? (
-        <div data-testid="composer-options-panel" className="anigeunde-options-panel grid gap-2 rounded-[14px] bg-[#fbfbf7] p-2 shadow-[inset_0_0_0_1px_rgba(35,35,31,0.06)]">
+        <div data-testid="composer-options-panel" className="anigeunde-options-panel grid max-h-[34svh] gap-2 overflow-y-auto rounded-[14px] bg-white p-2 shadow-[inset_0_0_0_1px_rgba(35,35,31,0.08)]">
           <div className="grid gap-1">
             <span className="text-[10px] font-black text-[#6f6b61]">캐릭터</span>
-            <div className="flex gap-1 overflow-x-auto pb-0.5" role="group" aria-label="캐릭터">
+            <div className="flex gap-1 overflow-x-auto px-0.5 pb-1" role="group" aria-label="캐릭터">
               {characterKeys.map((key) => (
                 <button
                   type="button"
                   key={key}
-                  onClick={() => setCharacterKey(key)}
-                  className={`grid size-9 shrink-0 place-items-center rounded-[11px] bg-white text-lg shadow-[1px_1px_0_rgba(35,35,31,0.34)] transition-[transform,background-color,outline-color] active:scale-[0.96] ${characterKey === key ? 'outline outline-2 outline-[#0b6975]' : 'outline outline-0 outline-transparent'}`}
+                  onClick={() => {
+                    setCharacterKey(key);
+                    setCustomEmojiInput('');
+                  }}
+                  className={`grid size-10 shrink-0 place-items-center rounded-[11px] bg-white text-lg shadow-[1px_1px_0_rgba(35,35,31,0.44),0_0_0_1px_rgba(35,35,31,0.08)] transition-[transform,background-color,outline-color] active:scale-[0.96] ${!customEmoji && characterKey === key ? 'outline outline-2 outline-[#ef3b32]' : 'outline outline-0 outline-transparent'}`}
                   aria-label={`캐릭터 ${key}`}
                 >
                   {CHARACTER_EMOJI[key]}
                 </button>
               ))}
+              <label className="grid min-w-[4.5rem] shrink-0 gap-0.5">
+                <span className="text-[9px] font-black text-[#6f6b61]">직접 이모지</span>
+                <input
+                  value={customEmojiInput}
+                  onChange={(event) => setCustomEmojiInput(event.target.value)}
+                  inputMode="text"
+                  maxLength={16}
+                  aria-label="직접 이모지"
+                  placeholder="😀"
+                  className={`min-h-10 rounded-[11px] bg-white px-2 text-center text-lg outline-none shadow-[1px_1px_0_rgba(35,35,31,0.44),0_0_0_1px_rgba(35,35,31,0.08)] transition-[box-shadow] ${
+                    customEmoji ? 'outline outline-2 outline-[#ef3b32]' : ''
+                  }`}
+                />
+              </label>
             </div>
           </div>
-          <div className="flex gap-1 overflow-x-auto" role="group" aria-label="생각 크기">
-            {strengthOptions.map((option) => (
+          <div className="grid grid-cols-4 gap-1" role="group" aria-label="생각 상태">
+            {THOUGHT_TONES.map((option) => (
               <button
                 type="button"
-                key={option.value}
-                onClick={() => setSelfStrength(option.value)}
-                className={`min-h-8 shrink-0 rounded-[10px] px-3 text-[11px] font-black shadow-[1px_1px_0_rgba(35,35,31,0.28)] transition-[transform,background-color,color] active:scale-[0.96] ${
-                  selfStrength === option.value ? option.className : 'bg-white text-[#6f6b61]'
+                key={option.key}
+                onClick={() => setToneKey(option.key)}
+                className={`min-h-10 min-w-0 rounded-[10px] px-1.5 text-[10px] font-black shadow-[1px_1px_0_rgba(35,35,31,0.38)] transition-[transform,background-color,color] active:scale-[0.96] ${
+                  toneKey === option.key ? option.chipClassName : 'bg-white text-[#6f6b61]'
                 }`}
-                aria-pressed={selfStrength === option.value}
+                aria-label={option.fullLabel}
+                aria-pressed={toneKey === option.key}
               >
                 {option.label}
               </button>
@@ -200,7 +225,7 @@ export function InlineThoughtComposer({ topics, remoteSuggestions, slots, submit
                   type="button"
                   key={`${suggestion.source}-${suggestion.normalizedKey}`}
                   onClick={() => handleSuggestionSelect(suggestion)}
-                  className="min-h-8 shrink-0 rounded-full bg-white px-3 text-[11px] font-black text-[#5d5a51] shadow-[1px_1px_0_rgba(35,35,31,0.24)] transition-[transform,background-color,color] hover:bg-[#efeee8] active:scale-[0.96]"
+                  className="min-h-8 shrink-0 rounded-full bg-white px-3 text-[11px] font-black text-[#5d5a51] shadow-[1px_1px_0_rgba(35,35,31,0.32),0_0_0_1px_rgba(35,35,31,0.08)] transition-[transform,background-color,color] hover:bg-[#f5f5f5] active:scale-[0.96]"
                 >
                   {suggestion.displayLabel}
                 </button>
@@ -210,6 +235,7 @@ export function InlineThoughtComposer({ topics, remoteSuggestions, slots, submit
         </div>
       ) : null}
 
+      {hasInvalidCustomEmoji ? <p className="rounded-[10px] bg-[#ef3b32]/10 px-3 py-2 text-xs font-bold text-[#b52620]">직접 캐릭터는 이모지 하나만 넣을 수 있어요.</p> : null}
       {blocked ? <p className="rounded-[10px] bg-[#cf2d56]/10 px-3 py-2 text-xs font-bold text-[#9e1d3e]">위험하거나 사생활을 침해할 수 있는 문구는 생각으로 띄울 수 없어요.</p> : null}
       {submitMessage ? <p role="status" className="rounded-[10px] bg-[#9fbbe0]/20 px-3 py-2 text-xs font-bold text-[#27476b]">{submitMessage}</p> : null}
       {isFull ? (

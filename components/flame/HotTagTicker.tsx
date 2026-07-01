@@ -42,18 +42,18 @@ export function HotTagTicker({ topics, compact = false }: HotTagTickerProps) {
         onClick={() => setExpanded((current) => !current)}
         className={`w-full text-left transition-[transform,background-color,box-shadow] hover:bg-white active:scale-[0.96] ${
           compact
-            ? 'h-full rounded-[12px] bg-[#fbfbf7] px-3 py-1.5'
+            ? 'h-full rounded-[12px] bg-white px-2.5 py-1.5'
             : 'rounded-[14px] bg-white/95 px-4 py-3 shadow-[2px_2px_0_rgba(35,35,31,0.72)]'
         }`}
         aria-expanded={expanded}
       >
         <div className="flex min-w-0 items-center justify-between gap-2">
-          <span className={`shrink-0 font-black text-[#6f6b61] ${compact ? 'text-[11px]' : 'text-xs'}`}>{compact ? '트렌드' : '지금 뜨는 태그'}</span>
+          <span className={`shrink-0 font-black text-[#252520] ${compact ? 'text-[11px]' : 'text-xs'}`}>{compact ? '트렌드' : '지금 뜨는 태그'}</span>
           <span className="relative min-w-0 flex-1 overflow-hidden text-right">
             <span
               key={`${current.normalizedKey}-${index}`}
               data-testid="hot-tag-current"
-              className={`anigeunde-hot-tag-item inline-block max-w-full truncate font-black text-[#0b6975] ${compact ? 'text-xs' : 'text-sm'}`}
+              className={`anigeunde-hot-tag-item inline-block max-w-full truncate font-black text-[#252520] ${compact ? 'text-xs' : 'text-sm'}`}
             >
               {current.displayLabel}
             </span>
@@ -62,14 +62,14 @@ export function HotTagTicker({ topics, compact = false }: HotTagTickerProps) {
       </button>
       {expanded ? (
         <ol
-          className={`anigeunde-hot-tag-list z-[150] grid gap-2 rounded-[14px] bg-white/98 p-3 shadow-[2px_2px_0_rgba(35,35,31,0.72)] backdrop-blur-md ${
+          className={`anigeunde-hot-tag-list z-[150] grid gap-2 rounded-[14px] bg-white p-3 shadow-[3px_3px_0_rgba(35,35,31,0.78),0_0_0_1px_rgba(35,35,31,0.08)] ${
             compact ? 'absolute right-0 top-[calc(100%+0.5rem)] w-[min(72vw,320px)]' : 'relative mt-3'
           }`}
         >
           {topics.slice(0, 10).map((topic, topicIndex) => (
-            <li key={`${topic.scope}-${topic.normalizedKey}`} className={`${compact ? 'grid gap-0.5' : 'flex items-center justify-between gap-3'} rounded-lg bg-[#fbfbf7] px-3 py-2 text-xs text-[#5d5a51]`}>
+            <li key={`${topic.scope}-${topic.normalizedKey}`} className={`${compact ? 'grid gap-0.5' : 'flex items-center justify-between gap-3'} rounded-lg bg-white px-3 py-2 text-xs text-[#5d5a51] shadow-[0_0_0_1px_rgba(35,35,31,0.08)]`}>
               <span className="break-words font-black">{topicIndex + 1}. {topic.displayLabel}</span>
-              <span className={`${compact ? '' : 'shrink-0 text-right'} text-[#6f6b61]`}>{topic.heatLabel}</span>
+              <span className={`${compact ? '' : 'shrink-0 text-right'} text-[#b52620]`}>{topic.heatLabel}</span>
             </li>
           ))}
         </ol>

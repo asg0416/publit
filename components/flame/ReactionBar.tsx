@@ -21,7 +21,7 @@ export function ReactionBar({ onReact }: ReactionBarProps) {
           type="button"
           key={reaction.type}
           onClick={() => onReact(reaction.type)}
-          className="min-h-11 rounded-lg border border-[#e6e5e0] bg-white px-3 text-xs font-semibold text-[#5a5852] transition-[transform,background-color] hover:bg-[#fafaf7] active:scale-[0.97]"
+          className="min-h-11 rounded-lg border border-[#e6e5e0] bg-white px-3 text-xs font-semibold text-[#5a5852] transition-[transform,background-color] hover:bg-[#f5f5f5] active:scale-[0.97]"
         >
           {reaction.label}
         </button>

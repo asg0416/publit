@@ -158,6 +158,32 @@ export function deriveCharacterKey(input: unknown): CharacterKey {
   return CHARACTER_KEYS[hash % CHARACTER_KEYS.length];
 }
 
+function graphemeSegments(value: string) {
+  const segmenterConstructor = (Intl as unknown as {
+    Segmenter?: new (locale?: string, options?: { granularity: 'grapheme' }) => {
+      segment: (input: string) => Iterable<{ segment: string }>;
+    };
+  }).Segmenter;
+  if (!segmenterConstructor) return Array.from(value);
+
+  const segmenter = new segmenterConstructor(undefined, { granularity: 'grapheme' });
+  return Array.from(segmenter.segment(value), (segment) => segment.segment);
+}
+
+export function sanitizeCharacterEmoji(value: unknown): string | null {
+  const trimmed = String(value ?? '').trim();
+  if (!trimmed) return null;
+
+  const segments = graphemeSegments(trimmed);
+  if (segments.length !== 1) return null;
+  const candidate = segments[0];
+  if (candidate.length > 16) return null;
+  if (/[\p{Letter}\p{Number}\s]/u.test(candidate)) return null;
+  if (!/[\p{Extended_Pictographic}\p{Emoji_Presentation}]/u.test(candidate)) return null;
+
+  return candidate;
+}
+
 export function validateDisplayScope(value: unknown): DisplayScope {
   if (value === 'nearby' || value === 'district' || value === 'regional' || value === 'national') return value;
   return 'nearby';
@@ -205,6 +231,11 @@ export function sanitizeFlameForResponse(row: Record<string, unknown>, now = new
 
   if (lifecycle !== 'trace') {
     response.text = row.text;
+  }
+
+  const characterEmoji = sanitizeCharacterEmoji(row.character_emoji);
+  if (characterEmoji) {
+    response.characterEmoji = characterEmoji;
   }
 
   return response;

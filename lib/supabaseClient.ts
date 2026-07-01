@@ -43,6 +43,7 @@ export const publitApi = {
     mood: string;
     selfStrength: number;
     characterKey?: CharacterKey;
+    characterEmoji?: string;
     displayScope?: DisplayScope;
     regionCode?: string;
     lat: number;

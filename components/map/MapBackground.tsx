@@ -214,7 +214,7 @@ export function MapBackground({ center, rangeValue, onCenterChange }: MapBackgro
       data-map-range={rangeValue}
       data-map-zoom={mapZoom.toFixed(2)}
       data-map-state={state}
-      className="absolute inset-0 overflow-hidden bg-[#e9ece6]"
+      className="absolute inset-0 overflow-hidden bg-white"
       aria-hidden="true"
     >
       <div

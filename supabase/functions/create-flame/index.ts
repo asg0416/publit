@@ -3,6 +3,7 @@ import {
   deriveCharacterKey,
   encodeGrid,
   normalizeTag,
+  sanitizeCharacterEmoji,
   sanitizeFlameForResponse,
   selectActiveSlotState,
   validateCategory,
@@ -40,6 +41,7 @@ Deno.serve(async (req: Request) => {
     const selfStrength = validateStrength(body.selfStrength);
     const category = validateCategory(body.category, text, tag.normalized);
     const characterKey = deriveCharacterKey(body.characterKey ?? `${deviceHash}:${tag.normalized}`);
+    const characterEmoji = sanitizeCharacterEmoji(body.characterEmoji);
     const displayScope = validateDisplayScope(body.displayScope);
     const regionCode = typeof body.regionCode === 'string' ? body.regionCode.slice(0, 40) : null;
     const positionLatitude = Number(body.lat);
@@ -80,6 +82,7 @@ Deno.serve(async (req: Request) => {
       self_strength: selfStrength,
       geohash,
       character_key: characterKey,
+      character_emoji: characterEmoji,
       display_scope: displayScope,
       region_code: regionCode,
       device_hash: deviceHash,
@@ -92,7 +95,7 @@ Deno.serve(async (req: Request) => {
     const { data: flame, error } = await supabase
       .from('flames')
       .insert(flameInsert)
-      .select('id, text, tag_label, tag_normalized, category, mood, self_strength, heat_score, status, created_at, live_until, ember_until, trace_until, character_key, region_label, region_code, display_scope')
+      .select('id, text, tag_label, tag_normalized, category, mood, self_strength, heat_score, status, created_at, live_until, ember_until, trace_until, character_key, character_emoji, region_label, region_code, display_scope')
       .single();
 
     if (error) throw new PublitHttpError('FLAME_CREATE_FAILED', 500);

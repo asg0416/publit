@@ -36,8 +36,8 @@ const moods: Array<{ value: FlameMood; label: string }> = [
 
 const strengthOptions: Array<{ value: 1 | 2 | 3; label: string; className: string }> = [
   { value: 1, label: '기본', className: 'bg-white text-[#5d5a51]' },
-  { value: 2, label: '엠버', className: 'bg-[#ffda68] text-[#252520]' },
-  { value: 3, label: '레드', className: 'bg-[#ff8aa0] text-[#4a1020]' },
+  { value: 2, label: '반짝', className: 'bg-[#ffd84d] text-[#252520]' },
+  { value: 3, label: '열받음', className: 'bg-[#ef3b32] text-white' },
 ];
 
 const characterKeys = Object.keys(CHARACTER_EMOJI) as CharacterKey[];
@@ -83,7 +83,7 @@ export function CreateFlameSheet({ open, topics, remoteSuggestions, slots, onClo
             value={text}
             maxLength={80}
             onChange={(event) => setText(event.target.value)}
-            className="min-h-24 resize-none rounded-[12px] border border-[#d5d2c8] bg-white p-3 text-sm leading-6 text-[#252520] outline-none transition-[border-color,background-color] placeholder:text-[#9a968c] focus:border-[#0b6975]"
+            className="min-h-24 resize-none rounded-[12px] border border-[#d5d2c8] bg-white p-3 text-sm leading-6 text-[#252520] outline-none transition-[border-color,background-color] placeholder:text-[#9a968c] focus:border-[#ef3b32]"
             placeholder="아니근데… 나만 이런 생각해?"
           />
           <span className="text-right font-mono text-xs tabular-nums text-[#6f6b61]">{text.length}/80</span>
@@ -105,7 +105,7 @@ export function CreateFlameSheet({ open, topics, remoteSuggestions, slots, onClo
                 type="button"
                 key={item.value}
                 onClick={() => setMood(item.value)}
-                className={`min-h-11 rounded-[12px] px-3 text-xs font-black shadow-[1px_1px_0_rgba(35,35,31,0.45)] transition-[transform,background-color,color] active:scale-[0.96] ${mood === item.value ? 'bg-[#ffda68] text-[#252520]' : 'bg-white text-[#5d5a51]'}`}
+                className={`min-h-11 rounded-[12px] px-3 text-xs font-black shadow-[1px_1px_0_rgba(35,35,31,0.45)] transition-[transform,background-color,color] active:scale-[0.96] ${mood === item.value ? 'bg-[#ef3b32] text-white' : 'bg-white text-[#5d5a51]'}`}
               >
                 {item.label}
               </button>
@@ -137,7 +137,7 @@ export function CreateFlameSheet({ open, topics, remoteSuggestions, slots, onClo
                 type="button"
                 key={key}
                 onClick={() => setCharacterKey(key)}
-                className={`grid min-h-11 place-items-center rounded-[12px] bg-white text-xl shadow-[1px_1px_0_rgba(35,35,31,0.45)] transition-[transform,background-color] active:scale-[0.96] ${characterKey === key ? 'outline outline-2 outline-[#0b6975]' : ''}`}
+                className={`grid min-h-11 place-items-center rounded-[12px] bg-white text-xl shadow-[1px_1px_0_rgba(35,35,31,0.45)] transition-[transform,background-color] active:scale-[0.96] ${characterKey === key ? 'outline outline-2 outline-[#ef3b32]' : ''}`}
                 aria-label={`캐릭터 ${key}`}
               >
                 {CHARACTER_EMOJI[key]}

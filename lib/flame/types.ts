@@ -22,6 +22,7 @@ export type Flame = {
   liveUntil?: string;
   emberUntil?: string;
   characterKey?: CharacterKey;
+  characterEmoji?: string;
   displayScope?: DisplayScope;
   regionLabel?: string;
   regionCode?: string;

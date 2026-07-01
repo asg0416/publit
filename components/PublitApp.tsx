@@ -138,7 +138,7 @@ export function PublitApp() {
     }
   }, [viewPosition]);
 
-  const handleCreate = useCallback(async (input: { text: string; tagLabel: string; category: FlameCategory; mood: FlameMood; selfStrength: 1 | 2 | 3; characterKey: CharacterKey }) => {
+  const handleCreate = useCallback(async (input: { text: string; tagLabel: string; category: FlameCategory; mood: FlameMood; selfStrength: 1 | 2 | 3; characterKey: CharacterKey; characterEmoji?: string }) => {
     if (!deviceHash) {
       const message = '기기 확인이 아직 끝나지 않았어요. 잠시 후 다시 눌러주세요.';
       setCreateFeedback(message);
@@ -165,6 +165,7 @@ export function PublitApp() {
         const createdFlame: FlameType = {
           ...result.flame,
           characterKey: result.flame.characterKey ?? input.characterKey,
+          characterEmoji: result.flame.characterEmoji ?? input.characterEmoji,
           selfStrength: result.flame.selfStrength ?? (input.selfStrength as 1 | 2 | 3),
         };
         setViewPosition(devicePosition);
@@ -226,13 +227,13 @@ export function PublitApp() {
   const displayedFlames = flames.length ? flames : [];
 
   return (
-    <main data-testid="publit-shell" className="relative min-h-[100svh] overflow-hidden bg-[#e9ece6] text-[#252520]">
+    <main data-testid="publit-shell" className="relative min-h-[100svh] overflow-hidden bg-white text-[#252520]">
       <MapBackground center={viewPosition} rangeValue={rangeValue} onCenterChange={handleMapCenterChange} />
       <div data-testid="top-brand-bar" className="pointer-events-auto absolute left-3 right-3 top-3 z-[120] sm:left-4 sm:right-4">
-        <div className="grid h-12 grid-cols-[auto_minmax(0,1fr)] items-center gap-2 rounded-[16px] bg-white/94 p-1.5 shadow-[1px_1px_0_rgba(35,35,31,0.58)] backdrop-blur-md">
+        <div className="grid h-12 grid-cols-[auto_minmax(0,1fr)] items-center gap-1.5 rounded-[16px] bg-white p-1.5 shadow-[3px_3px_0_rgba(35,35,31,0.82),0_0_0_1px_rgba(35,35,31,0.08)]">
           <div data-testid="brand-logo" className="grid h-full w-[78px] shrink-0 place-items-center rounded-[12px] bg-white px-1.5">
             <div className="grid justify-items-center">
-              <h1 className="-skew-x-6 text-[1.22rem] font-black leading-[0.9] tracking-normal text-[#252520]">ANGD</h1>
+              <h1 className="-skew-x-6 text-[1.22rem] font-black italic leading-[0.9] tracking-normal text-[#252520]">ANGD</h1>
               <p className="mt-0.5 whitespace-nowrap text-[9px] font-black leading-none text-[#6f6b61]">아니근데 나만?</p>
             </div>
           </div>
@@ -261,8 +262,8 @@ export function PublitApp() {
         <button
           type="button"
           onClick={() => setRangeOpen((current) => !current)}
-          className={`grid size-9 place-items-center rounded-[10px] bg-white text-[#252520] shadow-[2px_2px_0_rgba(35,35,31,0.72)] transition-[transform,background-color] active:scale-[0.96] ${
-            rangeOpen ? 'bg-[#ffda68]' : ''
+          className={`grid size-9 place-items-center rounded-[10px] bg-white text-[#252520] shadow-[2px_2px_0_rgba(35,35,31,0.78)] transition-[transform,background-color,color] active:scale-[0.96] ${
+            rangeOpen ? 'bg-[#ef3b32] text-white' : ''
           }`}
           aria-label="반경 설정"
           aria-expanded={rangeOpen}

@@ -11,6 +11,32 @@ export const CHARACTER_EMOJI: Record<CharacterKey, string> = {
 
 const CHARACTER_KEYS = Object.keys(CHARACTER_EMOJI) as CharacterKey[];
 
+function graphemeSegments(value: string) {
+  const segmenterConstructor = (Intl as unknown as {
+    Segmenter?: new (locale?: string, options?: { granularity: 'grapheme' }) => {
+      segment: (input: string) => Iterable<{ segment: string }>;
+    };
+  }).Segmenter;
+  if (!segmenterConstructor) return Array.from(value);
+
+  const segmenter = new segmenterConstructor(undefined, { granularity: 'grapheme' });
+  return Array.from(segmenter.segment(value), (segment) => segment.segment);
+}
+
+export function sanitizeCustomEmoji(value?: string | null): string | null {
+  const trimmed = String(value ?? '').trim();
+  if (!trimmed) return null;
+
+  const segments = graphemeSegments(trimmed);
+  if (segments.length !== 1) return null;
+  const candidate = segments[0];
+  if (candidate.length > 16) return null;
+  if (/[\p{Letter}\p{Number}\s]/u.test(candidate)) return null;
+  if (!/[\p{Extended_Pictographic}\p{Emoji_Presentation}]/u.test(candidate)) return null;
+
+  return candidate;
+}
+
 export function characterKeyForThought(input: { id: string; tagNormalized?: string; characterKey?: CharacterKey }): CharacterKey {
   if (input.characterKey && CHARACTER_KEYS.includes(input.characterKey)) return input.characterKey;
 
@@ -21,4 +47,13 @@ export function characterKeyForThought(input: { id: string; tagNormalized?: stri
   }
 
   return CHARACTER_KEYS[hash % CHARACTER_KEYS.length];
+}
+
+export function emojiForThought(input: {
+  id: string;
+  tagNormalized?: string;
+  characterKey?: CharacterKey;
+  characterEmoji?: string | null;
+}): string {
+  return sanitizeCustomEmoji(input.characterEmoji) ?? CHARACTER_EMOJI[characterKeyForThought(input)];
 }

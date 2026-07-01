@@ -48,7 +48,7 @@ async function mockCommonRoutes(page: Page) {
   return { hotTopicRequests: () => hotTopicRequests };
 }
 
-async function installGeolocationMock(page: Page, mode: 'granted' | 'prompt' | 'unavailable' = 'prompt') {
+async function installGeolocationMock(page: Page, mode: 'granted' | 'prompt' | 'unavailable' | 'timeout-then-watch' = 'prompt') {
   await page.addInitScript((selectedMode) => {
     const calls = {
       getCurrentPositionCalls: 0,
@@ -74,6 +74,13 @@ async function installGeolocationMock(page: Page, mode: 'granted' | 'prompt' | '
       POSITION_UNAVAILABLE: 2,
       TIMEOUT: 3,
     };
+    const timeoutError = {
+      code: 3,
+      message: 'Desktop geolocation timed out before network location settled',
+      PERMISSION_DENIED: 1,
+      POSITION_UNAVAILABLE: 2,
+      TIMEOUT: 3,
+    };
 
     Object.defineProperty(window, '__publitGeolocationCalls', {
       configurable: true,
@@ -94,6 +101,7 @@ async function installGeolocationMock(page: Page, mode: 'granted' | 'prompt' | '
           calls.getCurrentPositionCalls += 1;
           window.setTimeout(() => {
             if (selectedMode === 'unavailable') error?.(unavailableError as GeolocationPositionError);
+            else if (selectedMode === 'timeout-then-watch') error?.(timeoutError as GeolocationPositionError);
             else success(position as GeolocationPosition);
           }, 0);
         },
@@ -158,6 +166,23 @@ test('does not describe desktop position lookup failures as missing permission a
     getCurrentPositionCalls: 1,
     watchPositionCalls: 0,
     clearWatchCalls: 0,
+  });
+});
+
+test('falls back to a short watch when desktop location times out after permission is allowed', async ({ page }) => {
+  await installGeolocationMock(page, 'timeout-then-watch');
+  await mockCommonRoutes(page);
+
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto('/');
+  await page.getByRole('button', { name: /위치 허용/ }).click();
+
+  await expect(page.getByTestId('location-gate')).toHaveCount(0);
+  await expect(page.getByTestId('thought-character')).toHaveCount(1);
+  await expect.poll(async () => readGeolocationCalls(page)).toEqual({
+    getCurrentPositionCalls: 1,
+    watchPositionCalls: 1,
+    clearWatchCalls: 1,
   });
 });
 

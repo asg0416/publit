@@ -1,17 +1,17 @@
 @import "tailwindcss";
 
 :root {
-  --background: #f7f7f2;
+  --background: #ffffff;
   --foreground: #252520;
   --body: #5d5a51;
   --muted: #6f6b61;
   --muted-soft: #9a968c;
   --hairline: #e7e5df;
   --hairline-strong: #d5d2c8;
-  --canvas-soft: #fbfbf7;
+  --canvas-soft: #ffffff;
   --surface-card: #ffffff;
-  --accent-mint: #a8ddc1;
-  --accent-blue: #0b6975;
+  --accent-mint: #ef3b32;
+  --accent-blue: #ef3b32;
   --accent-yellow: #ffda68;
   --accent-coral: #d98978;
   --pixel-shadow: 2px 2px 0 rgba(35, 35, 31, 0.82);
@@ -42,23 +42,15 @@ body {
 }
 
 .anigeunde-map-surface {
-  background:
-    radial-gradient(ellipse at 18% 24%, rgba(168, 221, 193, 0.45), transparent 28%),
-    radial-gradient(ellipse at 78% 72%, rgba(159, 187, 224, 0.46), transparent 30%),
-    radial-gradient(ellipse at 58% 18%, rgba(255, 218, 104, 0.2), transparent 24%),
-    linear-gradient(28deg, transparent 0 38%, rgba(255, 255, 255, 0.76) 39% 42%, transparent 43%),
-    linear-gradient(126deg, transparent 0 58%, rgba(255, 255, 255, 0.72) 59% 61%, transparent 62%),
-    #e9ece6;
+  background: #ffffff;
 }
 
 .anigeunde-map-surface::before {
   content: "";
   position: absolute;
   inset: 0;
-  background:
-    radial-gradient(ellipse at 30% 66%, rgba(255, 255, 255, 0.48), transparent 34%),
-    radial-gradient(ellipse at 86% 34%, rgba(251, 251, 247, 0.58), transparent 26%);
-  opacity: 0.75;
+  background: #ffffff;
+  opacity: 1;
 }
 
 .anigeunde-character {

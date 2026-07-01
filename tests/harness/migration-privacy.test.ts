@@ -23,7 +23,7 @@ describe('Publit database privacy migration', () => {
     assert.doesNotMatch(migrationSql, /\b(lat|latitude|lng|longitude|coordinates?|raw_location)\b/);
     assert.match(migrationSql, /\bgeohash\s+text\s+not null\b/);
 
-    for (const column of ['character_key', 'region_code', 'display_scope']) {
+    for (const column of ['character_key', 'character_emoji', 'region_code', 'display_scope']) {
       assert.match(migrationSql, new RegExp(`\\b${column}\\b`));
     }
   });

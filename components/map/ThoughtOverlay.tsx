@@ -3,7 +3,8 @@
 import { useEffect, useMemo, useState } from 'react';
 import { createInitialParticles, simulateParticles, summarizeClusters } from '@/lib/flame/particleSimulation';
 import type { Flame, FlameParticle as FlameParticleType } from '@/lib/flame/types';
-import { CHARACTER_EMOJI, characterKeyForThought } from './character';
+import { thoughtToneForFlame } from '@/components/flame/thoughtTone';
+import { emojiForThought } from './character';
 import { RangeCircle } from './RangeCircle';
 
 type ThoughtOverlayProps = {
@@ -14,18 +15,12 @@ type ThoughtOverlayProps = {
 
 const overlaySize = 320;
 
-function strengthTagClass(strength: FlameParticleType['selfStrength']) {
-  if (strength === 3) return 'bg-[#ff8aa0] text-[#4a1020] shadow-[1px_1px_0_rgba(207,45,86,0.62)]';
-  if (strength === 2) return 'bg-[#ffda68] text-[#252520] shadow-[1px_1px_0_rgba(109,78,0,0.46)]';
-  return 'bg-white text-[#252520] shadow-[1px_1px_0_rgba(35,35,31,0.68)]';
-}
-
 function isGlittery(heatLevel: FlameParticleType['heatLevel']) {
   return heatLevel === 'hot' || heatLevel === 'cluster';
 }
 
 export function ThoughtOverlay({ thoughts, rangeLabel, onSelect }: ThoughtOverlayProps) {
-  const overlayKey = thoughts.map((thought) => `${thought.id}:${thought.tagNormalized}:${thought.characterKey ?? ''}`).join('|');
+  const overlayKey = thoughts.map((thought) => `${thought.id}:${thought.tagNormalized}:${thought.characterKey ?? ''}:${thought.characterEmoji ?? ''}:${thought.mood}:${thought.selfStrength}`).join('|');
 
   return (
     <ThoughtOverlaySimulation
@@ -59,17 +54,19 @@ function ThoughtOverlaySimulation({ thoughts, rangeLabel, onSelect }: ThoughtOve
           <div
             key={cluster.tagNormalized}
             data-testid="cluster-aura"
-            className="anigeunde-aura absolute size-20 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#ffdb68]/25"
+            className="anigeunde-aura absolute size-20 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#ef3b32]/14"
             style={{ left: `${(cluster.x / overlaySize) * 100}%`, top: `${(cluster.y / overlaySize) * 100}%` }}
           />
         ))}
         {particles.map((particle) => {
           const thought = thoughts.find((item) => item.id === particle.flameId);
           if (!thought) return null;
-          const characterKey = characterKeyForThought({
+          const tone = thoughtToneForFlame(thought);
+          const emoji = emojiForThought({
             id: thought.id,
             tagNormalized: thought.tagNormalized,
             characterKey: thought.characterKey,
+            characterEmoji: thought.characterEmoji,
           });
 
           return (
@@ -81,7 +78,8 @@ function ThoughtOverlaySimulation({ thoughts, rangeLabel, onSelect }: ThoughtOve
               <span
                 data-testid="thought-tag-label"
                 data-strength={particle.selfStrength}
-                className={`pointer-events-none max-w-[4rem] overflow-hidden text-ellipsis whitespace-nowrap rounded-lg px-2 py-1 ${strengthTagClass(particle.selfStrength)}`}
+                data-tone={tone.key}
+                className={`pointer-events-none max-w-[4rem] overflow-hidden text-ellipsis whitespace-nowrap rounded-lg px-2 py-1 ${tone.tagClassName}`}
               >
                 {particle.tagLabel}
               </span>
@@ -99,11 +97,11 @@ function ThoughtOverlaySimulation({ thoughts, rangeLabel, onSelect }: ThoughtOve
                   <span
                     data-testid="flame-glyph"
                     data-heat-level={particle.heatLevel}
-                    className={`anigeunde-character grid size-9 place-items-center rounded-[10px] bg-white text-xl shadow-[1px_1px_0_rgba(35,35,31,0.68)] ${
+                    className={`anigeunde-character grid size-9 place-items-center rounded-[10px] bg-white text-xl shadow-[2px_2px_0_rgba(35,35,31,0.72)] ${
                       isGlittery(particle.heatLevel) ? 'anigeunde-glitter' : ''
                     }`}
                   >
-                    {CHARACTER_EMOJI[characterKey]}
+                    {emoji}
                   </span>
                 </span>
               </button>

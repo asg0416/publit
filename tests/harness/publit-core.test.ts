@@ -37,6 +37,7 @@ describe('Publit shared Edge Function core', () => {
       ember_until: '2026-06-29T04:00:00.000Z',
       trace_until: '2026-07-06T04:00:00.000Z',
       character_key: 'fox',
+      character_emoji: '🌶️',
       region_label: '근처',
       region_code: 'busan',
       display_scope: 'nearby',
@@ -49,6 +50,7 @@ describe('Publit shared Edge Function core', () => {
 
     assert.deepEqual(Object.keys(response).sort(), [
       'category',
+      'characterEmoji',
       'characterKey',
       'createdAt',
       'displayScope',
@@ -66,6 +68,7 @@ describe('Publit shared Edge Function core', () => {
       'text',
     ]);
     assert.equal(response.characterKey, 'fox');
+    assert.equal(response.characterEmoji, '🌶️');
     assert.equal(response.displayScope, 'nearby');
     assert.equal(response.regionLabel, '근처');
     assert.equal(response.regionCode, 'busan');
@@ -74,6 +77,27 @@ describe('Publit shared Edge Function core', () => {
     assert.equal(JSON.stringify(response).includes('129.0756'), false);
     assert.equal(JSON.stringify(response).includes('secret-device-hash'), false);
     assert.equal(JSON.stringify(response).includes('reactionCount'), false);
+  });
+
+  it('drops non-emoji custom character values from sanitized flame responses', () => {
+    const response = sanitizeFlameForResponse({
+      id: 'flame-custom-bad',
+      text: '문자 캐릭터는 허용하지 않는다.',
+      tag_label: '#지금생각',
+      tag_normalized: '지금생각',
+      category: 'daily',
+      mood: 'quiet',
+      self_strength: 1,
+      heat_score: 0,
+      status: 'live',
+      created_at: '2026-06-28T01:00:00.000Z',
+      live_until: '2026-06-28T04:00:00.000Z',
+      ember_until: '2026-06-29T04:00:00.000Z',
+      trace_until: '2026-07-06T04:00:00.000Z',
+      character_emoji: 'abc',
+    }, new Date('2026-06-28T02:00:00.000Z'));
+
+    assert.equal('characterEmoji' in response, false);
   });
 
   it('hides trace body text while keeping aggregate tag/category signal', () => {

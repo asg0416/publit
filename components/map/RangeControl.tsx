@@ -21,7 +21,7 @@ export function RangeControl({ value, onChange }: RangeControlProps) {
   return (
     <div
       data-testid="range-control"
-      className="grid w-52 grid-cols-3 gap-1.5 rounded-[16px] bg-white/95 p-2 shadow-[2px_2px_0_rgba(35,35,31,0.72)] backdrop-blur-sm"
+      className="grid w-52 grid-cols-3 gap-1.5 rounded-[16px] bg-white p-2 shadow-[3px_3px_0_rgba(35,35,31,0.78),0_0_0_1px_rgba(35,35,31,0.08)]"
     >
       {RANGE_OPTIONS.map((option) => (
         <button
@@ -29,7 +29,7 @@ export function RangeControl({ value, onChange }: RangeControlProps) {
           key={option.value}
           onClick={() => onChange(option.value)}
           className={`min-h-10 min-w-0 rounded-[10px] px-1.5 text-[11px] font-black transition-[transform,background-color,color] active:scale-[0.96] ${
-            value === option.value ? 'bg-[#ffda68] text-[#252520]' : 'text-[#6f6b61] hover:bg-[#f6f6f0]'
+            value === option.value ? 'bg-[#ef3b32] text-white' : 'bg-white text-[#6f6b61] hover:bg-[#f5f5f5]'
           }`}
           aria-pressed={value === option.value}
         >

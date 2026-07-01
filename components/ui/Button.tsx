@@ -5,9 +5,9 @@ type ButtonProps = PropsWithChildren<ButtonHTMLAttributes<HTMLButtonElement> & {
 }>;
 
 const variants = {
-  primary: 'bg-[#0b6975] text-white hover:bg-[#095862] focus-visible:outline-[#0b6975]',
-  secondary: 'border border-[#cfcdc4] bg-white text-[#26251e] hover:bg-[#efeee8] focus-visible:outline-[#26251e]',
-  ghost: 'bg-transparent text-[#5a5852] hover:bg-[#efeee8] focus-visible:outline-[#26251e]',
+  primary: 'bg-[#ef3b32] text-white hover:bg-[#d93028] focus-visible:outline-[#ef3b32]',
+  secondary: 'border border-[#cfcdc4] bg-white text-[#26251e] hover:bg-[#f5f5f5] focus-visible:outline-[#26251e]',
+  ghost: 'bg-transparent text-[#5a5852] hover:bg-[#f5f5f5] focus-visible:outline-[#26251e]',
   danger: 'bg-[#cf2d56] text-white hover:bg-[#b72649] focus-visible:outline-[#cf2d56]',
 };
 

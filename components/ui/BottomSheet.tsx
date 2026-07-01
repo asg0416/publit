@@ -12,7 +12,7 @@ export function BottomSheet({ open, title, onClose, children }: BottomSheetProps
 
   return (
     <div className="fixed inset-0 z-[120] flex items-end justify-center bg-[#26251e]/45 backdrop-blur-sm lg:px-6 lg:pb-6" role="dialog" aria-modal="true" aria-label={title}>
-      <div data-testid="bottom-sheet-panel" className="publit-panel-enter max-h-[calc(100svh-1.25rem)] w-full overflow-y-auto rounded-t-xl border border-[#cfcdc4] bg-[#fafaf7] px-5 pb-6 pt-4 text-[#26251e] lg:max-w-lg lg:rounded-xl">
+      <div data-testid="bottom-sheet-panel" className="publit-panel-enter max-h-[calc(100svh-1.25rem)] w-full overflow-y-auto rounded-t-xl bg-white px-5 pb-6 pt-4 text-[#26251e] shadow-[0_0_0_1px_rgba(35,35,31,0.08)] lg:max-w-lg lg:rounded-xl">
         <div className="mb-4 flex items-center justify-between gap-4 border-b border-[#e6e5e0] pb-3">
           <h2 className="text-base font-semibold text-[#26251e]">{title}</h2>
           <button

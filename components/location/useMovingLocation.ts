@@ -20,6 +20,7 @@ const LOCATION_UNSUPPORTED_MESSAGE = '이 브라우저에서는 위치 권한을
 const LOCATION_DENIED_MESSAGE = '브라우저나 OS에서 위치 권한이 막혀 있어요. 주소창 또는 시스템 위치 설정을 확인해주세요.';
 const LOCATION_UNAVAILABLE_MESSAGE = '권한은 요청됐지만 현재 위치를 가져오지 못했어요. PC의 위치 서비스나 네트워크 위치를 확인한 뒤 다시 시도해주세요.';
 const LOCATION_TIMEOUT_MESSAGE = '위치 확인 시간이 초과됐어요. PC의 위치 서비스나 네트워크 연결을 확인한 뒤 다시 시도해주세요.';
+const LOCATION_WATCH_FALLBACK_TIMEOUT_MS = 8_500;
 
 let restoredGrantedPermissionInPage = false;
 
@@ -37,6 +38,15 @@ export function useMovingLocation(onRefresh: (position: { lat: number; lng: numb
   const [state, setState] = useState<LocationState>({ status: 'idle' });
   const lastFetch = useRef<LastLocationFetch | null>(null);
   const requestInFlight = useRef(false);
+  const fallbackWatch = useRef<{ id: number; timeoutId: number } | null>(null);
+
+  const clearFallbackWatch = useCallback(() => {
+    const current = fallbackWatch.current;
+    if (!current) return;
+    fallbackWatch.current = null;
+    window.clearTimeout(current.timeoutId);
+    navigator.geolocation.clearWatch(current.id);
+  }, []);
 
   const acceptPosition = useCallback((position: GeolocationPosition, options: RequestLocationOptions = {}) => {
     const lat = position.coords.latitude;
@@ -53,10 +63,46 @@ export function useMovingLocation(onRefresh: (position: { lat: number; lng: numb
   }, [onRefresh]);
 
   const rejectPosition = useCallback((error: GeolocationPositionError) => {
+    clearFallbackWatch();
     requestInFlight.current = false;
     const next = getLocationErrorState(error);
     setState((current) => ({ ...current, ...next }));
-  }, []);
+  }, [clearFallbackWatch]);
+
+  const acceptRequestedPosition = useCallback((position: GeolocationPosition, options: RequestLocationOptions = {}) => {
+    clearFallbackWatch();
+    requestInFlight.current = false;
+    acceptPosition(position, options);
+  }, [acceptPosition, clearFallbackWatch]);
+
+  const startTimeoutFallbackWatch = useCallback((error: GeolocationPositionError, options: RequestLocationOptions = {}) => {
+    if (fallbackWatch.current || !navigator.geolocation.watchPosition) {
+      rejectPosition(error);
+      return;
+    }
+
+    let settled = false;
+    let watchId = 0;
+    const finishWithError = (nextError: GeolocationPositionError) => {
+      if (settled) return;
+      settled = true;
+      rejectPosition(nextError);
+    };
+    const timeoutId = window.setTimeout(() => {
+      finishWithError(error);
+    }, LOCATION_WATCH_FALLBACK_TIMEOUT_MS);
+
+    watchId = navigator.geolocation.watchPosition(
+      (position) => {
+        if (settled) return;
+        settled = true;
+        acceptRequestedPosition(position, options);
+      },
+      finishWithError,
+      { enableHighAccuracy: false, maximumAge: 15_000, timeout: LOCATION_WATCH_FALLBACK_TIMEOUT_MS },
+    );
+    fallbackWatch.current = { id: watchId, timeoutId };
+  }, [acceptRequestedPosition, rejectPosition]);
 
   const requestLocation = useCallback((options: RequestLocationOptions = {}) => {
     if (!('geolocation' in navigator)) {
@@ -68,14 +114,17 @@ export function useMovingLocation(onRefresh: (position: { lat: number; lng: numb
     requestInFlight.current = true;
     setState((current) => ({ ...current, status: 'requesting', message: undefined }));
     navigator.geolocation.getCurrentPosition(
-      (position) => {
-        requestInFlight.current = false;
-        acceptPosition(position, options);
+      (position) => acceptRequestedPosition(position, options),
+      (error) => {
+        if (error.code === error.TIMEOUT) {
+          startTimeoutFallbackWatch(error, options);
+          return;
+        }
+        rejectPosition(error);
       },
-      rejectPosition,
       { enableHighAccuracy: false, maximumAge: 30_000, timeout: 10_000 },
     );
-  }, [acceptPosition, rejectPosition]);
+  }, [acceptRequestedPosition, rejectPosition, startTimeoutFallbackWatch]);
 
   useEffect(() => {
     if (restoredGrantedPermissionInPage) return undefined;
@@ -95,6 +144,10 @@ export function useMovingLocation(onRefresh: (position: { lat: number; lng: numb
       cancelled = true;
     };
   }, [requestLocation]);
+
+  useEffect(() => () => {
+    clearFallbackWatch();
+  }, [clearFallbackWatch]);
 
   return { state, requestLocation };
 }
