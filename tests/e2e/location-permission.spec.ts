@@ -48,7 +48,7 @@ async function mockCommonRoutes(page: Page) {
   return { hotTopicRequests: () => hotTopicRequests };
 }
 
-async function installGeolocationMock(page: Page, mode: 'granted' | 'prompt' | 'unavailable' | 'timeout-then-watch' = 'prompt') {
+async function installGeolocationMock(page: Page, mode: 'granted' | 'prompt' | 'unavailable' | 'timeout-then-watch' | 'timeout-then-slow-watch' = 'prompt') {
   await page.addInitScript((selectedMode) => {
     const calls = {
       getCurrentPositionCalls: 0,
@@ -101,14 +101,14 @@ async function installGeolocationMock(page: Page, mode: 'granted' | 'prompt' | '
           calls.getCurrentPositionCalls += 1;
           window.setTimeout(() => {
             if (selectedMode === 'unavailable') error?.(unavailableError as GeolocationPositionError);
-            else if (selectedMode === 'timeout-then-watch') error?.(timeoutError as GeolocationPositionError);
+            else if (selectedMode === 'timeout-then-watch' || selectedMode === 'timeout-then-slow-watch') error?.(timeoutError as GeolocationPositionError);
             else success(position as GeolocationPosition);
           }, 0);
         },
         watchPosition(success: PositionCallback) {
           calls.watchPositionCalls += 1;
           const watchId = calls.watchPositionCalls;
-          window.setTimeout(() => success(position as GeolocationPosition), 0);
+          window.setTimeout(() => success(position as GeolocationPosition), selectedMode === 'timeout-then-slow-watch' ? 9_000 : 0);
           return watchId;
         },
         clearWatch() {
@@ -160,12 +160,30 @@ test('does not describe desktop position lookup failures as missing permission a
   await page.getByRole('button', { name: /위치 허용/ }).click();
 
   await expect(page.getByText('권한은 요청됐지만 현재 위치를 가져오지 못했어요.')).toBeVisible();
-  await expect(page.getByText('위치 권한 없이도 조용히 둘러볼 수 있어요.')).toHaveCount(0);
+  await expect(page.getByRole('button', { name: '조용히 둘러보기' })).toHaveCount(0);
 
   await expect.poll(async () => readGeolocationCalls(page)).toEqual({
     getCurrentPositionCalls: 1,
     watchPositionCalls: 0,
     clearWatchCalls: 0,
+  });
+});
+
+test('keeps waiting for a slower desktop watch instead of timing out immediately', async ({ page }) => {
+  await installGeolocationMock(page, 'timeout-then-slow-watch');
+  await mockCommonRoutes(page);
+
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto('/');
+  await page.getByRole('button', { name: /위치 허용/ }).click();
+
+  await expect(page.getByText('위치 확인 시간이 초과됐어요.')).toHaveCount(0);
+  await expect(page.getByTestId('location-gate')).toHaveCount(0, { timeout: 12_000 });
+  await expect(page.getByTestId('thought-character')).toHaveCount(1, { timeout: 12_000 });
+  await expect.poll(async () => readGeolocationCalls(page)).toEqual({
+    getCurrentPositionCalls: 1,
+    watchPositionCalls: 1,
+    clearWatchCalls: 1,
   });
 });
 

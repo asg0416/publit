@@ -2,7 +2,7 @@ export type FlameCategory = 'politics' | 'local' | 'society' | 'safety' | 'daily
 export type FlameMood = 'quiet' | 'curious' | 'serious' | 'want_talk';
 export type FlameLifecycle = 'live' | 'ember' | 'trace';
 export type HeatLevel = 'fresh' | 'warming' | 'hot' | 'cluster';
-export type ReactionType = 'similar' | 'curious' | 'need_source' | 'watching';
+export type ReactionType = 'similar' | 'curious' | 'neutral' | 'disagree' | 'watching';
 export type ReportReason = 'misinformation' | 'doxxing' | 'violence' | 'illegal' | 'hate' | 'spam' | 'privacy' | 'other';
 export type CharacterKey = 'turtle' | 'chick' | 'fox' | 'dog' | 'butterfly' | 'bug';
 export type DisplayScope = 'nearby' | 'district' | 'regional' | 'national';
@@ -26,6 +26,14 @@ export type Flame = {
   displayScope?: DisplayScope;
   regionLabel?: string;
   regionCode?: string;
+  reactions?: ReactionSummaryItem[];
+};
+
+export type ReactionSummaryItem = {
+  type: ReactionType;
+  label: string;
+  count: number;
+  reacted: boolean;
 };
 
 export type Thought = Flame;

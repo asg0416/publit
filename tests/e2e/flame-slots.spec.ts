@@ -77,17 +77,20 @@ test('shows full live slots, lets the user extinguish one, then creates again', 
   await page.goto('/');
   await page.getByRole('button', { name: /위치 허용/ }).click();
 
-  await expect(page.getByText('3 / 3')).toBeVisible();
-  await expect(page.getByText('내 생각 슬롯이 모두 차 있어요. 새 생각을 띄우려면 기존 생각 하나를 내려주세요.')).toBeVisible();
+  await expect(page.getByTestId('inline-thought-composer')).toContainText('내 생각 슬롯이 모두 차 있어요.');
 
   await page.getByRole('textbox', { name: '지금 떠오른 생각' }).fill('빈 슬롯을 확인하는 생각이에요.');
-  await page.getByLabel('생각 태그').fill('#카페대화');
   await page.getByRole('button', { name: '생각 띄우기', exact: true }).click();
   await expect(page.getByTestId('inline-thought-composer').getByText('내 생각 슬롯이 모두 차 있어요.', { exact: true })).toBeVisible();
 
-  await page.getByRole('button', { name: '내리기' }).first().click();
-  await expect(page.getByText('내 생각 슬롯이 모두 차 있어요. 새 생각을 띄우려면 기존 생각 하나를 내려주세요.')).toHaveCount(0);
+  await page.getByRole('button', { name: '작성 옵션' }).click();
+  const sheet = page.getByTestId('bottom-sheet-panel');
+  await expect(sheet).toBeVisible();
+  await expect(sheet.getByText('3 / 3')).toBeVisible();
+  await sheet.getByRole('button', { name: '내리기' }).first().click();
+  await expect(sheet.getByText('3 / 3')).toHaveCount(0);
 
-  await page.getByRole('button', { name: '생각 띄우기', exact: true }).click();
+  await sheet.getByLabel('생각 태그').fill('#카페대화');
+  await sheet.getByRole('button', { name: '생각 띄우기', exact: true }).click();
   await expect(page.getByTestId('thought-character')).toHaveCount(1);
 });

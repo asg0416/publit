@@ -52,15 +52,17 @@ test('expands hot tags, accepts suggested tags, and blocks unsafe text', async (
   await expect(page.getByText(/사용\s*수|조회수|반응\s*\d+개/)).toHaveCount(0);
 
   await page.getByRole('textbox', { name: '지금 떠오른 생각' }).fill('카페에서 투표 이야기를 들었어요.');
-  await expect(page.locator('button', { hasText: '#투표용지이슈' }).last()).toBeVisible();
-  await page.locator('button', { hasText: '#투표용지이슈' }).last().click();
-  const tagInput = page.getByLabel('생각 태그');
+  await page.getByRole('button', { name: '작성 옵션' }).click();
+  const sheet = page.getByTestId('bottom-sheet-panel');
+  await expect(sheet.locator('button', { hasText: '#투표용지이슈' }).last()).toBeVisible();
+  await sheet.locator('button', { hasText: '#투표용지이슈' }).last().click();
+  const tagInput = sheet.getByLabel('생각 태그');
   await expect(tagInput).toHaveValue('#투표용지이슈');
 
   await tagInput.fill('');
   await expect(tagInput).toHaveValue('');
-  await expect(page.getByRole('button', { name: '생각 띄우기', exact: true })).toBeDisabled();
+  await expect(sheet.getByRole('button', { name: '생각 띄우기', exact: true })).toBeDisabled();
 
-  await page.getByRole('textbox', { name: '지금 떠오른 생각' }).fill('전화번호 공개하자');
-  await expect(page.getByText('위험하거나 사생활을 침해할 수 있는 문구는 생각으로 띄울 수 없어요.')).toBeVisible();
+  await sheet.getByRole('textbox', { name: '지금 떠오른 생각' }).fill('전화번호 공개하자');
+  await expect(sheet.getByText('위험하거나 사생활을 침해할 수 있는 문구는 생각으로 띄울 수 없어요.')).toBeVisible();
 });

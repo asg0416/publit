@@ -1,4 +1,4 @@
-import type { CharacterKey, DisplayScope, Flame, HotTopic, ReactionType, ReportReason, TagSuggestion } from './flame/types.ts';
+import type { CharacterKey, DisplayScope, Flame, HotTopic, ReactionSummaryItem, ReactionType, ReportReason, TagSuggestion } from './flame/types.ts';
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -32,7 +32,7 @@ export const publitApi = {
     invoke<HotTopic[]>('get-hot-topics', body),
   suggestTags: (body: { text: string; lat?: number; lng?: number }) =>
     invoke<TagSuggestion[]>('suggest-tags', body),
-  nearbyFlames: (body: { lat: number; lng: number }) =>
+  nearbyFlames: (body: { lat: number; lng: number; deviceHash?: string }) =>
     invoke<Flame[]>('nearby-flames', body),
   myFlames: (body: { deviceHash: string }) =>
     invoke<{ used: number; limit: number; isFull: boolean; activeFlames: Array<{ id: string; tagLabel: string; status: string; createdAt: string }> }>('my-flames', body),
@@ -51,7 +51,7 @@ export const publitApi = {
     deviceHash: string;
   }) => invoke<{ flame?: Flame; activeFlames?: Array<{ id: string; tagLabel: string; status: string; createdAt: string }>; error?: { code: string } }>('create-flame', body),
   reactFlame: (body: { flameId: string; reactionType: ReactionType; deviceHash: string }) =>
-    invoke<{ heatLabel: string; duplicate?: boolean }>('react-flame', body),
+    invoke<{ heatLabel: string; duplicate?: boolean; reactions?: ReactionSummaryItem[] }>('react-flame', body),
   reportFlame: (body: { flameId: string; reason: ReportReason; detail?: string; deviceHash: string }) =>
     invoke<{ ok: boolean; status: string }>('report-flame', body),
   extinguishFlame: (body: { flameId: string; deviceHash: string }) =>

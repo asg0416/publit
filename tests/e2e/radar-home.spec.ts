@@ -138,7 +138,8 @@ test('renders the map-first Anigeunde home without old map globals', async ({ pa
   await expect(page.getByTestId('brand-logo')).toContainText('아니근데 나만?');
   await expect(page.getByTestId('hot-tag-ticker')).toBeVisible();
   await expect(page.getByTestId('hot-tag-current')).toHaveClass(/anigeunde-hot-tag-item/);
-  await expect(page.getByTestId('hot-tag-current')).toHaveCSS('color', 'rgb(37, 37, 32)');
+  await expect(page.getByTestId('hot-tag-current')).toHaveCSS('color', 'rgb(239, 59, 50)');
+  await expect(page.getByTestId('brand-subtitle')).toHaveCSS('color', 'rgb(239, 59, 50)');
   await expect(page.getByText('트렌드')).toBeVisible();
   const brandBox = await page.getByTestId('brand-logo').boundingBox();
   const tickerBox = await page.getByTestId('hot-tag-ticker').boundingBox();
@@ -181,14 +182,17 @@ test('creates a flame through the inline composer using mocked edge functions', 
   await expect(page.getByTestId('inline-thought-composer')).toBeVisible();
   await expect(page.getByTestId('composer-options-panel')).toHaveCount(0);
   await page.getByRole('button', { name: '작성 옵션' }).click();
-  await expect(page.getByTestId('composer-options-panel')).toBeVisible();
-  await expect(page.getByText('캐릭터')).toBeVisible();
-  await page.getByRole('textbox', { name: '지금 떠오른 생각' }).fill('새로 띄운 생각이에요.');
-  await page.getByLabel('생각 태그').fill('#카페대화');
-  await page.getByRole('button', { name: '열받음' }).click();
+  const sheet = page.getByTestId('bottom-sheet-panel');
+  await expect(sheet).toBeVisible();
+  await expect(page.getByTestId('composer-options-panel')).toHaveCount(0);
+  await expect(sheet.getByText('캐릭터')).toBeVisible();
+  await expect(sheet.getByText('내 생각')).toBeVisible();
+  await sheet.getByRole('textbox', { name: '지금 떠오른 생각' }).fill('새로 띄운 생각이에요.');
+  await sheet.getByLabel('생각 태그').fill('#카페대화');
+  await sheet.getByRole('button', { name: '열받음' }).click();
   await expect(page.getByTestId('composer-tag-preview')).toHaveAttribute('data-tone', 'angry');
-  await page.getByLabel('직접 이모지').fill('🌶️');
-  await page.getByRole('button', { name: '생각 띄우기', exact: true }).click();
+  await sheet.getByLabel('직접 이모지').fill('🌶️');
+  await sheet.getByRole('button', { name: '생각 띄우기', exact: true }).click();
 
   await expect(page.getByTestId('thought-character')).toHaveCount(4);
   await expect(page.getByTestId('flame-glyph').first()).toHaveText('🌶️');

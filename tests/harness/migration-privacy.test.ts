@@ -41,7 +41,7 @@ describe('Publit database privacy migration', () => {
       assert.match(migrationSql, new RegExp(`'${value}'`));
     }
 
-    for (const value of ['similar', 'need_source', 'watching']) {
+    for (const value of ['similar', 'curious', 'neutral', 'disagree', 'watching']) {
       assert.match(migrationSql, new RegExp(`'${value}'`));
     }
 

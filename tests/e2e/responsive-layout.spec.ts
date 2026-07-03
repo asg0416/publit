@@ -118,6 +118,8 @@ test('keeps the full map controls separated on desktop', async ({ page }) => {
 
   expect(topBarBox.height).toBeLessThanOrEqual(58);
   expect(tickerBox.width).toBeGreaterThan(brandBox.width);
+  expect(Math.abs(topBarBox.width - composerBox.width)).toBeLessThanOrEqual(2);
+  expect(Math.abs(topBarBox.x - composerBox.x)).toBeLessThanOrEqual(2);
   expectInside(thoughtBox, shellBox);
   expectBelow(thoughtBox, composerBox, 16);
   expect(composerBox.y + composerBox.height).toBeLessThanOrEqual(shellBox.y + shellBox.height - 8);
@@ -128,6 +130,10 @@ test('keeps the full map controls separated on desktop', async ({ page }) => {
 
   await composer.getByRole('textbox', { name: '지금 떠오른 생각' }).click();
   await expect(page.getByTestId('bottom-sheet-panel')).toHaveCount(0);
+  await composer.getByRole('button', { name: '작성 옵션' }).click();
+  await expect(page.getByTestId('bottom-sheet-panel')).toBeVisible();
+  await expect(page.getByTestId('composer-options-panel')).toHaveCount(0);
+  await expect(page.getByText('내 생각')).toBeVisible();
 });
 
 test('keeps the full map controls separated on mobile', async ({ page }) => {
@@ -158,8 +164,10 @@ test('keeps the full map controls separated on mobile', async ({ page }) => {
 
   expect(shellBox.width).toBeLessThanOrEqual(390);
   expect(topBarBox.height).toBeLessThanOrEqual(58);
-  expect(composerBox.height).toBeLessThanOrEqual(124);
+  expect(composerBox.height).toBeLessThanOrEqual(132);
   expect(tickerBox.width).toBeGreaterThan(brandBox.width);
+  expect(Math.abs(topBarBox.width - composerBox.width)).toBeLessThanOrEqual(2);
+  expect(Math.abs(topBarBox.x - composerBox.x)).toBeLessThanOrEqual(2);
   expectInside(thoughtBox, shellBox);
   expectBelow(thoughtBox, composerBox, 12);
   expect(composerBox.y + composerBox.height).toBeLessThanOrEqual(shellBox.y + shellBox.height - 8);
@@ -170,4 +178,9 @@ test('keeps the full map controls separated on mobile', async ({ page }) => {
 
   await composer.getByRole('textbox', { name: '지금 떠오른 생각' }).click();
   await expect(page.getByTestId('bottom-sheet-panel')).toHaveCount(0);
+  await composer.getByRole('button', { name: '작성 옵션' }).click();
+  await expect(page.getByTestId('bottom-sheet-panel')).toBeVisible();
+  await expect(page.getByTestId('composer-options-panel')).toHaveCount(0);
+  await expect(page.getByText('내 생각')).toBeVisible();
+  await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
 });

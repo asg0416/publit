@@ -55,12 +55,12 @@ test('refreshes nearby flames from other devices after location is active', asyn
   await page.goto('/');
   await page.getByRole('button', { name: /위치 허용/ }).click();
 
-  await expect(page.getByText('아직 이 공간에 떠 있는 생각이 없어요.').first()).toBeVisible();
-  await expect.poll(() => nearbyRequests).toBe(1);
+  await expect.poll(() => nearbyRequests).toBeGreaterThan(0);
+  const requestsBeforeInterval = nearbyRequests;
 
   await page.clock.runFor(12_000);
 
-  await expect.poll(() => nearbyRequests).toBeGreaterThan(1);
+  await expect.poll(() => nearbyRequests).toBeGreaterThan(requestsBeforeInterval);
   await expect(page.getByTestId('thought-character')).toHaveCount(1);
   await page.getByTestId('thought-character').click();
   await expect(page.getByText('모바일에서 띄운 생각이에요.')).toBeVisible();

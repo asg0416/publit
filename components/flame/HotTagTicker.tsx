@@ -53,7 +53,7 @@ export function HotTagTicker({ topics, compact = false }: HotTagTickerProps) {
             <span
               key={`${current.normalizedKey}-${index}`}
               data-testid="hot-tag-current"
-              className={`anigeunde-hot-tag-item inline-block max-w-full truncate font-black text-[#252520] ${compact ? 'text-xs' : 'text-sm'}`}
+              className={`anigeunde-hot-tag-item inline-block max-w-full truncate font-black text-[#ef3b32] ${compact ? 'text-xs' : 'text-sm'}`}
             >
               {current.displayLabel}
             </span>

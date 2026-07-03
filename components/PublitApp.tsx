@@ -65,7 +65,11 @@ export function PublitApp() {
     setViewPosition(position);
     if (!options.silent) setStatus('근처 생각을 새로 살피는 중이에요.');
     try {
-      const next = await publitApi.nearbyFlames({ lat: position.lat, lng: position.lng });
+      const next = await publitApi.nearbyFlames({
+        lat: position.lat,
+        lng: position.lng,
+        ...(deviceHash ? { deviceHash } : {}),
+      });
       setFlames(next);
       if (!options.silent) {
         setStatus(next.length ? '근처 생각이 지도 위에 떠 있어요.' : '아직 이 공간에 떠 있는 생각이 없어요.');
@@ -76,7 +80,7 @@ export function PublitApp() {
     } catch {
       if (!options.silent) setStatus('근처 생각을 불러오지 못했어요. 잠시 후 다시 시도해보세요.');
     }
-  }, [refreshSlots, refreshTopics]);
+  }, [deviceHash, refreshSlots, refreshTopics]);
 
   const handleLocationResolved = useCallback((position: PositionState) => {
     setDevicePosition(position);
@@ -109,8 +113,16 @@ export function PublitApp() {
     return () => window.clearInterval(interval);
   }, [viewPosition, refreshNearby]);
 
+  useEffect(() => {
+    if (!deviceHash || !viewPosition) return undefined;
+    const timeout = window.setTimeout(() => {
+      void refreshNearby(viewPosition, { silent: true });
+    }, 0);
+    return () => window.clearTimeout(timeout);
+  }, [deviceHash, refreshNearby, viewPosition]);
+
   const selectedRange = useMemo(() => RANGE_OPTIONS.find((option) => option.value === rangeValue) ?? RANGE_OPTIONS[3], [rangeValue]);
-  const shouldShowLocationGate = locationState.status !== 'granted';
+  const shouldShowLocationGate = locationState.status !== 'granted' && locationState.status !== 'requesting';
 
   const handleMapCenterChange = useCallback((position: { lat: number; lng: number }) => {
     if (locationState.status !== 'granted') return;
@@ -203,8 +215,16 @@ export function PublitApp() {
     if (!deviceHash) return;
     try {
       const result = await publitApi.reactFlame({ flameId, reactionType, deviceHash });
-      setFlames((current) => current.map((flame) => flame.id === flameId ? { ...flame, heatLabel: result.heatLabel } : flame));
-      setSelected((current) => current?.id === flameId ? { ...current, heatLabel: result.heatLabel } : current);
+      setFlames((current) => current.map((flame) => flame.id === flameId ? {
+        ...flame,
+        heatLabel: result.heatLabel,
+        reactions: result.reactions ?? flame.reactions,
+      } : flame));
+      setSelected((current) => current?.id === flameId ? {
+        ...current,
+        heatLabel: result.heatLabel,
+        reactions: result.reactions ?? current.reactions,
+      } : current);
     } catch {
       setStatus('반응을 남기지 못했어요.');
     }
@@ -229,12 +249,12 @@ export function PublitApp() {
   return (
     <main data-testid="publit-shell" className="relative min-h-[100svh] overflow-hidden bg-white text-[#252520]">
       <MapBackground center={viewPosition} rangeValue={rangeValue} onCenterChange={handleMapCenterChange} />
-      <div data-testid="top-brand-bar" className="pointer-events-auto absolute left-3 right-3 top-3 z-[120] sm:left-4 sm:right-4">
+      <div data-testid="top-brand-bar" className="pointer-events-auto absolute left-3 right-3 top-3 z-[120] mx-auto max-w-2xl sm:left-4 sm:right-4">
         <div className="grid h-12 grid-cols-[auto_minmax(0,1fr)] items-center gap-1.5 rounded-[16px] bg-white p-1.5 shadow-[3px_3px_0_rgba(35,35,31,0.82),0_0_0_1px_rgba(35,35,31,0.08)]">
           <div data-testid="brand-logo" className="grid h-full w-[78px] shrink-0 place-items-center rounded-[12px] bg-white px-1.5">
             <div className="grid justify-items-center">
               <h1 className="-skew-x-6 text-[1.22rem] font-black italic leading-[0.9] tracking-normal text-[#252520]">ANGD</h1>
-              <p className="mt-0.5 whitespace-nowrap text-[9px] font-black leading-none text-[#6f6b61]">아니근데 나만?</p>
+              <p data-testid="brand-subtitle" className="mt-0.5 whitespace-nowrap text-[9px] font-black leading-none text-[#ef3b32]">아니근데 나만?</p>
             </div>
           </div>
           <HotTagTicker topics={topics} compact />
@@ -243,7 +263,7 @@ export function PublitApp() {
 
       {shouldShowLocationGate ? (
         <div className="absolute left-3 right-3 top-[5.6rem] z-40 mx-auto max-w-md sm:left-4 sm:right-4">
-          <LocationGate state={locationState} onRequest={requestLocation} onQuietBrowse={() => setStatus('조용히 둘러보는 중이에요.')} />
+          <LocationGate state={locationState} onRequest={requestLocation} />
         </div>
       ) : null}
 

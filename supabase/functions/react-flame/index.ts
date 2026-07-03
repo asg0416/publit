@@ -1,4 +1,4 @@
-import { getHeatLabel, validateDeviceHash, validateReactionType } from '../_shared/publit.ts';
+import { getHeatLabel, summarizeReactionRows, validateDeviceHash, validateReactionType } from '../_shared/publit.ts';
 import {
   assertActionAllowed,
   createAdminClient,
@@ -41,8 +41,21 @@ Deno.serve(async (req: Request) => {
       throw new PublitHttpError('FLAME_NOT_REACTABLE', 404);
     }
 
+    const getReactions = async () => {
+      const { data: reactionRows, error: reactionError } = await supabase
+        .from('flame_reactions')
+        .select('reaction_type, device_hash')
+        .eq('flame_id', flameId);
+      if (reactionError) throw new PublitHttpError('REACTION_SUMMARY_FAILED', 500);
+      return summarizeReactionRows(reactionRows ?? [], deviceHash);
+    };
+
     if (duplicate.data) {
-      return json({ duplicate: true, heatLabel: getHeatLabel(Number(flame.heat_score ?? 0)) });
+      return json({
+        duplicate: true,
+        heatLabel: getHeatLabel(Number(flame.heat_score ?? 0)),
+        reactions: await getReactions(),
+      });
     }
 
     const { error: insertError } = await supabase.from('flame_reactions').insert({
@@ -60,7 +73,7 @@ Deno.serve(async (req: Request) => {
     if (updateError) throw new PublitHttpError('FLAME_HEAT_UPDATE_FAILED', 500);
 
     await recordAction(supabase, deviceHash, 'react_flame');
-    return json({ heatLabel: getHeatLabel(nextHeat) });
+    return json({ heatLabel: getHeatLabel(nextHeat), reactions: await getReactions() });
   } catch (error) {
     return handleError(error);
   }

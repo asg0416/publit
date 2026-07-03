@@ -1,13 +1,41 @@
 export type FlameCategory = 'politics' | 'local' | 'society' | 'safety' | 'daily' | 'other';
 export type FlameMood = 'quiet' | 'curious' | 'serious' | 'want_talk';
 export type FlameStatus = 'live' | 'ember' | 'trace' | 'extinguished' | 'reported' | 'hidden' | 'expired';
-export type ReactionType = 'similar' | 'curious' | 'need_source' | 'watching';
+export type ReactionType = 'similar' | 'curious' | 'neutral' | 'disagree' | 'watching';
 export type ReportReason = 'misinformation' | 'doxxing' | 'violence' | 'illegal' | 'hate' | 'spam' | 'privacy' | 'other';
 export type CharacterKey = 'turtle' | 'chick' | 'fox' | 'dog' | 'butterfly' | 'bug';
 export type DisplayScope = 'nearby' | 'district' | 'regional' | 'national';
 
 const GEOHASH_ALPHABET = '0123456789bcdefghjkmnpqrstuvwxyz';
 const CHARACTER_KEYS: CharacterKey[] = ['turtle', 'chick', 'fox', 'dog', 'butterfly', 'bug'];
+export const REACTION_OPTIONS: Array<{ type: ReactionType; label: string }> = [
+  { type: 'similar', label: '어 나도' },
+  { type: 'curious', label: '궁금' },
+  { type: 'neutral', label: '중립' },
+  { type: 'disagree', label: '별로' },
+  { type: 'watching', label: '관망 중' },
+];
+
+export type ReactionSummaryItem = {
+  type: ReactionType;
+  label: string;
+  count: number;
+  reacted: boolean;
+};
+
+export function summarizeReactionRows(
+  rows: Array<Record<string, unknown>>,
+  deviceHash?: string | null,
+): ReactionSummaryItem[] {
+  return REACTION_OPTIONS.map((option) => {
+    const matchingRows = rows.filter((row) => row.reaction_type === option.type);
+    return {
+      ...option,
+      count: matchingRows.length,
+      reacted: Boolean(deviceHash && matchingRows.some((row) => row.device_hash === deviceHash)),
+    };
+  });
+}
 
 const CATEGORY_BY_KEYWORD: Array<[RegExp, FlameCategory]> = [
   [/선거|투표|정치|정책|후보|의혹|관리/, 'politics'],
@@ -349,7 +377,7 @@ export function validateCategory(value: unknown, text: string, tag: string): Fla
 }
 
 export function validateReactionType(value: unknown): ReactionType {
-  if (value === 'similar' || value === 'curious' || value === 'need_source' || value === 'watching') return value;
+  if (value === 'similar' || value === 'curious' || value === 'neutral' || value === 'disagree' || value === 'watching') return value;
   throw new Error('INVALID_REACTION_TYPE');
 }
 

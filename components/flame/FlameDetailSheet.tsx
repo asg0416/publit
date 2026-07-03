@@ -143,7 +143,9 @@ export function FlameDetailSheet({ flame, flames, onClose, onSelect, onReact, on
               <Badge>{lifecycleLabels[activeFlame.lifecycle]}</Badge>
             </div>
             <p className="rounded-lg bg-[#ef3b32]/10 px-4 py-3 text-sm font-black text-[#b52620]">{displayHeatLabel(activeFlame.heatLabel)}</p>
-            {activeFlame.lifecycle !== 'trace' ? <ReactionBar onReact={(reaction) => onReact(activeFlame.id, reaction)} /> : null}
+            {activeFlame.lifecycle !== 'trace' ? (
+              <ReactionBar reactions={activeFlame.reactions} onReact={(reaction) => onReact(activeFlame.id, reaction)} />
+            ) : null}
             <Button variant="secondary" onClick={() => setReportOpen(true)}>신고</Button>
           </div>
         ) : null}

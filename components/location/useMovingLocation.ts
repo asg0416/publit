@@ -20,7 +20,7 @@ const LOCATION_UNSUPPORTED_MESSAGE = '이 브라우저에서는 위치 권한을
 const LOCATION_DENIED_MESSAGE = '브라우저나 OS에서 위치 권한이 막혀 있어요. 주소창 또는 시스템 위치 설정을 확인해주세요.';
 const LOCATION_UNAVAILABLE_MESSAGE = '권한은 요청됐지만 현재 위치를 가져오지 못했어요. PC의 위치 서비스나 네트워크 위치를 확인한 뒤 다시 시도해주세요.';
 const LOCATION_TIMEOUT_MESSAGE = '위치 확인 시간이 초과됐어요. PC의 위치 서비스나 네트워크 연결을 확인한 뒤 다시 시도해주세요.';
-const LOCATION_WATCH_FALLBACK_TIMEOUT_MS = 8_500;
+const LOCATION_WATCH_FALLBACK_TIMEOUT_MS = 35_000;
 
 let restoredGrantedPermissionInPage = false;
 

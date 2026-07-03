@@ -23,7 +23,7 @@ export function ReportDialog({ open, onClose, onReport }: ReportDialogProps) {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[140] grid place-items-center bg-[#26251e]/55 px-4" role="dialog" aria-modal="true" aria-label="신고">
+    <div className="fixed inset-0 z-[260] grid place-items-center bg-[#26251e]/55 px-4" role="dialog" aria-modal="true" aria-label="신고">
       <div className="publit-panel-enter w-full max-w-sm rounded-xl bg-white p-5 text-[#26251e] shadow-[3px_3px_0_rgba(35,35,31,0.82),0_0_0_1px_rgba(35,35,31,0.08)]">
         <h3 className="text-base font-semibold text-[#26251e]">신고 사유</h3>
         <div className="mt-4 grid grid-cols-2 gap-2">

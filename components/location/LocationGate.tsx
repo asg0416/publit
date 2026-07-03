@@ -7,7 +7,6 @@ import type { LocationState } from './useMovingLocation';
 type LocationGateProps = {
   state: LocationState;
   onRequest: () => void;
-  onQuietBrowse: () => void;
 };
 
 const locationButtonLabels: Record<LocationState['status'], string> = {
@@ -19,7 +18,7 @@ const locationButtonLabels: Record<LocationState['status'], string> = {
   unavailable: '다시 시도',
 };
 
-export function LocationGate({ state, onRequest, onQuietBrowse }: LocationGateProps) {
+export function LocationGate({ state, onRequest }: LocationGateProps) {
   return (
     <section data-testid="location-gate" className="publit-panel-enter rounded-[16px] bg-white p-4 text-[#252520] shadow-[3px_3px_0_rgba(35,35,31,0.82),0_0_0_1px_rgba(35,35,31,0.08)]">
       <div className="flex items-start gap-3">
@@ -33,12 +32,11 @@ export function LocationGate({ state, onRequest, onQuietBrowse }: LocationGatePr
           </p>
         </div>
       </div>
-      <div className="mt-4 grid grid-cols-1 gap-2 sm:grid-cols-2">
+      <div className="mt-4 grid grid-cols-1 gap-2">
         <Button onClick={onRequest} disabled={state.status === 'requesting' || state.status === 'unsupported'}>
           <RefreshCw size={16} className={state.status === 'requesting' ? 'publit-spin-soft' : ''} />
           {locationButtonLabels[state.status]}
         </Button>
-        <Button variant="secondary" onClick={onQuietBrowse}>조용히 둘러보기</Button>
       </div>
       {state.message ? <p className="mt-3 rounded-lg bg-[#ef3b32]/10 px-3 py-2 text-xs font-bold leading-5 text-[#b52620]">{state.message}</p> : null}
     </section>

@@ -1,4 +1,4 @@
-import { encodeGrid, sanitizeFlameForResponse } from '../_shared/publit.ts';
+import { encodeGrid, sanitizeFlameForResponse, summarizeReactionRows, validateDeviceHash } from '../_shared/publit.ts';
 import { createAdminClient, handleError, json, PublitHttpError, readJson } from '../_shared/supabase.ts';
 
 Deno.serve(async (req: Request) => {
@@ -7,6 +7,12 @@ Deno.serve(async (req: Request) => {
   try {
     const body = await readJson(req);
     const geohash = encodeGrid(Number(body.lat), Number(body.lng));
+    let deviceHash: string | null = null;
+    try {
+      deviceHash = typeof body.deviceHash === 'string' ? validateDeviceHash(body.deviceHash) : null;
+    } catch {
+      deviceHash = null;
+    }
     const prefix = geohash;
     const now = new Date();
     const supabase = createAdminClient();
@@ -20,9 +26,31 @@ Deno.serve(async (req: Request) => {
       .limit(80);
 
     if (error) throw new PublitHttpError('NEARBY_FLAMES_FAILED', 500);
+    const flameRows = data ?? [];
+    const flameIds = flameRows.map((flame) => flame.id).filter(Boolean);
+    const reactionRowsByFlame = new Map<string, Array<Record<string, unknown>>>();
 
-    return json((data ?? [])
-      .map((flame) => sanitizeFlameForResponse(flame, now))
+    if (flameIds.length) {
+      const { data: reactionRows, error: reactionError } = await supabase
+        .from('flame_reactions')
+        .select('flame_id, reaction_type, device_hash')
+        .in('flame_id', flameIds);
+      if (reactionError) throw new PublitHttpError('REACTION_SUMMARY_FAILED', 500);
+
+      for (const reactionRow of reactionRows ?? []) {
+        const flameId = String(reactionRow.flame_id ?? '');
+        if (!flameId) continue;
+        const rows = reactionRowsByFlame.get(flameId) ?? [];
+        rows.push(reactionRow);
+        reactionRowsByFlame.set(flameId, rows);
+      }
+    }
+
+    return json(flameRows
+      .map((flame) => ({
+        ...sanitizeFlameForResponse(flame, now),
+        reactions: summarizeReactionRows(reactionRowsByFlame.get(String(flame.id)) ?? [], deviceHash),
+      }))
       .filter((flame) => flame.lifecycle !== 'expired'));
   } catch (error) {
     return handleError(error);

@@ -11,6 +11,7 @@ import {
   sanitizeFlameForResponse,
   selectActiveSlotState,
   suggestTagsForText,
+  validateReactionType,
 } from '../../supabase/functions/_shared/publit.ts';
 
 describe('Publit shared Edge Function core', () => {
@@ -167,6 +168,13 @@ describe('Publit shared Edge Function core', () => {
     assert.equal(state.limit, 3);
     assert.equal(state.isFull, false);
     assert.deepEqual(state.activeFlames.map((flame) => flame.id), ['2', '1']);
+  });
+
+  it('accepts the public reaction button set used by the detail sheet', () => {
+    for (const reaction of ['similar', 'curious', 'neutral', 'disagree', 'watching']) {
+      assert.equal(validateReactionType(reaction), reaction);
+    }
+    assert.throws(() => validateReactionType('need_source'), /INVALID_REACTION_TYPE/);
   });
 
   it('keeps user-entered tags intact while still suggesting and blocking unsafe content', () => {
