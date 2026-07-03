@@ -205,6 +205,25 @@ test('uses the map center immediately when desktop geolocation cannot resolve', 
   });
 });
 
+test('shows desktop geolocation diagnostics when geoDebug is enabled', async ({ page }) => {
+  await installGeolocationMock(page, 'unavailable');
+  await mockCommonRoutes(page);
+
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto('/?geoDebug=1');
+  const panel = page.getByTestId('location-debug-panel');
+  await expect(panel).toBeVisible();
+  await expect(panel).toContainText('"secureContext"');
+  await expect(panel).toContainText('"permissionState": "prompt"');
+
+  await page.getByRole('button', { name: /위치 허용/ }).click();
+
+  await expect(panel).toContainText('"lastOutcome": "error"');
+  await expect(panel).toContainText('"lastErrorCode": 2');
+  await expect(panel).toContainText('"lastErrorName": "POSITION_UNAVAILABLE"');
+  await expect(panel).toContainText('Position unavailable on desktop');
+});
+
 test('uses the map center when the first allowed lookup is temporarily unavailable', async ({ page }) => {
   await installGeolocationMock(page, 'unavailable-then-watch');
   await mockCommonRoutes(page);

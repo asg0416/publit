@@ -3,7 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { LocateFixed, RefreshCw, SlidersHorizontal } from 'lucide-react';
 import { LocationGate } from '@/components/location/LocationGate';
-import { useMovingLocation } from '@/components/location/useMovingLocation';
+import { useMovingLocation, type LocationDebugInfo } from '@/components/location/useMovingLocation';
 import { MapBackground } from '@/components/map/MapBackground';
 import { RANGE_OPTIONS, RangeControl } from '@/components/map/RangeControl';
 import { ThoughtOverlay } from '@/components/map/ThoughtOverlay';
@@ -30,6 +30,31 @@ const fallbackTopics: HotTopic[] = [
   { displayLabel: '#나만그런가', normalizedKey: '나만그런가', category: 'daily', scope: 'global', heatLabel: '같은 태그가 모이고 있어요' },
 ];
 
+function LocationDebugPanel({ debugInfo, locationStatus }: { debugInfo: LocationDebugInfo; locationStatus: string }) {
+  const debugText = JSON.stringify({ locationStatus, ...debugInfo }, null, 2);
+
+  return (
+    <section
+      data-testid="location-debug-panel"
+      className="absolute left-3 right-3 top-[15rem] z-[190] mx-auto max-w-2xl rounded-[14px] bg-white p-3 text-[#252520] shadow-[3px_3px_0_rgba(35,35,31,0.82),0_0_0_1px_rgba(35,35,31,0.08)] sm:left-4 sm:right-4"
+    >
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-xs font-black text-[#ef3b32]">PC 위치 진단</p>
+        <button
+          type="button"
+          className="rounded-full bg-[#252520] px-3 py-1 text-[10px] font-black text-white shadow-[1px_1px_0_rgba(239,59,50,0.75)]"
+          onClick={() => void navigator.clipboard?.writeText(debugText)}
+        >
+          복사
+        </button>
+      </div>
+      <pre className="mt-2 max-h-52 overflow-auto whitespace-pre-wrap rounded-[10px] bg-[#f5f5f5] p-2 font-mono text-[10px] leading-4 text-[#252520]">
+        {debugText}
+      </pre>
+    </section>
+  );
+}
+
 export function PublitApp() {
   const [deviceHash, setDeviceHash] = useState('');
   const [flames, setFlames] = useState<FlameType[]>([]);
@@ -41,6 +66,7 @@ export function PublitApp() {
   const [mapCenterPosition, setMapCenterPosition] = useState<PositionState>(DEFAULT_MAP_POSITION);
   const [devicePosition, setDevicePosition] = useState<PositionState | null>(null);
   const [manualPositionActive, setManualPositionActive] = useState(false);
+  const [geoDebugOpen, setGeoDebugOpen] = useState(false);
   const [, setStatus] = useState('지금 이곳에 떠도는 생각을 확인해보세요.');
   const [createFeedback, setCreateFeedback] = useState('');
   const [rangeValue, setRangeValue] = useState<ThoughtRangeValue>('500m');
@@ -95,7 +121,21 @@ export function PublitApp() {
     void refreshNearby(position);
   }, [refreshNearby]);
 
-  const { state: locationState, requestLocation } = useMovingLocation(handleLocationResolved);
+  const { state: locationState, requestLocation, debugInfo } = useMovingLocation(handleLocationResolved);
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      const params = new URLSearchParams(window.location.search);
+      let storedDebug = false;
+      try {
+        storedDebug = window.localStorage.getItem('anigeunde_geo_debug') === '1';
+      } catch {
+        storedDebug = false;
+      }
+      setGeoDebugOpen(params.get('geoDebug') === '1' || storedDebug);
+    }, 0);
+    return () => window.clearTimeout(timeout);
+  }, []);
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
@@ -290,6 +330,8 @@ export function PublitApp() {
           <LocationGate state={locationState} onRequest={requestLocation} />
         </div>
       ) : null}
+
+      {geoDebugOpen ? <LocationDebugPanel debugInfo={debugInfo} locationStatus={locationState.status} /> : null}
 
       <div data-testid="thought-panel" className="pointer-events-none absolute inset-0">
         <ThoughtOverlay
