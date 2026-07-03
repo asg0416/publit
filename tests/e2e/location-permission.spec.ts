@@ -58,7 +58,7 @@ async function mockCommonRoutes(page: Page) {
   };
 }
 
-async function installGeolocationMock(page: Page, mode: 'granted' | 'prompt' | 'get-only' | 'unavailable' | 'unavailable-then-watch' | 'timeout-then-background-success' | 'timeout-then-watch' | 'timeout-then-watch-error-then-success' | 'timeout-then-slow-watch' = 'prompt') {
+async function installGeolocationMock(page: Page, mode: 'granted' | 'prompt' | 'get-only' | 'hang' | 'unavailable' | 'unavailable-then-watch' | 'timeout-then-background-success' | 'timeout-then-watch' | 'timeout-then-watch-error-then-success' | 'timeout-then-slow-watch' = 'prompt') {
   await page.addInitScript((selectedMode) => {
     const calls = {
       getCurrentPositionCalls: 0,
@@ -110,6 +110,7 @@ async function installGeolocationMock(page: Page, mode: 'granted' | 'prompt' | '
       getCurrentPosition(success: PositionCallback, error?: PositionErrorCallback, options?: PositionOptions) {
         calls.getCurrentPositionCalls += 1;
         calls.getCurrentPositionOptions.push(options);
+        if (selectedMode === 'hang') return;
         window.setTimeout(() => {
           if (selectedMode === 'unavailable' || selectedMode === 'unavailable-then-watch') error?.(unavailableError as GeolocationPositionError);
           else if (selectedMode === 'timeout-then-background-success' && calls.getCurrentPositionCalls === 1) error?.(timeoutError as GeolocationPositionError);
@@ -122,6 +123,7 @@ async function installGeolocationMock(page: Page, mode: 'granted' | 'prompt' | '
           calls.watchPositionCalls += 1;
           calls.watchPositionOptions.push(options);
           const watchId = calls.watchPositionCalls;
+          if (selectedMode === 'hang') return watchId;
           if (selectedMode === 'timeout-then-watch-error-then-success') {
             window.setTimeout(() => error?.(timeoutError as GeolocationPositionError), 0);
             window.setTimeout(() => success(position as GeolocationPosition), 4_000);
@@ -281,6 +283,38 @@ test('does not throw when the browser only exposes one-shot geolocation', async 
     clearWatchCalls: 0,
   });
   expect(pageErrors).toEqual([]);
+});
+
+test('uses an IP location fallback when desktop geolocation never returns a native position', async ({ page }) => {
+  await installGeolocationMock(page, 'hang');
+  const routes = await mockCommonRoutes(page);
+  await page.route('**/api/location-fallback', async (route) => {
+    await route.fulfill({
+      status: 200,
+      json: {
+        ok: true,
+        source: 'vercel-ip',
+        lat: 35.1795,
+        lng: 129.0756,
+        accuracyMeters: 25000,
+        city: '부산',
+        country: 'KR',
+      },
+    });
+  });
+
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto('/?geoDebug=1');
+  await page.getByRole('button', { name: /위치 허용/ }).click();
+
+  await expect(page.getByTestId('location-gate')).toHaveCount(0, { timeout: 3_000 });
+  await expect(page.getByTestId('thought-character')).toHaveCount(1, { timeout: 3_000 });
+  await expect.poll(() => routes.nearbyRequestBodies().length).toBeGreaterThanOrEqual(1);
+  const [requestBody] = routes.nearbyRequestBodies();
+  expect(requestBody.lat).toBeCloseTo(35.1795, 3);
+  expect(requestBody.lng).toBeCloseTo(129.0756, 3);
+  await expect(page.getByTestId('location-debug-panel')).toContainText('"fallbackLastOutcome": "success"');
+  await expect(page.getByTestId('location-debug-panel')).toContainText('"lastSource": "ipFallback"');
 });
 
 test('shows desktop geolocation diagnostics when geoDebug is enabled', async ({ page }) => {

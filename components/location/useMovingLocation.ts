@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { encodeGrid } from '@/lib/location/geohash';
+import type { IpLocationResult } from '@/lib/location/ipLocationFallback';
 import { type LastLocationFetch, shouldRefreshLocation } from '@/lib/location/useMovingLocationCore';
 
 export type LocationState = {
@@ -13,7 +14,7 @@ export type LocationState = {
 };
 
 type DebugPermissionState = PermissionState | 'unsupported' | 'unknown' | 'query-error';
-type LocationSource = 'getCurrentPosition' | 'watchPosition';
+type LocationSource = 'getCurrentPosition' | 'watchPosition' | 'ipFallback';
 
 export type LocationDebugInfo = {
   supported: boolean;
@@ -33,6 +34,14 @@ export type LocationDebugInfo = {
   watchLastErrorCode?: number;
   watchLastErrorName?: string;
   watchLastErrorMessage?: string;
+  fallbackInFlight?: boolean;
+  fallbackStartedAt?: string;
+  fallbackFinishedAt?: string;
+  fallbackElapsedMs?: number;
+  fallbackLastOutcome?: 'started' | 'success' | 'error' | 'empty';
+  fallbackLastErrorMessage?: string;
+  fallbackAccuracyMeters?: number;
+  fallbackPlaceLabel?: string;
   lastStartedAt?: string;
   lastFinishedAt?: string;
   lastElapsedMs?: number;
@@ -56,6 +65,7 @@ const LOCATION_UNAVAILABLE_MESSAGE = '권한은 요청됐지만 현재 위치를
 const LOCATION_TIMEOUT_MESSAGE = '위치 확인 시간이 초과됐어요. PC의 위치 서비스나 네트워크 연결을 확인한 뒤 다시 시도해주세요.';
 const QUICK_LOCATION_OPTIONS: PositionOptions = { enableHighAccuracy: false, maximumAge: 30_000, timeout: 10_000 };
 const WATCH_LOCATION_OPTIONS: PositionOptions = { enableHighAccuracy: true, maximumAge: 60_000, timeout: 20_000 };
+const IP_FALLBACK_DELAY_MS = 800;
 
 let restoredGrantedPermissionInPage = false;
 
@@ -124,6 +134,20 @@ function getElapsedMs(startedAt: number | null, finishedAt: number) {
   return startedAt ? finishedAt - startedAt : undefined;
 }
 
+function isUsableIpFallbackResult(result: IpLocationResult): result is Extract<IpLocationResult, { ok: true }> {
+  return result.ok
+    && Number.isFinite(result.lat)
+    && Number.isFinite(result.lng)
+    && result.lat >= -90
+    && result.lat <= 90
+    && result.lng >= -180
+    && result.lng <= 180;
+}
+
+function getFallbackPlaceLabel(result: Extract<IpLocationResult, { ok: true }>) {
+  return [result.city, result.region, result.country].filter(Boolean).join(', ') || undefined;
+}
+
 export function useMovingLocation(onRefresh: (position: { lat: number; lng: number; grid: string }) => void) {
   const [state, setState] = useState<LocationState>({ status: 'idle' });
   const [debugInfo, setDebugInfo] = useState<LocationDebugInfo>(() => createInitialDebugInfo());
@@ -133,8 +157,23 @@ export function useMovingLocation(onRefresh: (position: { lat: number; lng: numb
   const requestStartedAt = useRef<number | null>(null);
   const watchStartedAt = useRef<number | null>(null);
   const watchId = useRef<number | null>(null);
+  const fallbackTimer = useRef<number | null>(null);
+  const fallbackAbortController = useRef<AbortController | null>(null);
+  const fallbackInFlight = useRef(false);
+  const fallbackStartedAt = useRef<number | null>(null);
+  const lastFetchSource = useRef<LocationSource | null>(null);
   const activeAttemptId = useRef(0);
   const attemptSettled = useRef(false);
+
+  const clearFallbackProbe = useCallback(() => {
+    if (fallbackTimer.current !== null) {
+      window.clearTimeout(fallbackTimer.current);
+      fallbackTimer.current = null;
+    }
+    fallbackAbortController.current?.abort();
+    fallbackAbortController.current = null;
+    fallbackInFlight.current = false;
+  }, []);
 
   const clearActiveWatch = useCallback(() => {
     if (watchId.current === null || !('geolocation' in navigator)) return;
@@ -175,11 +214,13 @@ export function useMovingLocation(onRefresh: (position: { lat: number; lng: numb
     requestInFlight.current = false;
     watchInFlight.current = false;
     clearActiveWatch();
+    clearFallbackProbe();
     setState({ status: 'granted', lat, lng, grid });
     setDebugInfo((current) => ({
       ...current,
       inFlight: false,
       watchInFlight: false,
+      fallbackInFlight: false,
       watchFinishedAt: source === 'watchPosition' ? new Date(now).toISOString() : current.watchFinishedAt,
       watchElapsedMs: source === 'watchPosition' ? getElapsedMs(watchStartedAt.current, now) : current.watchElapsedMs,
       watchLastOutcome: source === 'watchPosition' ? 'success' : current.watchLastOutcome,
@@ -197,28 +238,146 @@ export function useMovingLocation(onRefresh: (position: { lat: number; lng: numb
     }));
     updatePermissionDebug('permissionStateAfter');
 
-    if (shouldRefreshLocation(lastFetch.current, { lat, lng, grid, now, force: options.forceRefresh })) {
+    const forceRefresh = options.forceRefresh || lastFetchSource.current === 'ipFallback';
+    if (shouldRefreshLocation(lastFetch.current, { lat, lng, grid, now, force: forceRefresh })) {
       lastFetch.current = { lat, lng, grid, fetchedAt: now };
+      lastFetchSource.current = source;
       onRefresh({ lat, lng, grid });
     }
-  }, [clearActiveWatch, onRefresh, updatePermissionDebug]);
+  }, [clearActiveWatch, clearFallbackProbe, onRefresh, updatePermissionDebug]);
+
+  const acceptFallbackLocation = useCallback((
+    result: Extract<IpLocationResult, { ok: true }>,
+    options: RequestLocationOptions,
+    attemptId: number,
+  ) => {
+    if (attemptId !== activeAttemptId.current || attemptSettled.current) return;
+
+    const lat = result.lat;
+    const lng = result.lng;
+    const grid = encodeGrid(lat, lng);
+    const now = Date.now();
+    fallbackInFlight.current = false;
+    fallbackAbortController.current = null;
+    setState({ status: 'granted', lat, lng, grid });
+    setDebugInfo((current) => ({
+      ...current,
+      fallbackInFlight: false,
+      fallbackFinishedAt: new Date(now).toISOString(),
+      fallbackElapsedMs: getElapsedMs(fallbackStartedAt.current, now),
+      fallbackLastOutcome: 'success',
+      fallbackLastErrorMessage: undefined,
+      fallbackAccuracyMeters: result.accuracyMeters,
+      fallbackPlaceLabel: getFallbackPlaceLabel(result),
+      lastFinishedAt: new Date(now).toISOString(),
+      lastElapsedMs: getElapsedMs(fallbackStartedAt.current, now),
+      lastOutcome: 'success',
+      lastSource: 'ipFallback',
+      lastErrorCode: undefined,
+      lastErrorName: undefined,
+      lastErrorMessage: undefined,
+      lastAccuracyMeters: result.accuracyMeters,
+    }));
+
+    if (shouldRefreshLocation(lastFetch.current, { lat, lng, grid, now, force: options.forceRefresh })) {
+      lastFetch.current = { lat, lng, grid, fetchedAt: now };
+      lastFetchSource.current = 'ipFallback';
+      onRefresh({ lat, lng, grid });
+    }
+  }, [onRefresh]);
+
+  const markFallbackFinished = useCallback((outcome: 'error' | 'empty', message: string, attemptId: number) => {
+    if (attemptId !== activeAttemptId.current || attemptSettled.current) return;
+
+    const now = Date.now();
+    fallbackInFlight.current = false;
+    fallbackAbortController.current = null;
+    setDebugInfo((current) => ({
+      ...current,
+      fallbackInFlight: false,
+      fallbackFinishedAt: new Date(now).toISOString(),
+      fallbackElapsedMs: getElapsedMs(fallbackStartedAt.current, now),
+      fallbackLastOutcome: outcome,
+      fallbackLastErrorMessage: message,
+      fallbackAccuracyMeters: undefined,
+      fallbackPlaceLabel: undefined,
+    }));
+  }, []);
+
+  const startFallbackProbe = useCallback((options: RequestLocationOptions, attemptId: number) => {
+    if (fallbackTimer.current !== null) {
+      window.clearTimeout(fallbackTimer.current);
+    }
+
+    fallbackTimer.current = window.setTimeout(() => {
+      fallbackTimer.current = null;
+      if (attemptId !== activeAttemptId.current || attemptSettled.current) return;
+
+      const startedAt = Date.now();
+      fallbackStartedAt.current = startedAt;
+      fallbackInFlight.current = true;
+      const controller = new AbortController();
+      fallbackAbortController.current = controller;
+      setDebugInfo((current) => ({
+        ...current,
+        fallbackInFlight: true,
+        fallbackStartedAt: new Date(startedAt).toISOString(),
+        fallbackFinishedAt: undefined,
+        fallbackElapsedMs: undefined,
+        fallbackLastOutcome: 'started',
+        fallbackLastErrorMessage: undefined,
+        fallbackAccuracyMeters: undefined,
+        fallbackPlaceLabel: undefined,
+      }));
+
+      fetch('/api/location-fallback', {
+        cache: 'no-store',
+        headers: { Accept: 'application/json' },
+        signal: controller.signal,
+      })
+        .then((response) => {
+          if (!response.ok) throw new Error(`fallback-http-${response.status}`);
+          return response.json() as Promise<IpLocationResult>;
+        })
+        .then((result) => {
+          if (isUsableIpFallbackResult(result)) {
+            acceptFallbackLocation(result, options, attemptId);
+            return;
+          }
+          markFallbackFinished('empty', result.reason, attemptId);
+        })
+        .catch((error: unknown) => {
+          if (controller.signal.aborted) return;
+          const message = error instanceof Error ? error.message : 'fallback-error';
+          markFallbackFinished('error', message, attemptId);
+        });
+    }, IP_FALLBACK_DELAY_MS);
+  }, [acceptFallbackLocation, markFallbackFinished]);
 
   const rejectPosition = useCallback((error: GeolocationPositionError, source: LocationSource, attemptId: number) => {
     if (attemptId !== activeAttemptId.current || attemptSettled.current) return;
 
     const now = Date.now();
     const sourceStartedAt = source === 'watchPosition' ? watchStartedAt.current : requestStartedAt.current;
-    if (source === 'watchPosition') {
+    const permissionDenied = error.code === error.PERMISSION_DENIED;
+    if (permissionDenied) {
+      requestInFlight.current = false;
+      watchInFlight.current = false;
+      clearActiveWatch();
+      clearFallbackProbe();
+      attemptSettled.current = true;
+    } else if (source === 'watchPosition') {
       watchInFlight.current = false;
       clearActiveWatch();
     } else {
       requestInFlight.current = false;
     }
-    setState((current) => current.status === 'granted' ? current : ({ ...current, ...getLocationErrorState(error) }));
+    setState((current) => !permissionDenied && current.status === 'granted' ? current : ({ ...current, ...getLocationErrorState(error) }));
     setDebugInfo((current) => ({
       ...current,
       inFlight: requestInFlight.current,
       watchInFlight: watchInFlight.current,
+      fallbackInFlight: permissionDenied ? false : current.fallbackInFlight,
       watchFinishedAt: source === 'watchPosition' ? new Date(now).toISOString() : current.watchFinishedAt,
       watchElapsedMs: source === 'watchPosition' ? getElapsedMs(watchStartedAt.current, now) : current.watchElapsedMs,
       watchLastOutcome: source === 'watchPosition' ? 'error' : current.watchLastOutcome,
@@ -239,7 +398,7 @@ export function useMovingLocation(onRefresh: (position: { lat: number; lng: numb
     if (!requestInFlight.current && !watchInFlight.current) {
       attemptSettled.current = true;
     }
-  }, [clearActiveWatch, updatePermissionDebug]);
+  }, [clearActiveWatch, clearFallbackProbe, updatePermissionDebug]);
 
   const requestLocation = useCallback((options: RequestLocationOptions = {}) => {
     if (!('geolocation' in navigator) || typeof navigator.geolocation.getCurrentPosition !== 'function') {
@@ -259,6 +418,7 @@ export function useMovingLocation(onRefresh: (position: { lat: number; lng: numb
     if (requestInFlight.current || watchInFlight.current) {
       attemptSettled.current = true;
       clearActiveWatch();
+      clearFallbackProbe();
     }
 
     const startedAt = Date.now();
@@ -286,6 +446,14 @@ export function useMovingLocation(onRefresh: (position: { lat: number; lng: numb
       watchLastErrorCode: undefined,
       watchLastErrorName: undefined,
       watchLastErrorMessage: undefined,
+      fallbackInFlight: false,
+      fallbackStartedAt: undefined,
+      fallbackFinishedAt: undefined,
+      fallbackElapsedMs: undefined,
+      fallbackLastOutcome: undefined,
+      fallbackLastErrorMessage: undefined,
+      fallbackAccuracyMeters: undefined,
+      fallbackPlaceLabel: undefined,
       lastStartedAt: new Date(startedAt).toISOString(),
       lastFinishedAt: undefined,
       lastElapsedMs: undefined,
@@ -310,7 +478,8 @@ export function useMovingLocation(onRefresh: (position: { lat: number; lng: numb
         WATCH_LOCATION_OPTIONS,
       );
     }
-  }, [acceptPosition, clearActiveWatch, rejectPosition, updatePermissionDebug]);
+    startFallbackProbe(options, attemptId);
+  }, [acceptPosition, clearActiveWatch, clearFallbackProbe, rejectPosition, startFallbackProbe, updatePermissionDebug]);
 
   useEffect(() => {
     if (restoredGrantedPermissionInPage) return undefined;
@@ -336,7 +505,8 @@ export function useMovingLocation(onRefresh: (position: { lat: number; lng: numb
     requestInFlight.current = false;
     watchInFlight.current = false;
     clearActiveWatch();
-  }, [clearActiveWatch]);
+    clearFallbackProbe();
+  }, [clearActiveWatch, clearFallbackProbe]);
 
   return { state, requestLocation, debugInfo };
 }
