@@ -48,7 +48,7 @@ async function mockCommonRoutes(page: Page) {
   return { hotTopicRequests: () => hotTopicRequests };
 }
 
-async function installGeolocationMock(page: Page, mode: 'granted' | 'prompt' | 'unavailable' | 'unavailable-then-watch' | 'timeout-then-watch' | 'timeout-then-slow-watch' = 'prompt') {
+async function installGeolocationMock(page: Page, mode: 'granted' | 'prompt' | 'unavailable' | 'unavailable-then-watch' | 'timeout-then-watch' | 'timeout-then-watch-error-then-success' | 'timeout-then-slow-watch' = 'prompt') {
   await page.addInitScript((selectedMode) => {
     const calls = {
       getCurrentPositionCalls: 0,
@@ -101,13 +101,18 @@ async function installGeolocationMock(page: Page, mode: 'granted' | 'prompt' | '
           calls.getCurrentPositionCalls += 1;
           window.setTimeout(() => {
             if (selectedMode === 'unavailable' || selectedMode === 'unavailable-then-watch') error?.(unavailableError as GeolocationPositionError);
-            else if (selectedMode === 'timeout-then-watch' || selectedMode === 'timeout-then-slow-watch') error?.(timeoutError as GeolocationPositionError);
+            else if (selectedMode === 'timeout-then-watch' || selectedMode === 'timeout-then-watch-error-then-success' || selectedMode === 'timeout-then-slow-watch') error?.(timeoutError as GeolocationPositionError);
             else success(position as GeolocationPosition);
           }, 0);
         },
         watchPosition(success: PositionCallback, error?: PositionErrorCallback) {
           calls.watchPositionCalls += 1;
           const watchId = calls.watchPositionCalls;
+          if (selectedMode === 'timeout-then-watch-error-then-success') {
+            window.setTimeout(() => error?.(timeoutError as GeolocationPositionError), 0);
+            window.setTimeout(() => success(position as GeolocationPosition), 4_000);
+            return watchId;
+          }
           window.setTimeout(() => {
             if (selectedMode === 'unavailable') error?.(unavailableError as GeolocationPositionError);
             else success(position as GeolocationPosition);
@@ -162,7 +167,7 @@ test('does not describe desktop position lookup failures as missing permission a
   await page.goto('/');
   await page.getByRole('button', { name: /위치 허용/ }).click();
 
-  await expect(page.getByText('권한은 요청됐지만 현재 위치를 가져오지 못했어요.')).toBeVisible();
+  await expect(page.getByText('권한은 요청됐지만 현재 위치를 가져오지 못했어요.')).toBeVisible({ timeout: 15_000 });
   await expect(page.getByRole('button', { name: '조용히 둘러보기' })).toHaveCount(0);
 
   await expect.poll(async () => readGeolocationCalls(page)).toEqual({
@@ -200,6 +205,24 @@ test('keeps waiting for a slower desktop watch instead of timing out immediately
   await expect(page.getByText('위치 확인 시간이 초과됐어요.')).toHaveCount(0);
   await expect(page.getByTestId('location-gate')).toHaveCount(0, { timeout: 12_000 });
   await expect(page.getByTestId('thought-character')).toHaveCount(1, { timeout: 12_000 });
+  await expect.poll(async () => readGeolocationCalls(page)).toEqual({
+    getCurrentPositionCalls: 1,
+    watchPositionCalls: 1,
+    clearWatchCalls: 1,
+  });
+});
+
+test('keeps waiting when desktop watch emits a transient error before succeeding', async ({ page }) => {
+  await installGeolocationMock(page, 'timeout-then-watch-error-then-success');
+  await mockCommonRoutes(page);
+
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto('/');
+  await page.getByRole('button', { name: /위치 허용/ }).click();
+
+  await expect(page.getByText('위치 확인 시간이 초과됐어요.')).toHaveCount(0);
+  await expect(page.getByTestId('location-gate')).toHaveCount(0, { timeout: 8_000 });
+  await expect(page.getByTestId('thought-character')).toHaveCount(1, { timeout: 8_000 });
   await expect.poll(async () => readGeolocationCalls(page)).toEqual({
     getCurrentPositionCalls: 1,
     watchPositionCalls: 1,

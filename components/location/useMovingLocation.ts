@@ -21,6 +21,7 @@ const LOCATION_DENIED_MESSAGE = '브라우저나 OS에서 위치 권한이 막�
 const LOCATION_UNAVAILABLE_MESSAGE = '권한은 요청됐지만 현재 위치를 가져오지 못했어요. PC의 위치 서비스나 네트워크 위치를 확인한 뒤 다시 시도해주세요.';
 const LOCATION_TIMEOUT_MESSAGE = '위치 확인 시간이 초과됐어요. PC의 위치 서비스나 네트워크 연결을 확인한 뒤 다시 시도해주세요.';
 const LOCATION_WATCH_FALLBACK_TIMEOUT_MS = 35_000;
+const LOCATION_WATCH_TRANSIENT_ERROR_GRACE_MS = 12_000;
 
 let restoredGrantedPermissionInPage = false;
 
@@ -38,13 +39,14 @@ export function useMovingLocation(onRefresh: (position: { lat: number; lng: numb
   const [state, setState] = useState<LocationState>({ status: 'idle' });
   const lastFetch = useRef<LastLocationFetch | null>(null);
   const requestInFlight = useRef(false);
-  const fallbackWatch = useRef<{ id: number; timeoutId: number } | null>(null);
+  const fallbackWatch = useRef<{ id: number; timeoutId: number; transientErrorTimeoutId?: number | null } | null>(null);
 
   const clearFallbackWatch = useCallback(() => {
     const current = fallbackWatch.current;
     if (!current) return;
     fallbackWatch.current = null;
     window.clearTimeout(current.timeoutId);
+    if (current.transientErrorTimeoutId) window.clearTimeout(current.transientErrorTimeoutId);
     navigator.geolocation.clearWatch(current.id);
   }, []);
 
@@ -83,6 +85,8 @@ export function useMovingLocation(onRefresh: (position: { lat: number; lng: numb
 
     let settled = false;
     let watchId = 0;
+    let latestError = error;
+    let transientErrorTimeoutId: number | null = null;
     const finishWithError = (nextError: GeolocationPositionError) => {
       if (settled) return;
       settled = true;
@@ -91,6 +95,19 @@ export function useMovingLocation(onRefresh: (position: { lat: number; lng: numb
     const timeoutId = window.setTimeout(() => {
       finishWithError(error);
     }, LOCATION_WATCH_FALLBACK_TIMEOUT_MS);
+    const holdTransientError = (nextError: GeolocationPositionError) => {
+      if (settled) return;
+      if (nextError.code === nextError.PERMISSION_DENIED) {
+        finishWithError(nextError);
+        return;
+      }
+      latestError = nextError;
+      if (transientErrorTimeoutId) window.clearTimeout(transientErrorTimeoutId);
+      transientErrorTimeoutId = window.setTimeout(() => {
+        finishWithError(latestError);
+      }, LOCATION_WATCH_TRANSIENT_ERROR_GRACE_MS);
+      if (fallbackWatch.current) fallbackWatch.current.transientErrorTimeoutId = transientErrorTimeoutId;
+    };
 
     watchId = navigator.geolocation.watchPosition(
       (position) => {
@@ -98,10 +115,10 @@ export function useMovingLocation(onRefresh: (position: { lat: number; lng: numb
         settled = true;
         acceptRequestedPosition(position, options);
       },
-      finishWithError,
+      holdTransientError,
       { enableHighAccuracy: false, maximumAge: 15_000, timeout: LOCATION_WATCH_FALLBACK_TIMEOUT_MS },
     );
-    fallbackWatch.current = { id: watchId, timeoutId };
+    fallbackWatch.current = { id: watchId, timeoutId, transientErrorTimeoutId };
   }, [acceptRequestedPosition, rejectPosition]);
 
   const requestLocation = useCallback((options: RequestLocationOptions = {}) => {
