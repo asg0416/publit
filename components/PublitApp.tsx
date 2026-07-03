@@ -101,6 +101,7 @@ export function PublitApp() {
       const next = await publitApi.nearbyFlames({
         lat: position.lat,
         lng: position.lng,
+        rangeValue,
         ...(deviceHash ? { deviceHash } : {}),
       });
       setFlames(next);
@@ -113,7 +114,7 @@ export function PublitApp() {
     } catch {
       if (!options.silent) setStatus('근처 생각을 불러오지 못했어요. 잠시 후 다시 시도해보세요.');
     }
-  }, [deviceHash, refreshSlots, refreshTopics]);
+  }, [deviceHash, rangeValue, refreshSlots, refreshTopics]);
 
   const handleLocationResolved = useCallback((position: PositionState) => {
     setManualPositionActive(false);

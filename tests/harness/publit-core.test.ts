@@ -5,6 +5,7 @@ import {
   computeLifecycle,
   detectBlockedContent,
   encodeGrid,
+  getGridPrefixesForRange,
   getHeatLabel,
   isRateLimited,
   normalizeTag,
@@ -20,6 +21,17 @@ describe('Publit shared Edge Function core', () => {
 
     assert.match(grid, /^g:[a-z0-9]{5,8}$/);
     assert.doesNotMatch(grid, /35\.1795|129\.0756/);
+  });
+
+  it('covers nearby grid cells that intersect the selected thought radius', () => {
+    const centerGrid = encodeGrid(35.1795, 129.0756);
+    const grids50m = getGridPrefixesForRange(35.1795, 129.0756, '50m');
+    const grids1km = getGridPrefixesForRange(35.1795, 129.0756, '1km');
+
+    assert.ok(grids50m.includes(centerGrid));
+    assert.ok(grids1km.includes(centerGrid));
+    assert.ok(grids1km.length > grids50m.length);
+    assert.ok(grids1km.every((grid) => /^g:[a-z0-9]{6}$/.test(grid)));
   });
 
   it('sanitizes flame responses for privacy and exact-count hiding', () => {

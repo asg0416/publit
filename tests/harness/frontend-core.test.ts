@@ -46,6 +46,7 @@ describe('Publit frontend core harness', () => {
     const zoom500m = getZoomForThoughtRange('500m', 37.5665);
     const zoomNational = getZoomForThoughtRange('national', 37.5665);
 
+    assert.equal(zoom500m, getZoomForThoughtRange('500m', 37.5665, 160));
     assert.ok(zoom50m > zoom500m);
     assert.ok(zoom500m > zoomNational);
     assert.ok(zoom50m <= 18);

@@ -2,7 +2,7 @@ import type { ThoughtRangeValue } from '../flame/types.ts';
 
 const EARTH_CIRCUMFERENCE_METERS = 40_075_016.686;
 const TILE_SIZE = 512;
-const DEFAULT_CIRCLE_RADIUS_PX = 89;
+const DEFAULT_CIRCLE_RADIUS_PX = 160;
 
 const RANGE_METERS: Partial<Record<ThoughtRangeValue, number>> = {
   '50m': 50,

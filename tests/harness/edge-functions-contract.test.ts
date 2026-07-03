@@ -62,11 +62,12 @@ describe('Publit Edge Function contract', () => {
     assert.match(readFileSync(join(functionsDir, 'report-flame', 'index.ts'), 'utf8'), /reported|hidden/);
   });
 
-  it('queries nearby thoughts with the full server-derived grid instead of a broad city-scale prefix', () => {
+  it('queries nearby thoughts with selected-range grid coverage instead of one center cell', () => {
     const nearbySource = readFileSync(join(functionsDir, 'nearby-flames', 'index.ts'), 'utf8');
 
     assert.doesNotMatch(nearbySource, /geohash\.slice\(0,\s*5\)/);
-    assert.match(nearbySource, /const prefix = geohash/);
+    assert.match(nearbySource, /getGridPrefixesForRange/);
+    assert.match(nearbySource, /\.in\('geohash',\s*gridPrefixes\)/);
   });
 
   it('keeps the service role key server-only', () => {

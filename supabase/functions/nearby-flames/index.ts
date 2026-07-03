@@ -1,4 +1,4 @@
-import { encodeGrid, sanitizeFlameForResponse, summarizeReactionRows, validateDeviceHash } from '../_shared/publit.ts';
+import { getGridPrefixesForRange, sanitizeFlameForResponse, summarizeReactionRows, validateDeviceHash, validateThoughtRangeValue } from '../_shared/publit.ts';
 import { createAdminClient, handleError, json, PublitHttpError, readJson } from '../_shared/supabase.ts';
 
 Deno.serve(async (req: Request) => {
@@ -6,21 +6,21 @@ Deno.serve(async (req: Request) => {
 
   try {
     const body = await readJson(req);
-    const geohash = encodeGrid(Number(body.lat), Number(body.lng));
+    const rangeValue = validateThoughtRangeValue(body.rangeValue);
+    const gridPrefixes = getGridPrefixesForRange(Number(body.lat), Number(body.lng), rangeValue);
     let deviceHash: string | null = null;
     try {
       deviceHash = typeof body.deviceHash === 'string' ? validateDeviceHash(body.deviceHash) : null;
     } catch {
       deviceHash = null;
     }
-    const prefix = geohash;
     const now = new Date();
     const supabase = createAdminClient();
 
     const { data, error } = await supabase
       .from('flames')
       .select('id, text, tag_label, tag_normalized, category, mood, self_strength, heat_score, status, created_at, live_until, ember_until, trace_until, character_key, character_emoji, region_label, region_code, display_scope')
-      .like('geohash', `${prefix}%`)
+      .in('geohash', gridPrefixes)
       .in('status', ['live', 'ember', 'trace'])
       .order('created_at', { ascending: false })
       .limit(80);

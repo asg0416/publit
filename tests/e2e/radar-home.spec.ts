@@ -59,7 +59,17 @@ const nearbyFlames = [
   },
 ];
 
+type NearbyRequestBody = {
+  lat?: number;
+  lng?: number;
+  rangeValue?: string;
+};
+
+let nearbyRequestBodies: NearbyRequestBody[] = [];
+
 test.beforeEach(async ({ page }) => {
+  nearbyRequestBodies = [];
+
   await page.addInitScript(() => {
     const position = {
       coords: {
@@ -93,6 +103,7 @@ test.beforeEach(async ({ page }) => {
     await route.fulfill({ status: 200, json: topics });
   });
   await page.route('**/functions/v1/nearby-flames', async (route) => {
+    nearbyRequestBodies.push(route.request().postDataJSON() as NearbyRequestBody);
     await route.fulfill({ status: 200, json: nearbyFlames });
   });
   await page.route('**/functions/v1/my-flames', async (route) => {
@@ -126,6 +137,18 @@ test.beforeEach(async ({ page }) => {
       },
     });
   });
+});
+
+test('sends the selected thought radius when loading nearby thoughts', async ({ page }) => {
+  await page.goto('/');
+  await page.getByRole('button', { name: /위치 허용/ }).click();
+
+  await expect.poll(() => nearbyRequestBodies.at(-1)?.rangeValue).toBe('500m');
+
+  await page.getByRole('button', { name: '반경 설정' }).click();
+  await page.getByRole('button', { name: '1km' }).click();
+
+  await expect.poll(() => nearbyRequestBodies.at(-1)?.rangeValue).toBe('1km');
 });
 
 test('renders the map-first Anigeunde home without old map globals', async ({ page }) => {

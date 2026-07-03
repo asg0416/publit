@@ -5,9 +5,20 @@ export type ReactionType = 'similar' | 'curious' | 'neutral' | 'disagree' | 'wat
 export type ReportReason = 'misinformation' | 'doxxing' | 'violence' | 'illegal' | 'hate' | 'spam' | 'privacy' | 'other';
 export type CharacterKey = 'turtle' | 'chick' | 'fox' | 'dog' | 'butterfly' | 'bug';
 export type DisplayScope = 'nearby' | 'district' | 'regional' | 'national';
+export type ThoughtRangeValue = '50m' | '100m' | '300m' | '500m' | '1km' | '3km' | '10km' | 'region' | 'national';
 
 const GEOHASH_ALPHABET = '0123456789bcdefghjkmnpqrstuvwxyz';
+const EARTH_RADIUS_METERS = 6_371_000;
 const CHARACTER_KEYS: CharacterKey[] = ['turtle', 'chick', 'fox', 'dog', 'butterfly', 'bug'];
+const THOUGHT_RANGE_METERS: Partial<Record<ThoughtRangeValue, number>> = {
+  '50m': 50,
+  '100m': 100,
+  '300m': 300,
+  '500m': 500,
+  '1km': 1_000,
+  '3km': 3_000,
+  '10km': 10_000,
+};
 export const REACTION_OPTIONS: Array<{ type: ReactionType; label: string }> = [
   { type: 'similar', label: '어 나도' },
   { type: 'curious', label: '궁금' },
@@ -136,6 +147,63 @@ export function encodeGrid(latitudeValue: number, longitudeValue: number, precis
   }
 
   return `g:${hash}`;
+}
+
+export function validateThoughtRangeValue(value: unknown): ThoughtRangeValue {
+  if (
+    value === '50m'
+    || value === '100m'
+    || value === '300m'
+    || value === '500m'
+    || value === '1km'
+    || value === '3km'
+    || value === '10km'
+    || value === 'region'
+    || value === 'national'
+  ) {
+    return value;
+  }
+  return '500m';
+}
+
+export function getThoughtRangeMeters(range: ThoughtRangeValue): number | null {
+  return THOUGHT_RANGE_METERS[range] ?? null;
+}
+
+function getRangeSampleStepMeters(radiusMeters: number) {
+  if (radiusMeters <= 100) return 25;
+  if (radiusMeters <= 500) return 100;
+  if (radiusMeters <= 1_000) return 200;
+  if (radiusMeters <= 3_000) return 500;
+  return 1_000;
+}
+
+function offsetPosition(latitude: number, longitude: number, northMeters: number, eastMeters: number) {
+  const latitudeRadians = (latitude * Math.PI) / 180;
+  const latitudeDelta = (northMeters / EARTH_RADIUS_METERS) * (180 / Math.PI);
+  const longitudeScale = Math.max(0.01, Math.cos(latitudeRadians));
+  const longitudeDelta = (eastMeters / (EARTH_RADIUS_METERS * longitudeScale)) * (180 / Math.PI);
+
+  return {
+    lat: latitude + latitudeDelta,
+    lng: longitude + longitudeDelta,
+  };
+}
+
+export function getGridPrefixesForRange(latitude: number, longitude: number, range: ThoughtRangeValue): string[] {
+  const radiusMeters = getThoughtRangeMeters(range) ?? THOUGHT_RANGE_METERS['500m']!;
+  const stepMeters = getRangeSampleStepMeters(radiusMeters);
+  const gridPrefixes = new Set<string>([encodeGrid(latitude, longitude)]);
+
+  for (let northMeters = -radiusMeters; northMeters <= radiusMeters; northMeters += stepMeters) {
+    for (let eastMeters = -radiusMeters; eastMeters <= radiusMeters; eastMeters += stepMeters) {
+      if (Math.hypot(northMeters, eastMeters) > radiusMeters + stepMeters / 2) continue;
+      const point = offsetPosition(latitude, longitude, northMeters, eastMeters);
+      gridPrefixes.add(encodeGrid(point.lat, point.lng));
+    }
+  }
+
+  return Array.from(gridPrefixes).slice(0, 500);
 }
 
 export function normalizeTag(rawTag: string): { label: string; normalized: string } {
