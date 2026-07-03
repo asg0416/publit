@@ -20,6 +20,8 @@ export type LocationDebugInfo = {
   permissionState: PermissionState | 'unsupported' | 'unknown' | 'query-error';
   requestCount: number;
   inFlight: boolean;
+  backgroundInFlight?: boolean;
+  backgroundStartedAt?: string;
   lastStartedAt?: string;
   lastFinishedAt?: string;
   lastElapsedMs?: number;
@@ -40,6 +42,8 @@ const LOCATION_UNSUPPORTED_MESSAGE = '이 브라우저에서는 위치 권한을
 const LOCATION_DENIED_MESSAGE = '브라우저나 OS에서 위치 권한이 막혀 있어요. 주소창 또는 시스템 위치 설정을 확인해주세요.';
 const LOCATION_UNAVAILABLE_MESSAGE = '권한은 요청됐지만 현재 위치를 가져오지 못했어요. PC의 위치 서비스나 네트워크 위치를 확인한 뒤 다시 시도해주세요.';
 const LOCATION_TIMEOUT_MESSAGE = '위치 확인 시간이 초과됐어요. PC의 위치 서비스나 네트워크 연결을 확인한 뒤 다시 시도해주세요.';
+const QUICK_LOCATION_OPTIONS: PositionOptions = { enableHighAccuracy: false, maximumAge: 30_000, timeout: 10_000 };
+const BACKGROUND_LOCATION_OPTIONS: PositionOptions = { enableHighAccuracy: true, maximumAge: 0, timeout: 60_000 };
 
 let restoredGrantedPermissionInPage = false;
 
@@ -83,6 +87,10 @@ function getLocationErrorName(error: GeolocationPositionError) {
   return `UNKNOWN_${error.code}`;
 }
 
+function shouldContinueResolvingLocation(error: GeolocationPositionError) {
+  return error.code === error.TIMEOUT || error.code === error.POSITION_UNAVAILABLE;
+}
+
 function getLocationErrorState(error: GeolocationPositionError): Pick<LocationState, 'status' | 'message'> {
   if (error.code === error.PERMISSION_DENIED) {
     return { status: 'denied', message: LOCATION_DENIED_MESSAGE };
@@ -98,7 +106,9 @@ export function useMovingLocation(onRefresh: (position: { lat: number; lng: numb
   const [debugInfo, setDebugInfo] = useState<LocationDebugInfo>(() => createInitialDebugInfo());
   const lastFetch = useRef<LastLocationFetch | null>(null);
   const requestInFlight = useRef(false);
+  const backgroundRequestInFlight = useRef(false);
   const requestStartedAt = useRef<number | null>(null);
+  const backgroundStartedAt = useRef<number | null>(null);
 
   const acceptPosition = useCallback((position: GeolocationPosition, options: RequestLocationOptions = {}) => {
     const lat = position.coords.latitude;
@@ -106,12 +116,15 @@ export function useMovingLocation(onRefresh: (position: { lat: number; lng: numb
     const grid = encodeGrid(lat, lng);
     const now = Date.now();
     restoredGrantedPermissionInPage = true;
+    requestInFlight.current = false;
+    backgroundRequestInFlight.current = false;
     setState({ status: 'granted', lat, lng, grid });
     setDebugInfo((current) => ({
       ...current,
       inFlight: false,
+      backgroundInFlight: false,
       lastFinishedAt: new Date(now).toISOString(),
-      lastElapsedMs: requestStartedAt.current ? now - requestStartedAt.current : undefined,
+      lastElapsedMs: requestStartedAt.current ? now - requestStartedAt.current : backgroundStartedAt.current ? now - backgroundStartedAt.current : undefined,
       lastOutcome: 'success',
       lastErrorCode: undefined,
       lastErrorName: undefined,
@@ -124,6 +137,43 @@ export function useMovingLocation(onRefresh: (position: { lat: number; lng: numb
       onRefresh({ lat, lng, grid });
     }
   }, [onRefresh]);
+
+  const continueResolvingPositionInBackground = useCallback((options: RequestLocationOptions = {}) => {
+    if (backgroundRequestInFlight.current || !('geolocation' in navigator)) return;
+
+    const startedAt = Date.now();
+    backgroundStartedAt.current = startedAt;
+    backgroundRequestInFlight.current = true;
+    setDebugInfo((current) => ({
+      ...current,
+      requestCount: current.requestCount + 1,
+      backgroundInFlight: true,
+      backgroundStartedAt: new Date(startedAt).toISOString(),
+    }));
+
+    navigator.geolocation.getCurrentPosition(
+      (position) => {
+        backgroundRequestInFlight.current = false;
+        acceptPosition(position, options);
+      },
+      (error) => {
+        const now = Date.now();
+        backgroundRequestInFlight.current = false;
+        setDebugInfo((current) => ({
+          ...current,
+          backgroundInFlight: false,
+          lastFinishedAt: new Date(now).toISOString(),
+          lastElapsedMs: now - startedAt,
+          lastOutcome: 'error',
+          lastErrorCode: error.code,
+          lastErrorName: getLocationErrorName(error),
+          lastErrorMessage: error.message || '(empty message)',
+          lastAccuracyMeters: undefined,
+        }));
+      },
+      BACKGROUND_LOCATION_OPTIONS,
+    );
+  }, [acceptPosition]);
 
   const rejectPosition = useCallback((error: GeolocationPositionError) => {
     const now = Date.now();
@@ -141,7 +191,10 @@ export function useMovingLocation(onRefresh: (position: { lat: number; lng: numb
       lastErrorMessage: error.message || '(empty message)',
       lastAccuracyMeters: undefined,
     }));
-  }, []);
+    if (shouldContinueResolvingLocation(error)) {
+      continueResolvingPositionInBackground();
+    }
+  }, [continueResolvingPositionInBackground]);
 
   const acceptRequestedPosition = useCallback((position: GeolocationPosition, options: RequestLocationOptions = {}) => {
     requestInFlight.current = false;
@@ -194,7 +247,7 @@ export function useMovingLocation(onRefresh: (position: { lat: number; lng: numb
     navigator.geolocation.getCurrentPosition(
       (position) => acceptRequestedPosition(position, options),
       rejectPosition,
-      { enableHighAccuracy: false, maximumAge: 30_000, timeout: 10_000 },
+      QUICK_LOCATION_OPTIONS,
     );
   }, [acceptRequestedPosition, rejectPosition]);
 
