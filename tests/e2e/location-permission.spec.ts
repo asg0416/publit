@@ -25,11 +25,15 @@ const nearbyFlames = [
   },
 ];
 
+const quickPositionOptions = { enableHighAccuracy: false, maximumAge: 30000, timeout: 10000 };
+const watchPositionOptions = { enableHighAccuracy: true, maximumAge: 60000, timeout: 20000 };
+
 type GeolocationCalls = {
   getCurrentPositionCalls: number;
   watchPositionCalls: number;
   clearWatchCalls: number;
   getCurrentPositionOptions: Array<PositionOptions | undefined>;
+  watchPositionOptions: Array<PositionOptions | undefined>;
 };
 
 async function mockCommonRoutes(page: Page) {
@@ -54,13 +58,14 @@ async function mockCommonRoutes(page: Page) {
   };
 }
 
-async function installGeolocationMock(page: Page, mode: 'granted' | 'prompt' | 'unavailable' | 'unavailable-then-watch' | 'timeout-then-background-success' | 'timeout-then-watch' | 'timeout-then-watch-error-then-success' | 'timeout-then-slow-watch' = 'prompt') {
+async function installGeolocationMock(page: Page, mode: 'granted' | 'prompt' | 'get-only' | 'unavailable' | 'unavailable-then-watch' | 'timeout-then-background-success' | 'timeout-then-watch' | 'timeout-then-watch-error-then-success' | 'timeout-then-slow-watch' = 'prompt') {
   await page.addInitScript((selectedMode) => {
     const calls = {
       getCurrentPositionCalls: 0,
       watchPositionCalls: 0,
       clearWatchCalls: 0,
       getCurrentPositionOptions: [] as Array<PositionOptions | undefined>,
+      watchPositionOptions: [] as Array<PositionOptions | undefined>,
     };
     const position = {
       coords: {
@@ -101,21 +106,21 @@ async function installGeolocationMock(page: Page, mode: 'granted' | 'prompt' | '
         },
       },
     });
-    Object.defineProperty(navigator, 'geolocation', {
-      configurable: true,
-      value: {
-        getCurrentPosition(success: PositionCallback, error?: PositionErrorCallback, options?: PositionOptions) {
-          calls.getCurrentPositionCalls += 1;
-          calls.getCurrentPositionOptions.push(options);
-          window.setTimeout(() => {
-            if (selectedMode === 'unavailable' || selectedMode === 'unavailable-then-watch') error?.(unavailableError as GeolocationPositionError);
-            else if (selectedMode === 'timeout-then-background-success' && calls.getCurrentPositionCalls === 1) error?.(timeoutError as GeolocationPositionError);
-            else if (selectedMode === 'timeout-then-watch' || selectedMode === 'timeout-then-watch-error-then-success' || selectedMode === 'timeout-then-slow-watch') error?.(timeoutError as GeolocationPositionError);
-            else success(position as GeolocationPosition);
-          }, selectedMode === 'timeout-then-background-success' && calls.getCurrentPositionCalls === 2 ? 100 : 0);
-        },
-        watchPosition(success: PositionCallback, error?: PositionErrorCallback) {
+    const geolocationMock = {
+      getCurrentPosition(success: PositionCallback, error?: PositionErrorCallback, options?: PositionOptions) {
+        calls.getCurrentPositionCalls += 1;
+        calls.getCurrentPositionOptions.push(options);
+        window.setTimeout(() => {
+          if (selectedMode === 'unavailable' || selectedMode === 'unavailable-then-watch') error?.(unavailableError as GeolocationPositionError);
+          else if (selectedMode === 'timeout-then-background-success' && calls.getCurrentPositionCalls === 1) error?.(timeoutError as GeolocationPositionError);
+          else if (selectedMode === 'timeout-then-watch' || selectedMode === 'timeout-then-watch-error-then-success' || selectedMode === 'timeout-then-slow-watch') error?.(timeoutError as GeolocationPositionError);
+          else success(position as GeolocationPosition);
+        }, selectedMode === 'timeout-then-background-success' && calls.getCurrentPositionCalls === 2 ? 100 : 0);
+      },
+      ...(selectedMode === 'get-only' ? {} : {
+        watchPosition(success: PositionCallback, error?: PositionErrorCallback, options?: PositionOptions) {
           calls.watchPositionCalls += 1;
+          calls.watchPositionOptions.push(options);
           const watchId = calls.watchPositionCalls;
           if (selectedMode === 'timeout-then-watch-error-then-success') {
             window.setTimeout(() => error?.(timeoutError as GeolocationPositionError), 0);
@@ -131,7 +136,12 @@ async function installGeolocationMock(page: Page, mode: 'granted' | 'prompt' | '
         clearWatch() {
           calls.clearWatchCalls += 1;
         },
-      },
+      }),
+    };
+
+    Object.defineProperty(navigator, 'geolocation', {
+      configurable: true,
+      value: geolocationMock,
     });
   }, mode);
 }
@@ -142,7 +152,7 @@ async function readGeolocationCalls(page: Page): Promise<GeolocationCalls> {
   ).__publitGeolocationCalls);
 }
 
-test('requests browser location only after an explicit user action without starting a continuous desktop watch', async ({ page }) => {
+test('starts browser location probes only after an explicit user action', async ({ page }) => {
   await installGeolocationMock(page, 'prompt');
   const routes = await mockCommonRoutes(page);
 
@@ -161,9 +171,10 @@ test('requests browser location only after an explicit user action without start
 
   await expect.poll(async () => readGeolocationCalls(page)).toMatchObject({
     getCurrentPositionCalls: 1,
-    watchPositionCalls: 0,
-    clearWatchCalls: 0,
-    getCurrentPositionOptions: [{ enableHighAccuracy: false, maximumAge: 30000, timeout: 10000 }],
+    watchPositionCalls: 1,
+    clearWatchCalls: 1,
+    getCurrentPositionOptions: [quickPositionOptions],
+    watchPositionOptions: [watchPositionOptions],
   });
   await expect(page.getByTestId('location-gate')).toHaveCount(0);
   await expect(page.getByTestId('thought-character')).toHaveCount(1);
@@ -183,13 +194,11 @@ test('does not get stuck on desktop position lookup failures after the user allo
   await expect(page.getByTestId('thought-character')).toHaveCount(1, { timeout: 2_000 });
 
   await expect.poll(async () => readGeolocationCalls(page)).toMatchObject({
-    getCurrentPositionCalls: 2,
-    watchPositionCalls: 0,
-    clearWatchCalls: 0,
-    getCurrentPositionOptions: [
-      { enableHighAccuracy: false, maximumAge: 30000, timeout: 10000 },
-      { enableHighAccuracy: true, maximumAge: 0, timeout: 60000 },
-    ],
+    getCurrentPositionCalls: 1,
+    watchPositionCalls: 1,
+    clearWatchCalls: 1,
+    getCurrentPositionOptions: [quickPositionOptions],
+    watchPositionOptions: [watchPositionOptions],
   });
 });
 
@@ -208,17 +217,15 @@ test('uses the map center immediately when desktop geolocation cannot resolve', 
   expect(requestBody.lat).toBeCloseTo(37.5665, 3);
   expect(requestBody.lng).toBeCloseTo(126.978, 3);
   await expect.poll(async () => readGeolocationCalls(page)).toMatchObject({
-    getCurrentPositionCalls: 2,
-    watchPositionCalls: 0,
-    clearWatchCalls: 0,
-    getCurrentPositionOptions: [
-      { enableHighAccuracy: false, maximumAge: 30000, timeout: 10000 },
-      { enableHighAccuracy: true, maximumAge: 0, timeout: 60000 },
-    ],
+    getCurrentPositionCalls: 1,
+    watchPositionCalls: 1,
+    clearWatchCalls: 1,
+    getCurrentPositionOptions: [quickPositionOptions],
+    watchPositionOptions: [watchPositionOptions],
   });
 });
 
-test('continues resolving the real desktop location in the background after the first 10 second timeout', async ({ page }) => {
+test('uses the immediate watch probe instead of a second one-shot retry after timeout', async ({ page }) => {
   await installGeolocationMock(page, 'timeout-then-background-success');
   await mockCommonRoutes(page);
 
@@ -228,18 +235,52 @@ test('continues resolving the real desktop location in the background after the 
 
   const panel = page.getByTestId('location-debug-panel');
   await expect(panel).toContainText('"lastOutcome": "success"', { timeout: 3_000 });
+  await expect(panel).toContainText('"lastSource": "watchPosition"');
   await expect(panel).toContainText('"lastAccuracyMeters": 40');
   await expect.poll(async () => readGeolocationCalls(page)).toMatchObject({
-    getCurrentPositionCalls: 2,
+    getCurrentPositionCalls: 1,
+    watchPositionCalls: 1,
+    clearWatchCalls: 1,
+    watchPositionOptions: [watchPositionOptions],
+  });
+});
+
+test('starts a watch immediately so desktop location can resolve before the one-shot timeout path stalls', async ({ page }) => {
+  await installGeolocationMock(page, 'timeout-then-watch');
+  await mockCommonRoutes(page);
+
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto('/?geoDebug=1');
+  await page.getByRole('button', { name: /위치 허용/ }).click();
+
+  const panel = page.getByTestId('location-debug-panel');
+  await expect(panel).toContainText('"lastOutcome": "success"', { timeout: 3_000 });
+  await expect(panel).toContainText('"lastSource": "watchPosition"');
+  await expect.poll(async () => readGeolocationCalls(page)).toMatchObject({
+    getCurrentPositionCalls: 1,
+    watchPositionCalls: 1,
+    clearWatchCalls: 1,
+    watchPositionOptions: [watchPositionOptions],
+  });
+});
+
+test('does not throw when the browser only exposes one-shot geolocation', async ({ page }) => {
+  const pageErrors: string[] = [];
+  page.on('pageerror', (error) => pageErrors.push(error.message));
+  await installGeolocationMock(page, 'get-only');
+  await mockCommonRoutes(page);
+
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto('/');
+  await page.getByRole('button', { name: /위치 허용/ }).click();
+
+  await expect(page.getByTestId('location-gate')).toHaveCount(0);
+  await expect.poll(async () => readGeolocationCalls(page)).toMatchObject({
+    getCurrentPositionCalls: 1,
     watchPositionCalls: 0,
     clearWatchCalls: 0,
   });
-  const calls = await readGeolocationCalls(page);
-  expect(calls.getCurrentPositionOptions[1]).toEqual({
-    enableHighAccuracy: true,
-    maximumAge: 0,
-    timeout: 60000,
-  });
+  expect(pageErrors).toEqual([]);
 });
 
 test('shows desktop geolocation diagnostics when geoDebug is enabled', async ({ page }) => {
@@ -261,7 +302,7 @@ test('shows desktop geolocation diagnostics when geoDebug is enabled', async ({ 
   await expect(panel).toContainText('Position unavailable on desktop');
 });
 
-test('uses the map center when the first allowed lookup is temporarily unavailable', async ({ page }) => {
+test('recovers with watchPosition when the first allowed lookup is temporarily unavailable', async ({ page }) => {
   await installGeolocationMock(page, 'unavailable-then-watch');
   await mockCommonRoutes(page);
 
@@ -272,9 +313,10 @@ test('uses the map center when the first allowed lookup is temporarily unavailab
   await expect(page.getByTestId('location-gate')).toHaveCount(0, { timeout: 2_000 });
   await expect(page.getByTestId('thought-character')).toHaveCount(1, { timeout: 2_000 });
   await expect.poll(async () => readGeolocationCalls(page)).toMatchObject({
-    getCurrentPositionCalls: 2,
-    watchPositionCalls: 0,
-    clearWatchCalls: 0,
+    getCurrentPositionCalls: 1,
+    watchPositionCalls: 1,
+    clearWatchCalls: 1,
+    watchPositionOptions: [watchPositionOptions],
   });
 });
 
@@ -290,8 +332,8 @@ test('does not wait for a slower desktop watch before using the map center', asy
   await expect(page.getByTestId('location-gate')).toHaveCount(0, { timeout: 2_000 });
   await expect(page.getByTestId('thought-character')).toHaveCount(1, { timeout: 2_000 });
   await expect.poll(async () => readGeolocationCalls(page)).toMatchObject({
-    getCurrentPositionCalls: 2,
-    watchPositionCalls: 0,
+    getCurrentPositionCalls: 1,
+    watchPositionCalls: 1,
     clearWatchCalls: 0,
   });
 });
@@ -308,9 +350,9 @@ test('does not delay the map-center fallback for transient desktop watch pattern
   await expect(page.getByTestId('location-gate')).toHaveCount(0, { timeout: 2_000 });
   await expect(page.getByTestId('thought-character')).toHaveCount(1, { timeout: 2_000 });
   await expect.poll(async () => readGeolocationCalls(page)).toMatchObject({
-    getCurrentPositionCalls: 2,
-    watchPositionCalls: 0,
-    clearWatchCalls: 0,
+    getCurrentPositionCalls: 1,
+    watchPositionCalls: 1,
+    clearWatchCalls: 1,
   });
 });
 
@@ -325,9 +367,9 @@ test('uses the map center when desktop location times out after permission is al
   await expect(page.getByTestId('location-gate')).toHaveCount(0, { timeout: 2_000 });
   await expect(page.getByTestId('thought-character')).toHaveCount(1, { timeout: 2_000 });
   await expect.poll(async () => readGeolocationCalls(page)).toMatchObject({
-    getCurrentPositionCalls: 2,
-    watchPositionCalls: 0,
-    clearWatchCalls: 0,
+    getCurrentPositionCalls: 1,
+    watchPositionCalls: 1,
+    clearWatchCalls: 1,
   });
 });
 
@@ -342,8 +384,8 @@ test('restores an already granted desktop location without showing the permissio
   await expect.poll(routes.hotTopicRequests).toBeGreaterThan(0);
   await expect.poll(async () => readGeolocationCalls(page)).toMatchObject({
     getCurrentPositionCalls: 1,
-    watchPositionCalls: 0,
-    clearWatchCalls: 0,
+    watchPositionCalls: 1,
+    clearWatchCalls: 1,
   });
   await expect(page.getByTestId('location-gate')).toHaveCount(0);
   await expect(page.getByTestId('thought-character')).toHaveCount(1);
