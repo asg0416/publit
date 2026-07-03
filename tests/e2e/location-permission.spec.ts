@@ -33,19 +33,24 @@ type GeolocationCalls = {
 
 async function mockCommonRoutes(page: Page) {
   let hotTopicRequests = 0;
+  const nearbyRequestBodies: Array<{ lat?: number; lng?: number }> = [];
 
   await page.route('**/functions/v1/get-hot-topics', async (route) => {
     hotTopicRequests += 1;
     await route.fulfill({ status: 200, json: hotTopics });
   });
   await page.route('**/functions/v1/nearby-flames', async (route) => {
+    nearbyRequestBodies.push(route.request().postDataJSON() as { lat?: number; lng?: number });
     await route.fulfill({ status: 200, json: nearbyFlames });
   });
   await page.route('**/functions/v1/my-flames', async (route) => {
     await route.fulfill({ status: 200, json: { used: 0, limit: 3, isFull: false, activeFlames: [] } });
   });
 
-  return { hotTopicRequests: () => hotTopicRequests };
+  return {
+    hotTopicRequests: () => hotTopicRequests,
+    nearbyRequestBodies: () => nearbyRequestBodies,
+  };
 }
 
 async function installGeolocationMock(page: Page, mode: 'granted' | 'prompt' | 'unavailable' | 'unavailable-then-watch' | 'timeout-then-watch' | 'timeout-then-watch-error-then-success' | 'timeout-then-slow-watch' = 'prompt') {
@@ -159,7 +164,7 @@ test('requests browser location only after an explicit user action without start
   await expect(page.getByTestId('thought-character')).toHaveCount(1);
 });
 
-test('does not describe desktop position lookup failures as missing permission after the user allows location', async ({ page }) => {
+test('does not get stuck on desktop position lookup failures after the user allows location', async ({ page }) => {
   await installGeolocationMock(page, 'unavailable');
   await mockCommonRoutes(page);
 
@@ -167,17 +172,40 @@ test('does not describe desktop position lookup failures as missing permission a
   await page.goto('/');
   await page.getByRole('button', { name: /위치 허용/ }).click();
 
-  await expect(page.getByText('권한은 요청됐지만 현재 위치를 가져오지 못했어요.')).toBeVisible({ timeout: 15_000 });
+  await expect(page.getByText('위치 권한을 먼저 허용하면 생각을 띄울 수 있어요.')).toHaveCount(0);
   await expect(page.getByRole('button', { name: '조용히 둘러보기' })).toHaveCount(0);
+  await expect(page.getByTestId('location-gate')).toHaveCount(0, { timeout: 2_000 });
+  await expect(page.getByTestId('thought-character')).toHaveCount(1, { timeout: 2_000 });
 
   await expect.poll(async () => readGeolocationCalls(page)).toEqual({
     getCurrentPositionCalls: 1,
-    watchPositionCalls: 1,
-    clearWatchCalls: 1,
+    watchPositionCalls: 0,
+    clearWatchCalls: 0,
   });
 });
 
-test('falls back to a desktop watch when the first allowed lookup is temporarily unavailable', async ({ page }) => {
+test('uses the map center immediately when desktop geolocation cannot resolve', async ({ page }) => {
+  await installGeolocationMock(page, 'unavailable');
+  const routes = await mockCommonRoutes(page);
+
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto('/');
+  await page.getByRole('button', { name: /위치 허용/ }).click();
+
+  await expect(page.getByTestId('location-gate')).toHaveCount(0, { timeout: 2_000 });
+  await expect(page.getByTestId('thought-character')).toHaveCount(1, { timeout: 2_000 });
+  await expect.poll(() => routes.nearbyRequestBodies().length).toBeGreaterThanOrEqual(1);
+  const [requestBody] = routes.nearbyRequestBodies();
+  expect(requestBody.lat).toBeCloseTo(37.5665, 3);
+  expect(requestBody.lng).toBeCloseTo(126.978, 3);
+  await expect.poll(async () => readGeolocationCalls(page)).toEqual({
+    getCurrentPositionCalls: 1,
+    watchPositionCalls: 0,
+    clearWatchCalls: 0,
+  });
+});
+
+test('uses the map center when the first allowed lookup is temporarily unavailable', async ({ page }) => {
   await installGeolocationMock(page, 'unavailable-then-watch');
   await mockCommonRoutes(page);
 
@@ -185,16 +213,16 @@ test('falls back to a desktop watch when the first allowed lookup is temporarily
   await page.goto('/');
   await page.getByRole('button', { name: /위치 허용/ }).click();
 
-  await expect(page.getByTestId('location-gate')).toHaveCount(0);
-  await expect(page.getByTestId('thought-character')).toHaveCount(1);
+  await expect(page.getByTestId('location-gate')).toHaveCount(0, { timeout: 2_000 });
+  await expect(page.getByTestId('thought-character')).toHaveCount(1, { timeout: 2_000 });
   await expect.poll(async () => readGeolocationCalls(page)).toEqual({
     getCurrentPositionCalls: 1,
-    watchPositionCalls: 1,
-    clearWatchCalls: 1,
+    watchPositionCalls: 0,
+    clearWatchCalls: 0,
   });
 });
 
-test('keeps waiting for a slower desktop watch instead of timing out immediately', async ({ page }) => {
+test('does not wait for a slower desktop watch before using the map center', async ({ page }) => {
   await installGeolocationMock(page, 'timeout-then-slow-watch');
   await mockCommonRoutes(page);
 
@@ -203,16 +231,16 @@ test('keeps waiting for a slower desktop watch instead of timing out immediately
   await page.getByRole('button', { name: /위치 허용/ }).click();
 
   await expect(page.getByText('위치 확인 시간이 초과됐어요.')).toHaveCount(0);
-  await expect(page.getByTestId('location-gate')).toHaveCount(0, { timeout: 12_000 });
-  await expect(page.getByTestId('thought-character')).toHaveCount(1, { timeout: 12_000 });
+  await expect(page.getByTestId('location-gate')).toHaveCount(0, { timeout: 2_000 });
+  await expect(page.getByTestId('thought-character')).toHaveCount(1, { timeout: 2_000 });
   await expect.poll(async () => readGeolocationCalls(page)).toEqual({
     getCurrentPositionCalls: 1,
-    watchPositionCalls: 1,
-    clearWatchCalls: 1,
+    watchPositionCalls: 0,
+    clearWatchCalls: 0,
   });
 });
 
-test('keeps waiting when desktop watch emits a transient error before succeeding', async ({ page }) => {
+test('does not delay the map-center fallback for transient desktop watch patterns', async ({ page }) => {
   await installGeolocationMock(page, 'timeout-then-watch-error-then-success');
   await mockCommonRoutes(page);
 
@@ -221,16 +249,16 @@ test('keeps waiting when desktop watch emits a transient error before succeeding
   await page.getByRole('button', { name: /위치 허용/ }).click();
 
   await expect(page.getByText('위치 확인 시간이 초과됐어요.')).toHaveCount(0);
-  await expect(page.getByTestId('location-gate')).toHaveCount(0, { timeout: 8_000 });
-  await expect(page.getByTestId('thought-character')).toHaveCount(1, { timeout: 8_000 });
+  await expect(page.getByTestId('location-gate')).toHaveCount(0, { timeout: 2_000 });
+  await expect(page.getByTestId('thought-character')).toHaveCount(1, { timeout: 2_000 });
   await expect.poll(async () => readGeolocationCalls(page)).toEqual({
     getCurrentPositionCalls: 1,
-    watchPositionCalls: 1,
-    clearWatchCalls: 1,
+    watchPositionCalls: 0,
+    clearWatchCalls: 0,
   });
 });
 
-test('falls back to a short watch when desktop location times out after permission is allowed', async ({ page }) => {
+test('uses the map center when desktop location times out after permission is allowed', async ({ page }) => {
   await installGeolocationMock(page, 'timeout-then-watch');
   await mockCommonRoutes(page);
 
@@ -238,12 +266,12 @@ test('falls back to a short watch when desktop location times out after permissi
   await page.goto('/');
   await page.getByRole('button', { name: /위치 허용/ }).click();
 
-  await expect(page.getByTestId('location-gate')).toHaveCount(0);
-  await expect(page.getByTestId('thought-character')).toHaveCount(1);
+  await expect(page.getByTestId('location-gate')).toHaveCount(0, { timeout: 2_000 });
+  await expect(page.getByTestId('thought-character')).toHaveCount(1, { timeout: 2_000 });
   await expect.poll(async () => readGeolocationCalls(page)).toEqual({
     getCurrentPositionCalls: 1,
-    watchPositionCalls: 1,
-    clearWatchCalls: 1,
+    watchPositionCalls: 0,
+    clearWatchCalls: 0,
   });
 });
 

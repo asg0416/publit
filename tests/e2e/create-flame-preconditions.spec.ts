@@ -9,14 +9,14 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
-test('shows inline guidance instead of silently failing when location is missing', async ({ page }) => {
+test('shows map-center fallback guidance instead of silently failing when location is missing', async ({ page }) => {
   await page.goto('/');
 
   await expect(page.getByTestId('inline-thought-composer')).toBeVisible();
   await page.getByRole('textbox', { name: '지금 떠오른 생각' }).fill('위치 없이 생성해보는 생각이에요.');
   await page.getByRole('button', { name: '생각 띄우기', exact: true }).click();
 
-  await expect(page.getByTestId('inline-thought-composer')).toContainText('위치 권한을 먼저 허용하면 생각을 띄울 수 있어요.');
+  await expect(page.getByTestId('inline-thought-composer')).toContainText('브라우저 위치가 안 잡혀서 지도 중심을 기준으로 볼게요.');
 });
 
 test('keeps create enabled with a safe default tag when suggestions are unavailable', async ({ page }) => {

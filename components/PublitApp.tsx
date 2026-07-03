@@ -18,6 +18,11 @@ import type { CharacterKey, Flame as FlameType, FlameCategory, FlameMood, HotTop
 
 const NEARBY_REFRESH_INTERVAL_MS = 12_000;
 type PositionState = { lat: number; lng: number; grid: string };
+const DEFAULT_MAP_POSITION: PositionState = {
+  lat: 37.5665,
+  lng: 126.978,
+  grid: encodeGrid(37.5665, 126.978),
+};
 
 const fallbackTopics: HotTopic[] = [
   { displayLabel: '#카페대화', normalizedKey: '카페대화', category: 'daily', scope: 'global', heatLabel: '근처에서 자주 보여요' },
@@ -33,7 +38,9 @@ export function PublitApp() {
   const [slots, setSlots] = useState<{ used: number; limit: number; activeFlames: Array<{ id: string; tagLabel: string; status: string; createdAt: string }> } | null>(null);
   const [selected, setSelected] = useState<FlameType | null>(null);
   const [viewPosition, setViewPosition] = useState<PositionState | null>(null);
+  const [mapCenterPosition, setMapCenterPosition] = useState<PositionState>(DEFAULT_MAP_POSITION);
   const [devicePosition, setDevicePosition] = useState<PositionState | null>(null);
+  const [manualPositionActive, setManualPositionActive] = useState(false);
   const [, setStatus] = useState('지금 이곳에 떠도는 생각을 확인해보세요.');
   const [createFeedback, setCreateFeedback] = useState('');
   const [rangeValue, setRangeValue] = useState<ThoughtRangeValue>('500m');
@@ -83,6 +90,7 @@ export function PublitApp() {
   }, [deviceHash, refreshSlots, refreshTopics]);
 
   const handleLocationResolved = useCallback((position: PositionState) => {
+    setManualPositionActive(false);
     setDevicePosition(position);
     void refreshNearby(position);
   }, [refreshNearby]);
@@ -122,20 +130,36 @@ export function PublitApp() {
   }, [deviceHash, refreshNearby, viewPosition]);
 
   const selectedRange = useMemo(() => RANGE_OPTIONS.find((option) => option.value === rangeValue) ?? RANGE_OPTIONS[3], [rangeValue]);
-  const shouldShowLocationGate = locationState.status !== 'granted' && locationState.status !== 'requesting';
+  const activeMapCenter = viewPosition ?? mapCenterPosition;
+  const createPosition = devicePosition ?? (manualPositionActive ? viewPosition : null);
+  const shouldShowLocationGate = locationState.status !== 'granted' && !manualPositionActive;
+
+  useEffect(() => {
+    if (devicePosition || manualPositionActive) return;
+    if (!['denied', 'unsupported', 'unavailable'].includes(locationState.status)) return;
+
+    const fallbackPosition = viewPosition ?? mapCenterPosition;
+    const timeout = window.setTimeout(() => {
+      setManualPositionActive(true);
+      setCreateFeedback('브라우저 위치가 안 잡혀서 지도 중심을 기준으로 볼게요.');
+      void refreshNearby(fallbackPosition, { silent: true });
+    }, 0);
+    return () => window.clearTimeout(timeout);
+  }, [devicePosition, locationState.status, manualPositionActive, mapCenterPosition, refreshNearby, viewPosition]);
 
   const handleMapCenterChange = useCallback((position: { lat: number; lng: number }) => {
-    if (locationState.status !== 'granted') return;
-
     const next = {
       lat: position.lat,
       lng: position.lng,
       grid: encodeGrid(position.lat, position.lng),
     };
+    setMapCenterPosition(next);
+
+    if (locationState.status !== 'granted' && !manualPositionActive) return;
     if (viewPosition && distanceMeters(viewPosition, next) < 25) return;
 
     void refreshNearby(next, { silent: true });
-  }, [viewPosition, locationState.status, refreshNearby]);
+  }, [manualPositionActive, viewPosition, locationState.status, refreshNearby]);
 
   const handleSuggest = useCallback(async (text: string) => {
     try {
@@ -157,8 +181,8 @@ export function PublitApp() {
       setStatus(message);
       return false;
     }
-    if (!devicePosition) {
-      const message = '위치 권한을 먼저 허용하면 생각을 띄울 수 있어요.';
+    if (!createPosition) {
+      const message = '위치 권한을 먼저 허용하거나 지도를 기준으로 위치를 정해주세요.';
       setCreateFeedback(message);
       setStatus(message);
       requestLocation();
@@ -168,7 +192,7 @@ export function PublitApp() {
     try {
       const result = await publitApi.createFlame({
         ...input,
-        ...devicePosition,
+        ...createPosition,
         deviceHash,
         displayScope: selectedRange.displayScope,
         regionCode: selectedRange.value,
@@ -180,7 +204,7 @@ export function PublitApp() {
           characterEmoji: result.flame.characterEmoji ?? input.characterEmoji,
           selfStrength: result.flame.selfStrength ?? (input.selfStrength as 1 | 2 | 3),
         };
-        setViewPosition(devicePosition);
+        setViewPosition(createPosition);
         setFlames((current) => [createdFlame, ...current.filter((flame) => flame.id !== createdFlame.id)]);
         setCreateFeedback('');
         setStatus('내 생각이 지도 위에 떠올랐어요.');
@@ -197,7 +221,7 @@ export function PublitApp() {
       setStatus(message);
     }
     return false;
-  }, [deviceHash, devicePosition, refreshSlots, requestLocation, selectedRange.displayScope, selectedRange.value]);
+  }, [createPosition, deviceHash, refreshSlots, requestLocation, selectedRange.displayScope, selectedRange.value]);
 
   const handleExtinguish = useCallback(async (flameId: string) => {
     if (!deviceHash) return;
@@ -248,7 +272,7 @@ export function PublitApp() {
 
   return (
     <main data-testid="publit-shell" className="relative min-h-[100svh] overflow-hidden bg-white text-[#252520]">
-      <MapBackground center={viewPosition} rangeValue={rangeValue} onCenterChange={handleMapCenterChange} />
+      <MapBackground center={activeMapCenter} rangeValue={rangeValue} onCenterChange={handleMapCenterChange} />
       <div data-testid="top-brand-bar" className="pointer-events-auto absolute left-3 right-3 top-3 z-[120] mx-auto max-w-2xl sm:left-4 sm:right-4">
         <div className="grid h-12 grid-cols-[auto_minmax(0,1fr)] items-center gap-1.5 rounded-[16px] bg-white p-1.5 shadow-[3px_3px_0_rgba(35,35,31,0.82),0_0_0_1px_rgba(35,35,31,0.08)]">
           <div data-testid="brand-logo" className="grid h-full w-[78px] shrink-0 place-items-center rounded-[12px] bg-white px-1.5">
@@ -300,9 +324,12 @@ export function PublitApp() {
         </button>
         <button
           type="button"
-          onClick={() => requestLocation({ forceRefresh: true })}
           className="grid size-9 place-items-center rounded-[10px] bg-white text-[#252520] shadow-[2px_2px_0_rgba(35,35,31,0.72)] transition-transform active:scale-[0.96]"
           aria-label="현재 위치로 이동"
+          onClick={() => {
+            setManualPositionActive(false);
+            requestLocation({ forceRefresh: true });
+          }}
         >
           <LocateFixed size={16} />
         </button>
