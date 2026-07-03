@@ -100,6 +100,9 @@ test('keeps the full map controls separated on desktop', async ({ page }) => {
   const map = page.getByTestId('mapglot-background');
   const thoughtMap = page.getByTestId('thought-map');
   const composer = page.getByTestId('inline-thought-composer');
+  const toolbar = page.getByTestId('composer-toolbar');
+  const tagBadge = page.getByTestId('composer-tag-badge');
+  const toneBadge = page.getByTestId('composer-tone-badge');
   const rangeButton = page.getByRole('button', { name: '반경 설정' });
 
   await expect(map).toBeVisible();
@@ -115,6 +118,9 @@ test('keeps the full map controls separated on desktop', async ({ page }) => {
   const tickerBox = await requiredBox(ticker);
   const thoughtBox = await requiredBox(thoughtMap);
   const composerBox = await requiredBox(composer);
+  const toolbarBox = await requiredBox(toolbar);
+  const tagBadgeBox = await requiredBox(tagBadge);
+  const toneBadgeBox = await requiredBox(toneBadge);
 
   expect(topBarBox.height).toBeLessThanOrEqual(58);
   expect(tickerBox.width).toBeGreaterThan(brandBox.width);
@@ -123,6 +129,11 @@ test('keeps the full map controls separated on desktop', async ({ page }) => {
   expectInside(thoughtBox, shellBox);
   expectBelow(thoughtBox, composerBox, 16);
   expect(composerBox.y + composerBox.height).toBeLessThanOrEqual(shellBox.y + shellBox.height - 8);
+  await expect(toolbar).toHaveCSS('overflow-x', 'visible');
+  expect(tagBadgeBox.height).toBeLessThanOrEqual(32);
+  expect(toneBadgeBox.height).toBeLessThanOrEqual(32);
+  expectInside(tagBadgeBox, toolbarBox);
+  expectInside(toneBadgeBox, toolbarBox);
 
   await rangeButton.click();
   const rangeBox = await requiredBox(page.getByTestId('range-control'));
@@ -131,7 +142,9 @@ test('keeps the full map controls separated on desktop', async ({ page }) => {
   await composer.getByRole('textbox', { name: '지금 떠오른 생각' }).click();
   await expect(page.getByTestId('bottom-sheet-panel')).toHaveCount(0);
   await composer.getByRole('button', { name: '작성 옵션' }).click();
+  const detailsDialog = page.getByRole('dialog', { name: '생각 자세히 띄우기' });
   await expect(page.getByTestId('bottom-sheet-panel')).toBeVisible();
+  await expect(detailsDialog).toHaveCSS('backdrop-filter', 'none');
   await expect(page.getByTestId('composer-options-panel')).toHaveCount(0);
   await expect(page.getByText('내 생각')).toBeVisible();
 });
@@ -147,6 +160,9 @@ test('keeps the full map controls separated on mobile', async ({ page }) => {
   const ticker = page.getByTestId('hot-tag-ticker');
   const thoughtMap = page.getByTestId('thought-map');
   const composer = page.getByTestId('inline-thought-composer');
+  const toolbar = page.getByTestId('composer-toolbar');
+  const tagBadge = page.getByTestId('composer-tag-badge');
+  const toneBadge = page.getByTestId('composer-tone-badge');
   const rangeButton = page.getByRole('button', { name: '반경 설정' });
 
   await expect(page.getByTestId('mapglot-background')).toBeVisible();
@@ -161,6 +177,9 @@ test('keeps the full map controls separated on mobile', async ({ page }) => {
   const tickerBox = await requiredBox(ticker);
   const thoughtBox = await requiredBox(thoughtMap);
   const composerBox = await requiredBox(composer);
+  const toolbarBox = await requiredBox(toolbar);
+  const tagBadgeBox = await requiredBox(tagBadge);
+  const toneBadgeBox = await requiredBox(toneBadge);
 
   expect(shellBox.width).toBeLessThanOrEqual(390);
   expect(topBarBox.height).toBeLessThanOrEqual(58);
@@ -171,6 +190,11 @@ test('keeps the full map controls separated on mobile', async ({ page }) => {
   expectInside(thoughtBox, shellBox);
   expectBelow(thoughtBox, composerBox, 12);
   expect(composerBox.y + composerBox.height).toBeLessThanOrEqual(shellBox.y + shellBox.height - 8);
+  await expect(toolbar).toHaveCSS('overflow-x', 'visible');
+  expect(tagBadgeBox.height).toBeLessThanOrEqual(32);
+  expect(toneBadgeBox.height).toBeLessThanOrEqual(32);
+  expectInside(tagBadgeBox, toolbarBox);
+  expectInside(toneBadgeBox, toolbarBox);
 
   await rangeButton.click();
   const rangeBox = await requiredBox(page.getByTestId('range-control'));
@@ -179,7 +203,9 @@ test('keeps the full map controls separated on mobile', async ({ page }) => {
   await composer.getByRole('textbox', { name: '지금 떠오른 생각' }).click();
   await expect(page.getByTestId('bottom-sheet-panel')).toHaveCount(0);
   await composer.getByRole('button', { name: '작성 옵션' }).click();
+  const detailsDialog = page.getByRole('dialog', { name: '생각 자세히 띄우기' });
   await expect(page.getByTestId('bottom-sheet-panel')).toBeVisible();
+  await expect(detailsDialog).toHaveCSS('backdrop-filter', 'none');
   await expect(page.getByTestId('composer-options-panel')).toHaveCount(0);
   await expect(page.getByText('내 생각')).toBeVisible();
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);

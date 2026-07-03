@@ -162,32 +162,44 @@ export function InlineThoughtComposer({ topics, remoteSuggestions, slots, submit
         </button>
       </div>
 
-      <div className="flex min-w-0 items-center gap-1 overflow-hidden">
+      <div data-testid="composer-toolbar" className="flex min-w-0 items-center gap-1 overflow-visible py-0.5">
         <button
           type="button"
           onClick={() => setOptionsOpen(true)}
-          className="grid size-9 shrink-0 place-items-center rounded-[11px] bg-white text-lg shadow-[1px_1px_0_rgba(35,35,31,0.48),0_0_0_1px_rgba(35,35,31,0.08)] transition-[transform,background-color] active:scale-[0.96]"
+          className="grid min-h-10 w-10 shrink-0 place-items-center rounded-[11px] bg-transparent p-1 transition-transform active:scale-[0.96]"
           aria-label="캐릭터 설정"
         >
-          {selectedEmoji}
+          <span className="grid size-8 place-items-center rounded-[10px] bg-white text-base shadow-[1px_1px_0_rgba(35,35,31,0.42),0_0_0_1px_rgba(35,35,31,0.08)]">
+            {selectedEmoji}
+          </span>
         </button>
         <button
           type="button"
           data-testid="composer-tag-preview"
           data-tone={selectedTone.key}
           onClick={() => setOptionsOpen(true)}
-          className={`min-h-9 min-w-0 max-w-[44%] truncate rounded-full px-3 text-left text-xs font-black transition-[transform,background-color,color,box-shadow] active:scale-[0.96] ${selectedTone.tagClassName}`}
+          className="grid min-h-10 min-w-0 max-w-[38%] place-items-center bg-transparent px-0.5 text-left transition-transform active:scale-[0.96]"
           aria-label="태그 설정"
         >
-          {tagLabel || '#지금생각'}
+          <span
+            data-testid="composer-tag-badge"
+            className={`inline-flex max-w-full items-center rounded-full px-2.5 py-1 text-[11px] font-black leading-none ${selectedTone.tagClassName}`}
+          >
+            <span className="min-w-0 truncate">{tagLabel || '#지금생각'}</span>
+          </span>
         </button>
         <button
           type="button"
           onClick={() => setOptionsOpen(true)}
-          className={`min-h-9 shrink-0 rounded-full px-3 text-xs font-black shadow-[1px_1px_0_rgba(35,35,31,0.42)] transition-transform active:scale-[0.96] ${selectedTone.chipClassName}`}
+          className="grid min-h-10 shrink-0 place-items-center bg-transparent px-0.5 transition-transform active:scale-[0.96]"
           aria-label="기분 설정"
         >
-          {selectedTone.label}
+          <span
+            data-testid="composer-tone-badge"
+            className={`rounded-full px-2.5 py-1 text-[11px] font-black leading-none shadow-[1px_1px_0_rgba(35,35,31,0.38)] ${selectedTone.chipClassName}`}
+          >
+            {selectedTone.label}
+          </span>
         </button>
         <span className="ml-auto shrink-0 font-mono text-[10px] font-black tabular-nums text-[#9a968c]">{text.length}/80</span>
         <button

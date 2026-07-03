@@ -116,7 +116,7 @@ export function useMovingLocation(onRefresh: (position: { lat: number; lng: numb
     navigator.geolocation.getCurrentPosition(
       (position) => acceptRequestedPosition(position, options),
       (error) => {
-        if (error.code === error.TIMEOUT) {
+        if (error.code === error.TIMEOUT || error.code === error.POSITION_UNAVAILABLE) {
           startTimeoutFallbackWatch(error, options);
           return;
         }

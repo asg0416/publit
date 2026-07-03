@@ -48,7 +48,7 @@ async function mockCommonRoutes(page: Page) {
   return { hotTopicRequests: () => hotTopicRequests };
 }
 
-async function installGeolocationMock(page: Page, mode: 'granted' | 'prompt' | 'unavailable' | 'timeout-then-watch' | 'timeout-then-slow-watch' = 'prompt') {
+async function installGeolocationMock(page: Page, mode: 'granted' | 'prompt' | 'unavailable' | 'unavailable-then-watch' | 'timeout-then-watch' | 'timeout-then-slow-watch' = 'prompt') {
   await page.addInitScript((selectedMode) => {
     const calls = {
       getCurrentPositionCalls: 0,
@@ -100,15 +100,18 @@ async function installGeolocationMock(page: Page, mode: 'granted' | 'prompt' | '
         getCurrentPosition(success: PositionCallback, error?: PositionErrorCallback) {
           calls.getCurrentPositionCalls += 1;
           window.setTimeout(() => {
-            if (selectedMode === 'unavailable') error?.(unavailableError as GeolocationPositionError);
+            if (selectedMode === 'unavailable' || selectedMode === 'unavailable-then-watch') error?.(unavailableError as GeolocationPositionError);
             else if (selectedMode === 'timeout-then-watch' || selectedMode === 'timeout-then-slow-watch') error?.(timeoutError as GeolocationPositionError);
             else success(position as GeolocationPosition);
           }, 0);
         },
-        watchPosition(success: PositionCallback) {
+        watchPosition(success: PositionCallback, error?: PositionErrorCallback) {
           calls.watchPositionCalls += 1;
           const watchId = calls.watchPositionCalls;
-          window.setTimeout(() => success(position as GeolocationPosition), selectedMode === 'timeout-then-slow-watch' ? 9_000 : 0);
+          window.setTimeout(() => {
+            if (selectedMode === 'unavailable') error?.(unavailableError as GeolocationPositionError);
+            else success(position as GeolocationPosition);
+          }, selectedMode === 'timeout-then-slow-watch' ? 9_000 : 0);
           return watchId;
         },
         clearWatch() {
@@ -164,8 +167,25 @@ test('does not describe desktop position lookup failures as missing permission a
 
   await expect.poll(async () => readGeolocationCalls(page)).toEqual({
     getCurrentPositionCalls: 1,
-    watchPositionCalls: 0,
-    clearWatchCalls: 0,
+    watchPositionCalls: 1,
+    clearWatchCalls: 1,
+  });
+});
+
+test('falls back to a desktop watch when the first allowed lookup is temporarily unavailable', async ({ page }) => {
+  await installGeolocationMock(page, 'unavailable-then-watch');
+  await mockCommonRoutes(page);
+
+  await page.setViewportSize({ width: 1280, height: 900 });
+  await page.goto('/');
+  await page.getByRole('button', { name: /위치 허용/ }).click();
+
+  await expect(page.getByTestId('location-gate')).toHaveCount(0);
+  await expect(page.getByTestId('thought-character')).toHaveCount(1);
+  await expect.poll(async () => readGeolocationCalls(page)).toEqual({
+    getCurrentPositionCalls: 1,
+    watchPositionCalls: 1,
+    clearWatchCalls: 1,
   });
 });
 
