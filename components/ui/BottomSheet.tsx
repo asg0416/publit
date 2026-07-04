@@ -60,7 +60,7 @@ export function BottomSheet({ open, title, onClose, footer, children }: BottomSh
 
   return (
     <div
-      className="fixed inset-0 z-[220] flex items-end justify-center bg-[#26251e]/28 lg:px-6 lg:pb-6"
+      className={`fixed inset-0 z-[220] flex items-end justify-center lg:px-6 lg:pb-6 ${bottomInset > 0 ? 'bg-transparent' : 'bg-[#26251e]/28'}`}
       role="dialog"
       aria-modal="true"
       aria-label={title}

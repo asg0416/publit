@@ -274,7 +274,9 @@ test('keeps the composer detail sheet above mobile browser chrome and isolates t
   await composer.getByRole('button', { name: '작성 옵션' }).click();
 
   const sheet = page.getByTestId('bottom-sheet-panel');
+  const dialog = page.getByRole('dialog', { name: '생각 자세히 띄우기' });
   await expect(sheet).toBeVisible();
+  await expect(dialog).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
 
   const visibleViewportBottom = await page.evaluate(() => {
     const viewport = window.visualViewport;
