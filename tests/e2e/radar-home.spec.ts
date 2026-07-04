@@ -214,7 +214,9 @@ test('creates a flame through the inline composer using mocked edge functions', 
   await sheet.getByLabel('생각 태그').fill('#카페대화');
   await sheet.getByRole('button', { name: '열받음' }).click();
   await expect(page.getByTestId('composer-tag-preview')).toHaveAttribute('data-tone', 'angry');
-  await sheet.getByLabel('직접 이모지').fill('🌶️');
+  await expect(sheet.getByRole('textbox', { name: '직접 이모지' })).toHaveCount(0);
+  await sheet.getByRole('button', { name: '직접 이모지 추가' }).click();
+  await sheet.getByRole('textbox', { name: '직접 이모지' }).fill('🌶️');
   await sheet.getByRole('button', { name: '생각 띄우기', exact: true }).click();
 
   await expect(page.getByTestId('thought-character')).toHaveCount(4);

@@ -1,7 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
-import { SendHorizontal, Settings2 } from 'lucide-react';
+import { Plus, SendHorizontal, Settings2 } from 'lucide-react';
 import type { CharacterKey, FlameCategory, FlameMood, HotTopic, TagSuggestion } from '@/lib/flame/types';
 import { normalizeTagLabel, suggestTagsFromText } from '@/lib/flame/tagNormalize';
 import { isBlockedText } from '@/lib/moderation/rules';
@@ -58,6 +58,7 @@ export function InlineThoughtComposer({ topics, remoteSuggestions, slots, submit
   const [toneKey, setToneKey] = useState<ThoughtToneKey>('spark');
   const [characterKey, setCharacterKey] = useState<CharacterKey>('turtle');
   const [customEmojiInput, setCustomEmojiInput] = useState('');
+  const [customEmojiOpen, setCustomEmojiOpen] = useState(false);
   const [optionsOpen, setOptionsOpen] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const keyboardLift = useVisualKeyboardLift();
@@ -128,6 +129,7 @@ export function InlineThoughtComposer({ topics, remoteSuggestions, slots, submit
         setText('');
         setTagOverride(null);
         setOptionsOpen(false);
+        setCustomEmojiOpen(false);
       }
     } finally {
       setSubmitting(false);
@@ -263,7 +265,7 @@ export function InlineThoughtComposer({ topics, remoteSuggestions, slots, submit
 
           <section className="grid gap-2">
             <h3 className="text-xs font-black text-[#6f6b61]">캐릭터</h3>
-            <div className="grid grid-cols-[repeat(6,minmax(0,1fr))] gap-1.5" role="group" aria-label="캐릭터">
+            <div className="flex flex-wrap gap-1.5" role="group" aria-label="캐릭터">
               {characterKeys.map((key) => (
                 <button
                   type="button"
@@ -271,6 +273,7 @@ export function InlineThoughtComposer({ topics, remoteSuggestions, slots, submit
                   onClick={() => {
                     setCharacterKey(key);
                     setCustomEmojiInput('');
+                    setCustomEmojiOpen(false);
                   }}
                   className={`grid size-10 shrink-0 place-items-center rounded-[11px] bg-white text-lg shadow-[1px_1px_0_rgba(35,35,31,0.44),0_0_0_1px_rgba(35,35,31,0.08)] transition-[transform,background-color,outline-color] active:scale-[0.96] ${!customEmoji && characterKey === key ? 'outline outline-2 outline-[#ef3b32]' : 'outline outline-0 outline-transparent'}`}
                   aria-label={`캐릭터 ${key}`}
@@ -278,21 +281,37 @@ export function InlineThoughtComposer({ topics, remoteSuggestions, slots, submit
                   {CHARACTER_EMOJI[key]}
                 </button>
               ))}
+              <button
+                type="button"
+                onClick={() => {
+                  setCustomEmojiOpen((current) => {
+                    if (current && !customEmoji) setCustomEmojiInput('');
+                    return !current;
+                  });
+                }}
+                className={`grid size-10 shrink-0 place-items-center rounded-[11px] bg-white text-lg shadow-[1px_1px_0_rgba(35,35,31,0.44),0_0_0_1px_rgba(35,35,31,0.08)] transition-[transform,background-color,outline-color] active:scale-[0.96] ${customEmoji ? 'outline outline-2 outline-[#ef3b32]' : 'outline outline-0 outline-transparent'}`}
+                aria-label="직접 이모지 추가"
+                aria-expanded={customEmojiOpen}
+              >
+                {customEmoji ? customEmoji : <Plus size={17} strokeWidth={2.6} />}
+              </button>
             </div>
-            <label className="grid gap-1">
-              <span className="text-[10px] font-black text-[#6f6b61]">직접 이모지</span>
-              <input
-                value={customEmojiInput}
-                onChange={(event) => setCustomEmojiInput(event.target.value)}
-                inputMode="text"
-                maxLength={16}
-                aria-label="직접 이모지"
-                placeholder="😀"
-                className={`min-h-10 rounded-[11px] bg-white px-2 text-center text-lg outline-none shadow-[1px_1px_0_rgba(35,35,31,0.44),0_0_0_1px_rgba(35,35,31,0.08)] transition-[box-shadow] ${
-                  customEmoji ? 'outline outline-2 outline-[#ef3b32]' : ''
-                }`}
-              />
-            </label>
+            {customEmojiOpen ? (
+              <label className="grid max-w-[13rem] gap-1">
+                <span className="text-[10px] font-black text-[#6f6b61]">직접 이모지</span>
+                <input
+                  value={customEmojiInput}
+                  onChange={(event) => setCustomEmojiInput(event.target.value)}
+                  inputMode="text"
+                  maxLength={16}
+                  aria-label="직접 이모지"
+                  placeholder="😀"
+                  className={`min-h-10 rounded-[11px] bg-white px-2 text-center text-lg outline-none shadow-[1px_1px_0_rgba(35,35,31,0.44),0_0_0_1px_rgba(35,35,31,0.08)] transition-[box-shadow,outline-color] ${
+                    customEmoji ? 'outline outline-2 outline-[#ef3b32]' : 'outline outline-0 outline-transparent'
+                  }`}
+                />
+              </label>
+            ) : null}
           </section>
 
           {suggestions.length ? (

@@ -23,12 +23,14 @@ export type MapCameraChange = {
   gesture?: 'pan' | 'zoom';
 };
 
+type MapGlotEventName = 'dragstart' | 'moveend' | 'zoom' | 'zoomend' | 'zoomstart';
+
 type MapGlotMap = {
   easeTo?: (options: { center?: [number, number]; zoom?: number; duration?: number; essential?: boolean }) => void;
   getCenter?: () => { lat: number; lng: number };
   getZoom?: () => number;
-  off?: (event: 'dragstart' | 'moveend' | 'zoomend' | 'zoomstart', handler: () => void) => void;
-  on?: (event: 'dragstart' | 'moveend' | 'zoomend' | 'zoomstart', handler: () => void) => void;
+  off?: (event: MapGlotEventName, handler: () => void) => void;
+  on?: (event: MapGlotEventName, handler: () => void) => void;
   remove?: () => void;
   resize?: () => void;
   setCenter?: (center: [number, number]) => void;
@@ -126,6 +128,7 @@ export function MapBackground({ center, isTracking = false, rangeValue, onCamera
   const programmaticMoveRef = useRef(false);
   const pointerStartRef = useRef<{ x: number; y: number } | null>(null);
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
+  const liveZoomFrameRef = useRef<number | null>(null);
   const userGestureRef = useRef<MapCameraChange['gesture'] | null>(null);
   const onCameraChangeRef = useRef(onCameraChange);
   const [initialMapOptions] = useState(() => ({
@@ -199,19 +202,36 @@ export function MapBackground({ center, isTracking = false, rangeValue, onCamera
         const markZoomGesture = () => {
           if (!programmaticMoveRef.current) userGestureRef.current = 'zoom';
         };
-        const handleCameraSettled = () => {
+        const emitUserCameraChange = (gesture: MapCameraChange['gesture'] | null) => {
           const nextCenter = mapRef.current?.getCenter?.();
-          if (!nextCenter) return;
+          if (!nextCenter || !gesture) return;
           const nextZoom = mapRef.current?.getZoom?.() ?? latestCameraRef.current.zoom;
-          const gesture = programmaticMoveRef.current ? null : userGestureRef.current;
-          userGestureRef.current = null;
-          if (!gesture) return;
           onCameraChangeRef.current?.({
             center: { lat: nextCenter.lat, lng: nextCenter.lng },
             zoom: nextZoom,
             source: 'user',
             gesture,
           });
+        };
+        const handleCameraZooming = () => {
+          if (programmaticMoveRef.current) return;
+          userGestureRef.current = 'zoom';
+          if (liveZoomFrameRef.current !== null) return;
+
+          liveZoomFrameRef.current = window.requestAnimationFrame(() => {
+            liveZoomFrameRef.current = null;
+            if (programmaticMoveRef.current || userGestureRef.current !== 'zoom') return;
+            emitUserCameraChange('zoom');
+          });
+        };
+        const handleCameraSettled = () => {
+          if (programmaticMoveRef.current) {
+            userGestureRef.current = null;
+            return;
+          }
+          const gesture = userGestureRef.current;
+          userGestureRef.current = null;
+          emitUserCameraChange(gesture);
         };
 
         resizeObserverRef.current?.disconnect();
@@ -225,11 +245,13 @@ export function MapBackground({ center, isTracking = false, rangeValue, onCamera
         resizeTimer = window.setTimeout(resizeMap, 250);
         mapRef.current.on?.('dragstart', markPanGesture);
         mapRef.current.on?.('zoomstart', markZoomGesture);
+        mapRef.current.on?.('zoom', handleCameraZooming);
         mapRef.current.on?.('moveend', handleCameraSettled);
         mapRef.current.on?.('zoomend', handleCameraSettled);
         cleanupMoveEnd = () => {
           mapRef.current?.off?.('dragstart', markPanGesture);
           mapRef.current?.off?.('zoomstart', markZoomGesture);
+          mapRef.current?.off?.('zoom', handleCameraZooming);
           mapRef.current?.off?.('moveend', handleCameraSettled);
           mapRef.current?.off?.('zoomend', handleCameraSettled);
         };
@@ -244,6 +266,10 @@ export function MapBackground({ center, isTracking = false, rangeValue, onCamera
       cancelled = true;
       if (resizeTimer) window.clearTimeout(resizeTimer);
       if (programmaticMoveTimerRef.current !== null) window.clearTimeout(programmaticMoveTimerRef.current);
+      if (liveZoomFrameRef.current !== null) {
+        window.cancelAnimationFrame(liveZoomFrameRef.current);
+        liveZoomFrameRef.current = null;
+      }
       cleanupResize?.();
       cleanupMoveEnd?.();
       resizeObserverRef.current?.disconnect();
@@ -286,13 +312,16 @@ export function MapBackground({ center, isTracking = false, rangeValue, onCamera
     });
   };
 
-  const handleFallbackWheel = (event: ReactWheelEvent<HTMLDivElement>) => {
-    if (state === 'ready') return;
+  const handleMapWheel = (event: ReactWheelEvent<HTMLDivElement>) => {
     event.preventDefault();
+    const mapCenterValue = mapRef.current?.getCenter?.();
     const currentCamera = latestCameraRef.current;
-    const nextZoom = currentCamera.zoom + (event.deltaY < 0 ? 1 : -1);
+    const currentZoom = mapRef.current?.getZoom?.() ?? currentCamera.zoom;
+    const nextZoom = currentZoom + (event.deltaY < 0 ? 1 : -1);
     onCameraChangeRef.current?.({
-      center: { lat: currentCamera.center[1], lng: currentCamera.center[0] },
+      center: mapCenterValue
+        ? { lat: mapCenterValue.lat, lng: mapCenterValue.lng }
+        : { lat: currentCamera.center[1], lng: currentCamera.center[0] },
       zoom: nextZoom,
       source: 'user',
       gesture: 'zoom',
@@ -313,7 +342,7 @@ export function MapBackground({ center, isTracking = false, rangeValue, onCamera
       aria-hidden="true"
       onPointerDown={handleFallbackPointerDown}
       onPointerUp={handleFallbackPointerUp}
-      onWheel={handleFallbackWheel}
+      onWheel={handleMapWheel}
     >
       <div
         ref={containerRef}

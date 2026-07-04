@@ -86,12 +86,19 @@ async function mockRoutes(page: Page) {
     await route.fulfill({ status: 200, json: [{ displayLabel: '#이동중', normalizedKey: '이동중', category: 'daily', scope: 'local', heatLabel: '요즘 이 태그가 모여요' }] });
   });
   await page.route('**/functions/v1/nearby-flames', async (route) => {
+    nearbyRequestBodies.push(route.request().postDataJSON() as NearbyRequestBody);
     await route.fulfill({ status: 200, json: nearbyFlames });
   });
   await page.route('**/functions/v1/my-flames', async (route) => {
     await route.fulfill({ status: 200, json: { used: 0, limit: 3, isFull: false, activeFlames: [] } });
   });
 }
+
+type NearbyRequestBody = {
+  rangeValue?: string;
+};
+
+let nearbyRequestBodies: NearbyRequestBody[] = [];
 
 async function mapCenter(page: Page) {
   const map = page.getByTestId('mapglot-background');
@@ -108,6 +115,7 @@ async function emitPosition(page: Page, lat: number, lng: number) {
 }
 
 test.beforeEach(async ({ page }) => {
+  nearbyRequestBodies = [];
   await installMovingGeolocationMock(page);
   await mockRoutes(page);
 });
@@ -149,11 +157,14 @@ test('uses map zoom gestures to snap the radius to the nearest range step', asyn
 
   const map = page.getByTestId('mapglot-background');
   await expect(map).toHaveAttribute('data-map-range', '500m');
+  await expect.poll(() => nearbyRequestBodies.at(-1)?.rangeValue).toBe('500m');
 
   await map.dispatchEvent('wheel', { deltaY: -800 });
   await expect(map).toHaveAttribute('data-map-range', '300m');
   await expect(map).toHaveAttribute('data-map-tracking', 'active');
+  await expect.poll(() => nearbyRequestBodies.at(-1)?.rangeValue).toBe('300m');
 
   await map.dispatchEvent('wheel', { deltaY: 800 });
   await expect(map).toHaveAttribute('data-map-range', '500m');
+  await expect.poll(() => nearbyRequestBodies.at(-1)?.rangeValue).toBe('500m');
 });

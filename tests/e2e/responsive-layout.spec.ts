@@ -1,4 +1,4 @@
-import { expect, test, type Locator } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 
 const now = new Date('2026-06-28T00:00:00.000Z').toISOString();
 const thoughts = [
@@ -58,6 +58,20 @@ function expectInside(inner: Box, outer: Box) {
   expect(inner.y).toBeGreaterThanOrEqual(outer.y);
   expect(inner.x + inner.width).toBeLessThanOrEqual(outer.x + outer.width);
   expect(inner.y + inner.height).toBeLessThanOrEqual(outer.y + outer.height);
+}
+
+async function expectComposerSheetUsable(page: Page, sheet: Locator) {
+  const viewport = page.viewportSize();
+  expect(viewport).not.toBeNull();
+
+  const sheetBox = await requiredBox(sheet);
+  expect(sheetBox.height).toBeLessThanOrEqual(viewport!.height * 0.61);
+  await expect(sheet.getByRole('textbox', { name: '직접 이모지' })).toHaveCount(0);
+  await expect(sheet.getByRole('button', { name: '직접 이모지 추가' })).toBeVisible();
+
+  const tagInput = sheet.getByLabel('생각 태그');
+  await tagInput.focus();
+  expectInside(await requiredBox(tagInput), await requiredBox(sheet));
 }
 
 test.beforeEach(async ({ page }) => {
@@ -143,10 +157,12 @@ test('keeps the full map controls separated on desktop', async ({ page }) => {
   await expect(page.getByTestId('bottom-sheet-panel')).toHaveCount(0);
   await composer.getByRole('button', { name: '작성 옵션' }).click();
   const detailsDialog = page.getByRole('dialog', { name: '생각 자세히 띄우기' });
-  await expect(page.getByTestId('bottom-sheet-panel')).toBeVisible();
+  const detailsSheet = page.getByTestId('bottom-sheet-panel');
+  await expect(detailsSheet).toBeVisible();
   await expect(detailsDialog).toHaveCSS('backdrop-filter', 'none');
   await expect(page.getByTestId('composer-options-panel')).toHaveCount(0);
   await expect(page.getByText('내 생각')).toBeVisible();
+  await expectComposerSheetUsable(page, detailsSheet);
 });
 
 test('keeps the full map controls separated on mobile', async ({ page }) => {
@@ -204,9 +220,11 @@ test('keeps the full map controls separated on mobile', async ({ page }) => {
   await expect(page.getByTestId('bottom-sheet-panel')).toHaveCount(0);
   await composer.getByRole('button', { name: '작성 옵션' }).click();
   const detailsDialog = page.getByRole('dialog', { name: '생각 자세히 띄우기' });
-  await expect(page.getByTestId('bottom-sheet-panel')).toBeVisible();
+  const detailsSheet = page.getByTestId('bottom-sheet-panel');
+  await expect(detailsSheet).toBeVisible();
   await expect(detailsDialog).toHaveCSS('backdrop-filter', 'none');
   await expect(page.getByTestId('composer-options-panel')).toHaveCount(0);
   await expect(page.getByText('내 생각')).toBeVisible();
+  await expectComposerSheetUsable(page, detailsSheet);
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
 });

@@ -76,6 +76,7 @@ export function PublitApp() {
   const [rangeValue, setRangeValue] = useState<ThoughtRangeValue>('500m');
   const [rangeOpen, setRangeOpen] = useState(false);
   const optimisticFlamesRef = useRef<FlameType[]>([]);
+  const pendingRangeRefreshRef = useRef<PositionState | null>(null);
 
   useEffect(() => {
     getDeviceHash().then(setDeviceHash).catch(() => setStatus('device hash를 만들 수 없어요.'));
@@ -182,11 +183,20 @@ export function PublitApp() {
 
   useEffect(() => {
     if (!deviceHash || !viewPosition) return undefined;
+    if (pendingRangeRefreshRef.current) return undefined;
     const timeout = window.setTimeout(() => {
       void refreshNearby(viewPosition, { silent: true });
     }, 0);
     return () => window.clearTimeout(timeout);
   }, [deviceHash, refreshNearby, viewPosition]);
+
+  useEffect(() => {
+    const pendingPosition = pendingRangeRefreshRef.current;
+    if (!pendingPosition) return;
+
+    pendingRangeRefreshRef.current = null;
+    void refreshNearby(pendingPosition, { silent: true });
+  }, [rangeValue, refreshNearby]);
 
   const liveDevicePosition = useMemo<PositionState | null>(() => {
     if (locationState.status !== 'granted') return devicePosition;
@@ -226,11 +236,21 @@ export function PublitApp() {
       lng: position.lng,
       grid: encodeGrid(position.lat, position.lng),
     };
+    const isManualBrowse = manualPositionActive && manualPositionReason === 'user';
+    const refreshPosition = camera.gesture === 'zoom' && !isManualBrowse
+      ? (liveDevicePosition ?? viewPosition ?? next)
+      : next;
+    let pendingRangeRefresh = false;
+
     setMapCenterPosition(next);
 
     if (camera.source === 'user') {
       const nextRange = getThoughtRangeForZoom(camera.zoom, next.lat);
-      setRangeValue(nextRange);
+      if (nextRange !== rangeValue) {
+        pendingRangeRefreshRef.current = refreshPosition;
+        pendingRangeRefresh = true;
+        setRangeValue(nextRange);
+      }
 
       if (camera.gesture === 'pan') {
         manualPositionReasonRef.current = 'user';
@@ -241,10 +261,11 @@ export function PublitApp() {
 
     const canBrowseManualCenter = camera.gesture === 'pan' || manualPositionActive || locationState.status === 'granted';
     if (!canBrowseManualCenter) return;
-    if (viewPosition && distanceMeters(viewPosition, next) < 25) return;
+    if (pendingRangeRefresh) return;
+    if (camera.gesture !== 'zoom' && viewPosition && distanceMeters(viewPosition, refreshPosition) < 25) return;
 
-    void refreshNearby(next, { silent: true });
-  }, [manualPositionActive, viewPosition, locationState.status, refreshNearby]);
+    void refreshNearby(refreshPosition, { silent: true });
+  }, [liveDevicePosition, locationState.status, manualPositionActive, manualPositionReason, rangeValue, refreshNearby, viewPosition]);
 
   const handleSuggest = useCallback(async (text: string) => {
     try {
@@ -454,6 +475,7 @@ export function PublitApp() {
           <RangeControl
             value={rangeValue}
             onChange={(next) => {
+              pendingRangeRefreshRef.current = activeMapCenter;
               setRangeValue(next);
               setRangeOpen(false);
             }}
