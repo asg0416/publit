@@ -19,6 +19,18 @@ const BROAD_RANGE_ZOOM: Record<Extract<ThoughtRangeValue, 'region' | 'national'>
   national: 6,
 };
 
+const RANGE_ZOOM_STEPS: ThoughtRangeValue[] = [
+  '50m',
+  '100m',
+  '300m',
+  '500m',
+  '1km',
+  '3km',
+  '10km',
+  'region',
+  'national',
+];
+
 export function getThoughtRangeMeters(range: ThoughtRangeValue): number | null {
   return RANGE_METERS[range] ?? null;
 }
@@ -38,4 +50,14 @@ export function getZoomForThoughtRange(
   const zoom = Math.log2((metersPerPixelAtZoom0 * circleRadiusPx) / rangeMeters);
 
   return Math.max(5, Math.min(18, Number(zoom.toFixed(2))));
+}
+
+export function getThoughtRangeForZoom(zoom: number, latitude: number): ThoughtRangeValue {
+  if (!Number.isFinite(zoom)) return '500m';
+
+  return RANGE_ZOOM_STEPS.reduce((closest, range) => {
+    const closestDelta = Math.abs(getZoomForThoughtRange(closest, latitude) - zoom);
+    const rangeDelta = Math.abs(getZoomForThoughtRange(range, latitude) - zoom);
+    return rangeDelta < closestDelta ? range : closest;
+  }, '500m' as ThoughtRangeValue);
 }

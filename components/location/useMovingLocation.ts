@@ -210,16 +210,17 @@ export function useMovingLocation(onRefresh: (position: { lat: number; lng: numb
     const now = Date.now();
     const sourceStartedAt = source === 'watchPosition' ? watchStartedAt.current : requestStartedAt.current;
     restoredGrantedPermissionInPage = true;
-    attemptSettled.current = true;
     requestInFlight.current = false;
-    watchInFlight.current = false;
-    clearActiveWatch();
+    watchInFlight.current = watchId.current !== null;
+    if (!watchInFlight.current) {
+      attemptSettled.current = true;
+    }
     clearFallbackProbe();
     setState({ status: 'granted', lat, lng, grid });
     setDebugInfo((current) => ({
       ...current,
-      inFlight: false,
-      watchInFlight: false,
+      inFlight: requestInFlight.current,
+      watchInFlight: watchInFlight.current,
       fallbackInFlight: false,
       watchFinishedAt: source === 'watchPosition' ? new Date(now).toISOString() : current.watchFinishedAt,
       watchElapsedMs: source === 'watchPosition' ? getElapsedMs(watchStartedAt.current, now) : current.watchElapsedMs,
@@ -244,7 +245,7 @@ export function useMovingLocation(onRefresh: (position: { lat: number; lng: numb
       lastFetchSource.current = source;
       onRefresh({ lat, lng, grid });
     }
-  }, [clearActiveWatch, clearFallbackProbe, onRefresh, updatePermissionDebug]);
+  }, [clearFallbackProbe, onRefresh, updatePermissionDebug]);
 
   const acceptFallbackLocation = useCallback((
     result: Extract<IpLocationResult, { ok: true }>,
@@ -257,6 +258,7 @@ export function useMovingLocation(onRefresh: (position: { lat: number; lng: numb
     const lng = result.lng;
     const grid = encodeGrid(lat, lng);
     const now = Date.now();
+    requestInFlight.current = false;
     fallbackInFlight.current = false;
     fallbackAbortController.current = null;
     setState({ status: 'granted', lat, lng, grid });
@@ -360,15 +362,18 @@ export function useMovingLocation(onRefresh: (position: { lat: number; lng: numb
     const now = Date.now();
     const sourceStartedAt = source === 'watchPosition' ? watchStartedAt.current : requestStartedAt.current;
     const permissionDenied = error.code === error.PERMISSION_DENIED;
+    const watchTimedOut = source === 'watchPosition' && error.code === error.TIMEOUT;
     if (permissionDenied) {
       requestInFlight.current = false;
       watchInFlight.current = false;
       clearActiveWatch();
       clearFallbackProbe();
       attemptSettled.current = true;
-    } else if (source === 'watchPosition') {
+    } else if (source === 'watchPosition' && !watchTimedOut) {
       watchInFlight.current = false;
       clearActiveWatch();
+    } else if (source === 'watchPosition') {
+      watchInFlight.current = watchId.current !== null;
     } else {
       requestInFlight.current = false;
     }

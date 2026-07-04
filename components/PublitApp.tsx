@@ -1,10 +1,10 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { LocateFixed, RefreshCw, SlidersHorizontal } from 'lucide-react';
 import { LocationGate } from '@/components/location/LocationGate';
 import { useMovingLocation, type LocationDebugInfo } from '@/components/location/useMovingLocation';
-import { MapBackground } from '@/components/map/MapBackground';
+import { MapBackground, type MapCameraChange } from '@/components/map/MapBackground';
 import { RANGE_OPTIONS, RangeControl } from '@/components/map/RangeControl';
 import { ThoughtOverlay } from '@/components/map/ThoughtOverlay';
 import { FlameDetailSheet } from '@/components/flame/FlameDetailSheet';
@@ -14,6 +14,7 @@ import { getDeviceHash } from '@/lib/device';
 import { publitApi } from '@/lib/supabaseClient';
 import { encodeGrid } from '@/lib/location/geohash';
 import { distanceMeters } from '@/lib/location/useMovingLocationCore';
+import { getThoughtRangeForZoom } from '@/lib/map/rangeViewport';
 import type { CharacterKey, Flame as FlameType, FlameCategory, FlameMood, HotTopic, ReactionType, ReportReason, TagSuggestion, ThoughtRangeValue } from '@/lib/flame/types';
 
 const NEARBY_REFRESH_INTERVAL_MS = 12_000;
@@ -66,11 +67,15 @@ export function PublitApp() {
   const [mapCenterPosition, setMapCenterPosition] = useState<PositionState>(DEFAULT_MAP_POSITION);
   const [devicePosition, setDevicePosition] = useState<PositionState | null>(null);
   const [manualPositionActive, setManualPositionActive] = useState(false);
+  const [manualPositionReason, setManualPositionReason] = useState<'fallback' | 'user' | null>(null);
+  const manualPositionActiveRef = useRef(false);
+  const manualPositionReasonRef = useRef<'fallback' | 'user' | null>(null);
   const [geoDebugOpen, setGeoDebugOpen] = useState(false);
   const [, setStatus] = useState('지금 이곳에 떠도는 생각을 확인해보세요.');
   const [createFeedback, setCreateFeedback] = useState('');
   const [rangeValue, setRangeValue] = useState<ThoughtRangeValue>('500m');
   const [rangeOpen, setRangeOpen] = useState(false);
+  const optimisticFlamesRef = useRef<FlameType[]>([]);
 
   useEffect(() => {
     getDeviceHash().then(setDeviceHash).catch(() => setStatus('device hash를 만들 수 없어요.'));
@@ -94,6 +99,12 @@ export function PublitApp() {
     }
   }, []);
 
+  const mergeWithOptimisticFlames = useCallback((remoteFlames: FlameType[]) => {
+    const remoteIds = new Set(remoteFlames.map((flame) => flame.id));
+    optimisticFlamesRef.current = optimisticFlamesRef.current.filter((flame) => !remoteIds.has(flame.id));
+    return [...optimisticFlamesRef.current, ...remoteFlames];
+  }, []);
+
   const refreshNearby = useCallback(async (position: PositionState, options: { silent?: boolean } = {}) => {
     setViewPosition(position);
     if (!options.silent) setStatus('근처 생각을 새로 살피는 중이에요.');
@@ -104,7 +115,7 @@ export function PublitApp() {
         rangeValue,
         ...(deviceHash ? { deviceHash } : {}),
       });
-      setFlames(next);
+      setFlames(mergeWithOptimisticFlames(next));
       if (!options.silent) {
         setStatus(next.length ? '근처 생각이 지도 위에 떠 있어요.' : '아직 이 공간에 떠 있는 생각이 없어요.');
         setCreateFeedback('');
@@ -114,15 +125,22 @@ export function PublitApp() {
     } catch {
       if (!options.silent) setStatus('근처 생각을 불러오지 못했어요. 잠시 후 다시 시도해보세요.');
     }
-  }, [deviceHash, rangeValue, refreshSlots, refreshTopics]);
+  }, [deviceHash, mergeWithOptimisticFlames, rangeValue, refreshSlots, refreshTopics]);
 
   const handleLocationResolved = useCallback((position: PositionState) => {
-    setManualPositionActive(false);
     setDevicePosition(position);
+    if (manualPositionActiveRef.current && manualPositionReasonRef.current === 'user') return;
+    manualPositionReasonRef.current = null;
+    setManualPositionReason(null);
+    setManualPositionActive(false);
     void refreshNearby(position);
   }, [refreshNearby]);
 
   const { state: locationState, requestLocation, debugInfo } = useMovingLocation(handleLocationResolved);
+
+  useEffect(() => {
+    manualPositionActiveRef.current = manualPositionActive;
+  }, [manualPositionActive]);
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
@@ -170,9 +188,20 @@ export function PublitApp() {
     return () => window.clearTimeout(timeout);
   }, [deviceHash, refreshNearby, viewPosition]);
 
+  const liveDevicePosition = useMemo<PositionState | null>(() => {
+    if (locationState.status !== 'granted') return devicePosition;
+    if (!Number.isFinite(locationState.lat) || !Number.isFinite(locationState.lng)) return devicePosition;
+    return {
+      lat: locationState.lat!,
+      lng: locationState.lng!,
+      grid: locationState.grid ?? encodeGrid(locationState.lat!, locationState.lng!),
+    };
+  }, [devicePosition, locationState.grid, locationState.lat, locationState.lng, locationState.status]);
   const selectedRange = useMemo(() => RANGE_OPTIONS.find((option) => option.value === rangeValue) ?? RANGE_OPTIONS[3], [rangeValue]);
-  const activeMapCenter = viewPosition ?? mapCenterPosition;
-  const createPosition = devicePosition ?? (manualPositionActive ? viewPosition : null);
+  const isUserManualPosition = manualPositionActive && manualPositionReason === 'user';
+  const isTrackingPosition = !isUserManualPosition && locationState.status === 'granted';
+  const activeMapCenter = isUserManualPosition ? (viewPosition ?? mapCenterPosition) : (liveDevicePosition ?? viewPosition ?? mapCenterPosition);
+  const createPosition = isUserManualPosition ? viewPosition : (liveDevicePosition ?? viewPosition);
   const shouldShowLocationGate = locationState.status !== 'granted' && !manualPositionActive;
 
   useEffect(() => {
@@ -181,6 +210,8 @@ export function PublitApp() {
 
     const fallbackPosition = viewPosition ?? mapCenterPosition;
     const timeout = window.setTimeout(() => {
+      manualPositionReasonRef.current = 'fallback';
+      setManualPositionReason('fallback');
       setManualPositionActive(true);
       setCreateFeedback('브라우저 위치가 안 잡혀서 지도 중심을 기준으로 볼게요.');
       void refreshNearby(fallbackPosition, { silent: true });
@@ -188,7 +219,8 @@ export function PublitApp() {
     return () => window.clearTimeout(timeout);
   }, [devicePosition, locationState.status, manualPositionActive, mapCenterPosition, refreshNearby, viewPosition]);
 
-  const handleMapCenterChange = useCallback((position: { lat: number; lng: number }) => {
+  const handleMapCameraChange = useCallback((camera: MapCameraChange) => {
+    const position = camera.center;
     const next = {
       lat: position.lat,
       lng: position.lng,
@@ -196,7 +228,19 @@ export function PublitApp() {
     };
     setMapCenterPosition(next);
 
-    if (locationState.status !== 'granted' && !manualPositionActive) return;
+    if (camera.source === 'user') {
+      const nextRange = getThoughtRangeForZoom(camera.zoom, next.lat);
+      setRangeValue(nextRange);
+
+      if (camera.gesture === 'pan') {
+        manualPositionReasonRef.current = 'user';
+        setManualPositionReason('user');
+        setManualPositionActive(true);
+      }
+    }
+
+    const canBrowseManualCenter = camera.gesture === 'pan' || manualPositionActive || locationState.status === 'granted';
+    if (!canBrowseManualCenter) return;
     if (viewPosition && distanceMeters(viewPosition, next) < 25) return;
 
     void refreshNearby(next, { silent: true });
@@ -245,6 +289,10 @@ export function PublitApp() {
           characterEmoji: result.flame.characterEmoji ?? input.characterEmoji,
           selfStrength: result.flame.selfStrength ?? (input.selfStrength as 1 | 2 | 3),
         };
+        optimisticFlamesRef.current = [
+          createdFlame,
+          ...optimisticFlamesRef.current.filter((flame) => flame.id !== createdFlame.id),
+        ];
         setViewPosition(createPosition);
         setFlames((current) => [createdFlame, ...current.filter((flame) => flame.id !== createdFlame.id)]);
         setCreateFeedback('');
@@ -268,6 +316,7 @@ export function PublitApp() {
     if (!deviceHash) return;
     try {
       await publitApi.extinguishFlame({ flameId, deviceHash });
+      optimisticFlamesRef.current = optimisticFlamesRef.current.filter((flame) => flame.id !== flameId);
       setFlames((current) => current.filter((flame) => flame.id !== flameId));
       void refreshSlots();
       setStatus('내 생각을 내렸어요.');
@@ -300,6 +349,7 @@ export function PublitApp() {
     try {
       const result = await publitApi.reportFlame({ flameId, reason, deviceHash });
       if (result.status === 'hidden' || result.status === 'reported') {
+        optimisticFlamesRef.current = optimisticFlamesRef.current.filter((flame) => flame.id !== flameId);
         setFlames((current) => current.filter((flame) => flame.id !== flameId));
         setSelected(null);
       }
@@ -313,7 +363,12 @@ export function PublitApp() {
 
   return (
     <main data-testid="publit-shell" className="relative min-h-[100svh] overflow-hidden bg-white text-[#252520]">
-      <MapBackground center={activeMapCenter} rangeValue={rangeValue} onCenterChange={handleMapCenterChange} />
+      <MapBackground
+        center={activeMapCenter}
+        isTracking={isTrackingPosition}
+        rangeValue={rangeValue}
+        onCameraChange={handleMapCameraChange}
+      />
       <div data-testid="top-brand-bar" className="pointer-events-auto absolute left-3 right-3 top-3 z-[120] mx-auto max-w-2xl sm:left-4 sm:right-4">
         <div className="grid h-12 grid-cols-[auto_minmax(0,1fr)] items-center gap-1.5 rounded-[16px] bg-white p-1.5 shadow-[3px_3px_0_rgba(35,35,31,0.82),0_0_0_1px_rgba(35,35,31,0.08)]">
           <div data-testid="brand-logo" className="grid h-full w-[78px] shrink-0 place-items-center rounded-[12px] bg-white px-1.5">
@@ -369,9 +424,25 @@ export function PublitApp() {
           type="button"
           className="grid size-9 place-items-center rounded-[10px] bg-white text-[#252520] shadow-[2px_2px_0_rgba(35,35,31,0.72)] transition-transform active:scale-[0.96]"
           aria-label="현재 위치로 이동"
+          aria-pressed={isTrackingPosition}
           onClick={() => {
+            manualPositionReasonRef.current = null;
+            setManualPositionReason(null);
             setManualPositionActive(false);
-            requestLocation({ forceRefresh: true });
+            const currentPosition = liveDevicePosition ?? (
+              locationState.status === 'granted' && Number.isFinite(locationState.lat) && Number.isFinite(locationState.lng)
+                ? {
+                    lat: locationState.lat!,
+                    lng: locationState.lng!,
+                    grid: locationState.grid ?? encodeGrid(locationState.lat!, locationState.lng!),
+                  }
+                : null
+            );
+            if (currentPosition) {
+              setDevicePosition(currentPosition);
+              void refreshNearby(currentPosition, { silent: true });
+            }
+            requestLocation({ forceRefresh: !currentPosition });
           }}
         >
           <LocateFixed size={16} />

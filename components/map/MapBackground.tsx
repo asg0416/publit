@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type PointerEvent as ReactPointerEvent, type WheelEvent as ReactWheelEvent } from 'react';
 import { getZoomForThoughtRange } from '@/lib/map/rangeViewport';
 import type { ThoughtRangeValue } from '@/lib/flame/types';
 
@@ -11,15 +11,24 @@ type MapCenter = {
 
 type MapBackgroundProps = {
   center?: MapCenter | null;
+  isTracking?: boolean;
   rangeValue: ThoughtRangeValue;
-  onCenterChange?: (center: MapCenter) => void;
+  onCameraChange?: (camera: MapCameraChange) => void;
+};
+
+export type MapCameraChange = {
+  center: MapCenter;
+  zoom: number;
+  source: 'programmatic' | 'user';
+  gesture?: 'pan' | 'zoom';
 };
 
 type MapGlotMap = {
   easeTo?: (options: { center?: [number, number]; zoom?: number; duration?: number; essential?: boolean }) => void;
   getCenter?: () => { lat: number; lng: number };
-  off?: (event: 'moveend', handler: () => void) => void;
-  on?: (event: 'moveend', handler: () => void) => void;
+  getZoom?: () => number;
+  off?: (event: 'dragstart' | 'moveend' | 'zoomend' | 'zoomstart', handler: () => void) => void;
+  on?: (event: 'dragstart' | 'moveend' | 'zoomend' | 'zoomstart', handler: () => void) => void;
   remove?: () => void;
   resize?: () => void;
   setCenter?: (center: [number, number]) => void;
@@ -100,19 +109,25 @@ function toMapglotCenter(center?: MapCenter | null): [number, number] {
 }
 
 function moveMap(map: MapGlotMap, center: [number, number], zoom: number, animated: boolean) {
+  const duration = animated ? 280 : 0;
   if (map.easeTo) {
-    map.easeTo({ center, zoom, duration: animated ? 280 : 0, essential: true });
-    return;
+    map.easeTo({ center, zoom, duration, essential: true });
+    return duration;
   }
   map.setCenter?.(center);
   map.setZoom?.(zoom);
+  return duration;
 }
 
-export function MapBackground({ center, rangeValue, onCenterChange }: MapBackgroundProps) {
+export function MapBackground({ center, isTracking = false, rangeValue, onCameraChange }: MapBackgroundProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<MapGlotMap | null>(null);
+  const programmaticMoveTimerRef = useRef<number | null>(null);
+  const programmaticMoveRef = useRef(false);
+  const pointerStartRef = useRef<{ x: number; y: number } | null>(null);
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
-  const onCenterChangeRef = useRef(onCenterChange);
+  const userGestureRef = useRef<MapCameraChange['gesture'] | null>(null);
+  const onCameraChangeRef = useRef(onCameraChange);
   const [initialMapOptions] = useState(() => ({
     center: toMapglotCenter(center),
   }));
@@ -124,12 +139,24 @@ export function MapBackground({ center, rangeValue, onCenterChange }: MapBackgro
   const latestCameraRef = useRef({ center: mapCenter, zoom: mapZoom });
 
   useEffect(() => {
-    onCenterChangeRef.current = onCenterChange;
-  }, [onCenterChange]);
+    onCameraChangeRef.current = onCameraChange;
+  }, [onCameraChange]);
 
   useEffect(() => {
     latestCameraRef.current = { center: mapCenter, zoom: mapZoom };
   }, [mapCenter, mapZoom]);
+
+  const moveCamera = useCallback((map: MapGlotMap, nextCenter: [number, number], nextZoom: number, animated: boolean) => {
+    programmaticMoveRef.current = true;
+    if (programmaticMoveTimerRef.current !== null) {
+      window.clearTimeout(programmaticMoveTimerRef.current);
+    }
+    const duration = moveMap(map, nextCenter, nextZoom, animated);
+    programmaticMoveTimerRef.current = window.setTimeout(() => {
+      programmaticMoveRef.current = false;
+      programmaticMoveTimerRef.current = null;
+    }, duration + 120);
+  }, []);
 
   useEffect(() => {
     if (!mapglotKey || mapglotDisabled || !containerRef.current) {
@@ -166,10 +193,25 @@ export function MapBackground({ center, rangeValue, onCenterChange }: MapBackgro
         const resizeMap = () => {
           window.requestAnimationFrame(() => mapRef.current?.resize?.());
         };
-        const handleMoveEnd = () => {
+        const markPanGesture = () => {
+          if (!programmaticMoveRef.current) userGestureRef.current = 'pan';
+        };
+        const markZoomGesture = () => {
+          if (!programmaticMoveRef.current) userGestureRef.current = 'zoom';
+        };
+        const handleCameraSettled = () => {
           const nextCenter = mapRef.current?.getCenter?.();
           if (!nextCenter) return;
-          onCenterChangeRef.current?.({ lat: nextCenter.lat, lng: nextCenter.lng });
+          const nextZoom = mapRef.current?.getZoom?.() ?? latestCameraRef.current.zoom;
+          const gesture = programmaticMoveRef.current ? null : userGestureRef.current;
+          userGestureRef.current = null;
+          if (!gesture) return;
+          onCameraChangeRef.current?.({
+            center: { lat: nextCenter.lat, lng: nextCenter.lng },
+            zoom: nextZoom,
+            source: 'user',
+            gesture,
+          });
         };
 
         resizeObserverRef.current?.disconnect();
@@ -181,9 +223,17 @@ export function MapBackground({ center, rangeValue, onCenterChange }: MapBackgro
         cleanupResize = () => window.removeEventListener('resize', resizeMap);
         resizeMap();
         resizeTimer = window.setTimeout(resizeMap, 250);
-        mapRef.current.on?.('moveend', handleMoveEnd);
-        cleanupMoveEnd = () => mapRef.current?.off?.('moveend', handleMoveEnd);
-        moveMap(mapRef.current, latestCameraRef.current.center, latestCameraRef.current.zoom, false);
+        mapRef.current.on?.('dragstart', markPanGesture);
+        mapRef.current.on?.('zoomstart', markZoomGesture);
+        mapRef.current.on?.('moveend', handleCameraSettled);
+        mapRef.current.on?.('zoomend', handleCameraSettled);
+        cleanupMoveEnd = () => {
+          mapRef.current?.off?.('dragstart', markPanGesture);
+          mapRef.current?.off?.('zoomstart', markZoomGesture);
+          mapRef.current?.off?.('moveend', handleCameraSettled);
+          mapRef.current?.off?.('zoomend', handleCameraSettled);
+        };
+        moveCamera(mapRef.current, latestCameraRef.current.center, latestCameraRef.current.zoom, false);
         setState('ready');
       })
       .catch(() => {
@@ -193,6 +243,7 @@ export function MapBackground({ center, rangeValue, onCenterChange }: MapBackgro
     return () => {
       cancelled = true;
       if (resizeTimer) window.clearTimeout(resizeTimer);
+      if (programmaticMoveTimerRef.current !== null) window.clearTimeout(programmaticMoveTimerRef.current);
       cleanupResize?.();
       cleanupMoveEnd?.();
       resizeObserverRef.current?.disconnect();
@@ -200,22 +251,69 @@ export function MapBackground({ center, rangeValue, onCenterChange }: MapBackgro
       mapRef.current?.remove?.();
       mapRef.current = null;
     };
-  }, [initialMapOptions]);
+  }, [initialMapOptions, moveCamera]);
 
   useEffect(() => {
     if (!mapRef.current) return;
-    moveMap(mapRef.current, mapCenter, mapZoom, true);
-  }, [mapCenter, mapZoom]);
+    moveCamera(mapRef.current, mapCenter, mapZoom, true);
+  }, [mapCenter, mapZoom, moveCamera]);
+
+  const handleFallbackPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (state === 'ready') return;
+    pointerStartRef.current = { x: event.clientX, y: event.clientY };
+  };
+
+  const handleFallbackPointerUp = (event: ReactPointerEvent<HTMLDivElement>) => {
+    if (state === 'ready') return;
+    const start = pointerStartRef.current;
+    pointerStartRef.current = null;
+    if (!start) return;
+
+    const dx = event.clientX - start.x;
+    const dy = event.clientY - start.y;
+    if (Math.hypot(dx, dy) < 12) return;
+
+    const currentCenter = latestCameraRef.current.center;
+    const degreeStep = 0.000018 * 2 ** (14 - latestCameraRef.current.zoom);
+    onCameraChangeRef.current?.({
+      center: {
+        lat: currentCenter[1] + dy * degreeStep,
+        lng: currentCenter[0] - dx * degreeStep,
+      },
+      zoom: latestCameraRef.current.zoom,
+      source: 'user',
+      gesture: 'pan',
+    });
+  };
+
+  const handleFallbackWheel = (event: ReactWheelEvent<HTMLDivElement>) => {
+    if (state === 'ready') return;
+    event.preventDefault();
+    const currentCamera = latestCameraRef.current;
+    const nextZoom = currentCamera.zoom + (event.deltaY < 0 ? 1 : -1);
+    onCameraChangeRef.current?.({
+      center: { lat: currentCamera.center[1], lng: currentCamera.center[0] },
+      zoom: nextZoom,
+      source: 'user',
+      gesture: 'zoom',
+    });
+  };
 
   return (
     <div
       data-testid="mapglot-background"
       data-map-provider="mapglot"
+      data-map-center-lat={(center?.lat ?? 37.5665).toFixed(5)}
+      data-map-center-lng={(center?.lng ?? 126.978).toFixed(5)}
       data-map-range={rangeValue}
+      data-map-tracking={isTracking ? 'active' : 'manual'}
       data-map-zoom={mapZoom.toFixed(2)}
       data-map-state={state}
       className="absolute inset-0 overflow-hidden bg-white"
       aria-hidden="true"
+      onPointerDown={handleFallbackPointerDown}
+      onPointerUp={handleFallbackPointerUp}
+      onWheel={handleFallbackWheel}
     >
       <div
         ref={containerRef}

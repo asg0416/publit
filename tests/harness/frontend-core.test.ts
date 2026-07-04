@@ -9,7 +9,7 @@ import {
   summarizeClusters,
 } from '../../lib/flame/particleSimulation.ts';
 import type { Flame } from '../../lib/flame/types.ts';
-import { getThoughtRangeMeters, getZoomForThoughtRange } from '../../lib/map/rangeViewport.ts';
+import { getThoughtRangeForZoom, getThoughtRangeMeters, getZoomForThoughtRange } from '../../lib/map/rangeViewport.ts';
 import { CHARACTER_EMOJI, characterKeyForThought } from '../../components/map/character.ts';
 
 describe('Publit frontend core harness', () => {
@@ -22,7 +22,7 @@ describe('Publit frontend core harness', () => {
     assert.notEqual(hash, raw);
   });
 
-  it('refreshes moving location only after 30 seconds and meaningful movement', () => {
+  it('refreshes moving location when movement is meaningful without waiting for a timer', () => {
     const previous = {
       lat: 35.1795,
       lng: 129.0756,
@@ -31,7 +31,8 @@ describe('Publit frontend core harness', () => {
     };
 
     assert.equal(shouldRefreshLocation(previous, { lat: 35.1796, lng: 129.0757, grid: 'g:wydm6', now: 20_000 }), false);
-    assert.equal(shouldRefreshLocation(previous, { lat: 35.1806, lng: 129.0768, grid: 'g:wydm6', now: 20_000 }), false);
+    assert.equal(shouldRefreshLocation(previous, { lat: 35.1806, lng: 129.0768, grid: 'g:wydm6', now: 20_000 }), true);
+    assert.equal(shouldRefreshLocation(previous, { lat: 35.1796, lng: 129.0757, grid: 'g:wydm7', now: 20_000 }), true);
     assert.equal(shouldRefreshLocation(previous, { lat: 35.1806, lng: 129.0768, grid: 'g:wydm6', now: 40_000 }), true);
     assert.equal(shouldRefreshLocation(previous, { lat: 35.1796, lng: 129.0757, grid: 'g:wydm7', now: 40_000 }), true);
     assert.equal(shouldRefreshLocation(previous, { lat: 35.1795, lng: 129.0756, grid: 'g:wydm6', now: 2_000, force: true }), true);
@@ -47,6 +48,8 @@ describe('Publit frontend core harness', () => {
     const zoomNational = getZoomForThoughtRange('national', 37.5665);
 
     assert.equal(zoom500m, getZoomForThoughtRange('500m', 37.5665, 160));
+    assert.equal(getThoughtRangeForZoom(zoom500m + 1, 37.5665), '300m');
+    assert.equal(getThoughtRangeForZoom(zoom500m - 1, 37.5665), '1km');
     assert.ok(zoom50m > zoom500m);
     assert.ok(zoom500m > zoomNational);
     assert.ok(zoom50m <= 18);

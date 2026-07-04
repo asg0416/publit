@@ -174,7 +174,7 @@ test('starts browser location probes only after an explicit user action', async 
   await expect.poll(async () => readGeolocationCalls(page)).toMatchObject({
     getCurrentPositionCalls: 1,
     watchPositionCalls: 1,
-    clearWatchCalls: 1,
+    clearWatchCalls: 0,
     getCurrentPositionOptions: [quickPositionOptions],
     watchPositionOptions: [watchPositionOptions],
   });
@@ -242,7 +242,7 @@ test('uses the immediate watch probe instead of a second one-shot retry after ti
   await expect.poll(async () => readGeolocationCalls(page)).toMatchObject({
     getCurrentPositionCalls: 1,
     watchPositionCalls: 1,
-    clearWatchCalls: 1,
+    clearWatchCalls: 0,
     watchPositionOptions: [watchPositionOptions],
   });
 });
@@ -261,7 +261,7 @@ test('starts a watch immediately so desktop location can resolve before the one-
   await expect.poll(async () => readGeolocationCalls(page)).toMatchObject({
     getCurrentPositionCalls: 1,
     watchPositionCalls: 1,
-    clearWatchCalls: 1,
+    clearWatchCalls: 0,
     watchPositionOptions: [watchPositionOptions],
   });
 });
@@ -349,7 +349,7 @@ test('recovers with watchPosition when the first allowed lookup is temporarily u
   await expect.poll(async () => readGeolocationCalls(page)).toMatchObject({
     getCurrentPositionCalls: 1,
     watchPositionCalls: 1,
-    clearWatchCalls: 1,
+    clearWatchCalls: 0,
     watchPositionOptions: [watchPositionOptions],
   });
 });
@@ -386,7 +386,7 @@ test('does not delay the map-center fallback for transient desktop watch pattern
   await expect.poll(async () => readGeolocationCalls(page)).toMatchObject({
     getCurrentPositionCalls: 1,
     watchPositionCalls: 1,
-    clearWatchCalls: 1,
+    clearWatchCalls: 0,
   });
 });
 
@@ -403,7 +403,7 @@ test('uses the map center when desktop location times out after permission is al
   await expect.poll(async () => readGeolocationCalls(page)).toMatchObject({
     getCurrentPositionCalls: 1,
     watchPositionCalls: 1,
-    clearWatchCalls: 1,
+    clearWatchCalls: 0,
   });
 });
 
@@ -419,7 +419,7 @@ test('restores an already granted desktop location without showing the permissio
   await expect.poll(async () => readGeolocationCalls(page)).toMatchObject({
     getCurrentPositionCalls: 1,
     watchPositionCalls: 1,
-    clearWatchCalls: 1,
+    clearWatchCalls: 0,
   });
   await expect(page.getByTestId('location-gate')).toHaveCount(0);
   await expect(page.getByTestId('thought-character')).toHaveCount(1);

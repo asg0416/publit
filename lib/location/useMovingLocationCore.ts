@@ -30,10 +30,12 @@ export function distanceMeters(a: { lat: number; lng: number }, b: { lat: number
 export function shouldRefreshLocation(previous: LastLocationFetch | null, next: NextLocationSignal): boolean {
   if (next.force) return true;
   if (!previous) return true;
-  if (next.now - previous.fetchedAt < 30_000) return false;
 
   const nextGrid = next.grid ?? encodeGrid(next.lat, next.lng);
   if (nextGrid !== previous.grid) return true;
 
-  return distanceMeters(previous, next) >= 100;
+  const movedMeters = distanceMeters(previous, next);
+  if (movedMeters >= 100) return true;
+
+  return next.now - previous.fetchedAt >= 30_000 && movedMeters >= 25;
 }
