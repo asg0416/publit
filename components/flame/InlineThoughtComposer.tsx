@@ -26,6 +26,7 @@ type InlineThoughtComposerProps = {
 };
 
 const characterKeys = Object.keys(CHARACTER_EMOJI) as CharacterKey[];
+const composerFormId = 'inline-thought-composer-form';
 
 function useVisualKeyboardLift() {
   const [keyboardLift, setKeyboardLift] = useState(0);
@@ -138,6 +139,7 @@ export function InlineThoughtComposer({ topics, remoteSuggestions, slots, submit
 
   return (
     <form
+      id={composerFormId}
       data-testid="inline-thought-composer"
       className="anigeunde-inline-composer pointer-events-auto fixed inset-x-3 bottom-[calc(env(safe-area-inset-bottom)+0.75rem)] z-[160] mx-auto grid max-w-2xl gap-1.5 rounded-[18px] bg-white p-2 shadow-[3px_3px_0_rgba(35,35,31,0.82),0_0_0_1px_rgba(35,35,31,0.08)] sm:bottom-4"
       style={keyboardLift > 0 ? { bottom: `calc(env(safe-area-inset-bottom) + 0.75rem + ${keyboardLift}px)` } : undefined}
@@ -223,6 +225,7 @@ export function InlineThoughtComposer({ topics, remoteSuggestions, slots, submit
         footer={(
           <button
             type="submit"
+            form={composerFormId}
             disabled={!canSubmit}
             className="min-h-12 w-full rounded-[14px] bg-[#ef3b32] px-4 text-sm font-black text-white shadow-[2px_2px_0_rgba(35,35,31,0.72)] transition-[transform,opacity] active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-45"
           >

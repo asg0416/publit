@@ -274,22 +274,31 @@ test('keeps the composer detail sheet above mobile browser chrome and isolates t
   await composer.getByRole('button', { name: '작성 옵션' }).click();
 
   const sheet = page.getByTestId('bottom-sheet-panel');
-  const dialog = page.getByRole('dialog', { name: '생각 자세히 띄우기' });
+  const dialog = page.getByTestId('bottom-sheet-dialog');
   await expect(sheet).toBeVisible();
   await expect(dialog).toHaveCSS('background-color', 'rgba(0, 0, 0, 0)');
+  await page.waitForTimeout(450);
 
-  const visibleViewportBottom = await page.evaluate(() => {
+  const visibleViewport = await page.evaluate(() => {
     const viewport = window.visualViewport;
-    return (viewport?.offsetTop ?? 0) + (viewport?.height ?? window.innerHeight);
+    return {
+      bottom: (viewport?.offsetTop ?? 0) + (viewport?.height ?? window.innerHeight),
+      height: viewport?.height ?? window.innerHeight,
+      top: viewport?.offsetTop ?? 0,
+    };
   });
+  const dialogBox = await requiredBox(dialog);
+  expect(dialogBox.y).toBeCloseTo(visibleViewport.top, 1);
+  expect(dialogBox.height).toBeCloseTo(visibleViewport.height, 1);
+
   const sheetBox = await requiredBox(sheet);
-  expect(sheetBox.y + sheetBox.height).toBeLessThanOrEqual(visibleViewportBottom + 1);
+  expect(sheetBox.y + sheetBox.height).toBeCloseTo(visibleViewport.bottom, 1);
   expect(sheetBox.height).toBeLessThanOrEqual(700 * 0.61);
 
   const submitButton = sheet.getByRole('button', { name: '생각 띄우기', exact: true });
   await expect(submitButton).toBeVisible();
   const submitBox = await requiredBox(submitButton);
-  expect(submitBox.y + submitBox.height).toBeLessThanOrEqual(visibleViewportBottom + 1);
+  expect(submitBox.y + submitBox.height).toBeLessThanOrEqual(visibleViewport.bottom + 1);
 
   await expect(page.getByTestId('composer-tag-preview')).toHaveAttribute('data-tone', 'spark');
   const tagInput = sheet.getByLabel('생각 태그');

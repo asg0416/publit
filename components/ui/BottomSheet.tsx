@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState, type FocusEvent, type PropsWithChildren, type ReactNode } from 'react';
+import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
 
 type BottomSheetProps = PropsWithChildren<{
@@ -11,7 +12,7 @@ type BottomSheetProps = PropsWithChildren<{
 }>;
 
 function useBottomSheetViewport(open: boolean) {
-  const [metrics, setMetrics] = useState({ bottomInset: 0, height: 0 });
+  const [metrics, setMetrics] = useState({ bottomInset: 0, height: 0, top: 0 });
 
   useEffect(() => {
     if (!open) return undefined;
@@ -21,7 +22,7 @@ function useBottomSheetViewport(open: boolean) {
       const height = Math.round(viewport?.height ?? window.innerHeight);
       const offsetTop = Math.round(viewport?.offsetTop ?? 0);
       const bottomInset = Math.max(0, Math.round(window.innerHeight - height - offsetTop));
-      setMetrics({ bottomInset, height });
+      setMetrics({ bottomInset, height, top: offsetTop });
     };
 
     update();
@@ -39,9 +40,9 @@ function useBottomSheetViewport(open: boolean) {
 }
 
 export function BottomSheet({ open, title, onClose, footer, children }: BottomSheetProps) {
-  const { bottomInset, height } = useBottomSheetViewport(open);
+  const { bottomInset, height, top } = useBottomSheetViewport(open);
 
-  if (!open) return null;
+  if (!open || typeof document === 'undefined') return null;
 
   const keepFocusedFieldVisible = (event: FocusEvent<HTMLDivElement>) => {
     const scroller = event.currentTarget;
@@ -57,14 +58,16 @@ export function BottomSheet({ open, title, onClose, footer, children }: BottomSh
   };
 
   const panelMaxHeight = height > 0 ? Math.floor(height * 0.6) : undefined;
+  const dialogStyle = height > 0 ? { bottom: 'auto', height, top } : undefined;
 
-  return (
+  return createPortal(
     <div
-      className={`fixed inset-0 z-[220] flex items-end justify-center lg:px-6 lg:pb-6 ${bottomInset > 0 ? 'bg-transparent' : 'bg-[#26251e]/28'}`}
+      data-testid="bottom-sheet-dialog"
+      className={`fixed inset-x-0 top-0 z-[220] flex h-dvh items-end justify-center lg:px-6 lg:pb-6 ${bottomInset > 0 ? 'bg-transparent' : 'bg-[#26251e]/28'}`}
       role="dialog"
       aria-modal="true"
       aria-label={title}
-      style={bottomInset > 0 ? { paddingBottom: bottomInset } : undefined}
+      style={dialogStyle}
     >
       <div
         data-testid="bottom-sheet-panel"
@@ -98,6 +101,7 @@ export function BottomSheet({ open, title, onClose, footer, children }: BottomSh
           </div>
         ) : null}
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 }
