@@ -216,11 +216,25 @@ export function InlineThoughtComposer({ topics, remoteSuggestions, slots, submit
         </button>
       </div>
 
-      <BottomSheet open={optionsOpen} title="생각 자세히 띄우기" onClose={() => setOptionsOpen(false)}>
+      <BottomSheet
+        open={optionsOpen}
+        title="생각 자세히 띄우기"
+        onClose={() => setOptionsOpen(false)}
+        footer={(
+          <button
+            type="submit"
+            disabled={!canSubmit}
+            className="min-h-12 w-full rounded-[14px] bg-[#ef3b32] px-4 text-sm font-black text-white shadow-[2px_2px_0_rgba(35,35,31,0.72)] transition-[transform,opacity] active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-45"
+          >
+            생각 띄우기
+          </button>
+        )}
+      >
         <div className="grid gap-4">
-          <label className="grid gap-2">
-            <span className="text-xs font-black text-[#6f6b61]">지금 떠오른 생각</span>
+          <div className="grid gap-2">
+            <label className="text-xs font-black text-[#6f6b61]" htmlFor="detail-thought-text">지금 떠오른 생각</label>
             <textarea
+              id="detail-thought-text"
               value={text}
               maxLength={80}
               onChange={(event) => setText(event.target.value)}
@@ -229,11 +243,12 @@ export function InlineThoughtComposer({ topics, remoteSuggestions, slots, submit
               aria-label="지금 떠오른 생각"
             />
             <span className="text-right font-mono text-xs font-black tabular-nums text-[#6f6b61]">{text.length}/80</span>
-          </label>
+          </div>
 
-          <label className="grid gap-2">
-            <span className="text-xs font-black text-[#6f6b61]">생각 태그</span>
+          <div className="grid gap-2">
+            <label className="text-xs font-black text-[#6f6b61]" htmlFor="detail-thought-tag">생각 태그</label>
             <input
+              id="detail-thought-tag"
               value={tagLabel}
               maxLength={20}
               onChange={(event) => handleTagChange(event.target.value)}
@@ -241,7 +256,7 @@ export function InlineThoughtComposer({ topics, remoteSuggestions, slots, submit
               placeholder="#지금생각"
               aria-label="생각 태그"
             />
-          </label>
+          </div>
 
           <section className="grid gap-2">
             <h3 className="text-xs font-black text-[#6f6b61]">기분</h3>
@@ -334,14 +349,6 @@ export function InlineThoughtComposer({ topics, remoteSuggestions, slots, submit
           {hasInvalidCustomEmoji ? <p className="rounded-[10px] bg-[#ef3b32]/10 px-3 py-2 text-xs font-bold text-[#b52620]">직접 캐릭터는 이모지 하나만 넣을 수 있어요.</p> : null}
           {blocked ? <p className="rounded-[10px] bg-[#ef3b32]/10 px-3 py-2 text-xs font-bold text-[#b52620]">위험하거나 사생활을 침해할 수 있는 문구는 생각으로 띄울 수 없어요.</p> : null}
           {visibleSubmitMessage ? <p role="status" className="rounded-[10px] bg-[#9fbbe0]/20 px-3 py-2 text-xs font-bold text-[#27476b]">{visibleSubmitMessage}</p> : null}
-
-          <button
-            type="submit"
-            disabled={!canSubmit}
-            className="min-h-12 rounded-[14px] bg-[#ef3b32] px-4 text-sm font-black text-white shadow-[2px_2px_0_rgba(35,35,31,0.72)] transition-[transform,opacity] active:scale-[0.96] disabled:cursor-not-allowed disabled:opacity-45"
-          >
-            생각 띄우기
-          </button>
         </div>
       </BottomSheet>
 

@@ -74,6 +74,41 @@ async function expectComposerSheetUsable(page: Page, sheet: Locator) {
   expectInside(await requiredBox(tagInput), await requiredBox(sheet));
 }
 
+async function installMobileBrowserChromeViewport(page: Page, visualHeight: number) {
+  await page.addInitScript((height) => {
+    const listeners = new Map<string, Set<EventListenerOrEventListenerObject>>();
+    const viewport = {
+      width: 390,
+      height,
+      offsetLeft: 0,
+      offsetTop: 0,
+      pageLeft: 0,
+      pageTop: 0,
+      scale: 1,
+      addEventListener(type: string, listener: EventListenerOrEventListenerObject) {
+        const next = listeners.get(type) ?? new Set<EventListenerOrEventListenerObject>();
+        next.add(listener);
+        listeners.set(type, next);
+      },
+      removeEventListener(type: string, listener: EventListenerOrEventListenerObject) {
+        listeners.get(type)?.delete(listener);
+      },
+      dispatchEvent(event: Event) {
+        for (const listener of listeners.get(event.type) ?? []) {
+          if (typeof listener === 'function') listener.call(viewport, event);
+          else listener.handleEvent(event);
+        }
+        return true;
+      },
+    };
+
+    Object.defineProperty(window, 'visualViewport', {
+      configurable: true,
+      value: viewport,
+    });
+  }, visualHeight);
+}
+
 test.beforeEach(async ({ page }) => {
   await page.addInitScript(() => {
     const position = {
@@ -227,4 +262,37 @@ test('keeps the full map controls separated on mobile', async ({ page }) => {
   await expect(page.getByText('내 생각')).toBeVisible();
   await expectComposerSheetUsable(page, detailsSheet);
   await expect.poll(() => page.evaluate(() => document.documentElement.scrollWidth <= document.documentElement.clientWidth)).toBe(true);
+});
+
+test('keeps the composer detail sheet above mobile browser chrome and isolates tag input taps', async ({ page }) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await installMobileBrowserChromeViewport(page, 700);
+  await page.goto('/');
+  await page.getByRole('button', { name: /위치 허용/ }).click();
+
+  const composer = page.getByTestId('inline-thought-composer');
+  await composer.getByRole('button', { name: '작성 옵션' }).click();
+
+  const sheet = page.getByTestId('bottom-sheet-panel');
+  await expect(sheet).toBeVisible();
+
+  const visibleViewportBottom = await page.evaluate(() => {
+    const viewport = window.visualViewport;
+    return (viewport?.offsetTop ?? 0) + (viewport?.height ?? window.innerHeight);
+  });
+  const sheetBox = await requiredBox(sheet);
+  expect(sheetBox.y + sheetBox.height).toBeLessThanOrEqual(visibleViewportBottom + 1);
+  expect(sheetBox.height).toBeLessThanOrEqual(700 * 0.61);
+
+  const submitButton = sheet.getByRole('button', { name: '생각 띄우기', exact: true });
+  await expect(submitButton).toBeVisible();
+  const submitBox = await requiredBox(submitButton);
+  expect(submitBox.y + submitBox.height).toBeLessThanOrEqual(visibleViewportBottom + 1);
+
+  await expect(page.getByTestId('composer-tag-preview')).toHaveAttribute('data-tone', 'spark');
+  const tagInput = sheet.getByLabel('생각 태그');
+  await tagInput.click();
+  await tagInput.fill('#모바일태그');
+  await expect(tagInput).toHaveValue('#모바일태그');
+  await expect(page.getByTestId('composer-tag-preview')).toHaveAttribute('data-tone', 'spark');
 });
