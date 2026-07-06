@@ -1,7 +1,7 @@
 export type FlameCategory = 'politics' | 'local' | 'society' | 'safety' | 'daily' | 'other';
 export type FlameMood = 'quiet' | 'curious' | 'serious' | 'want_talk';
 export type FlameStatus = 'live' | 'ember' | 'trace' | 'extinguished' | 'reported' | 'hidden' | 'expired';
-export type ReactionType = 'similar' | 'curious' | 'neutral' | 'disagree' | 'watching';
+export type ReactionType = 'similar' | 'curious' | 'neutral' | 'disagree' | 'watching' | 'custom';
 export type ReportReason = 'misinformation' | 'doxxing' | 'violence' | 'illegal' | 'hate' | 'spam' | 'privacy' | 'other';
 export type CharacterKey = 'turtle' | 'chick' | 'fox' | 'dog' | 'butterfly' | 'bug';
 export type DisplayScope = 'nearby' | 'district' | 'regional' | 'national';
@@ -33,13 +33,14 @@ export type ReactionSummaryItem = {
   label: string;
   count: number;
   reacted: boolean;
+  custom?: boolean;
 };
 
 export function summarizeReactionRows(
   rows: Array<Record<string, unknown>>,
   deviceHash?: string | null,
 ): ReactionSummaryItem[] {
-  return REACTION_OPTIONS.map((option) => {
+  const fixedReactions = REACTION_OPTIONS.map((option) => {
     const matchingRows = rows.filter((row) => row.reaction_type === option.type);
     return {
       ...option,
@@ -47,6 +48,29 @@ export function summarizeReactionRows(
       reacted: Boolean(deviceHash && matchingRows.some((row) => row.device_hash === deviceHash)),
     };
   });
+
+  const customGroups = new Map<string, Array<Record<string, unknown>>>();
+  for (const row of rows) {
+    if (row.reaction_type !== 'custom') continue;
+    const label = validateOptionalCustomReactionLabel(row.reaction_label);
+    if (!label) continue;
+    const group = customGroups.get(label) ?? [];
+    group.push(row);
+    customGroups.set(label, group);
+  }
+
+  const customReactions = Array.from(customGroups.entries())
+    .map(([label, matchingRows]) => ({
+      type: 'custom' as const,
+      label,
+      count: matchingRows.length,
+      reacted: Boolean(deviceHash && matchingRows.some((row) => row.device_hash === deviceHash)),
+      custom: true,
+    }))
+    .sort((a, b) => b.count - a.count || a.label.localeCompare(b.label, 'ko'))
+    .slice(0, 4);
+
+  return [...fixedReactions, ...customReactions];
 }
 
 const CATEGORY_BY_KEYWORD: Array<[RegExp, FlameCategory]> = [
@@ -349,6 +373,19 @@ export function validateCommentBody(value: unknown): string {
   return body;
 }
 
+function validateOptionalCustomReactionLabel(value: unknown): string | null {
+  const label = String(value ?? '').trim().replace(/\s+/g, ' ');
+  if (!label || label.length > 18) return null;
+  if (/[\n\r\t]/.test(label)) return null;
+  return label;
+}
+
+export function validateCustomReactionLabel(value: unknown): string {
+  const label = validateOptionalCustomReactionLabel(value);
+  if (!label) throw new Error('INVALID_REACTION_LABEL');
+  return label;
+}
+
 export function sanitizeCommentForResponse(row: Record<string, unknown>): Record<string, unknown> {
   return {
     id: row.id,
@@ -465,7 +502,7 @@ export function validateCategory(value: unknown, text: string, tag: string): Fla
 }
 
 export function validateReactionType(value: unknown): ReactionType {
-  if (value === 'similar' || value === 'curious' || value === 'neutral' || value === 'disagree' || value === 'watching') return value;
+  if (value === 'similar' || value === 'curious' || value === 'neutral' || value === 'disagree' || value === 'watching' || value === 'custom') return value;
   throw new Error('INVALID_REACTION_TYPE');
 }
 

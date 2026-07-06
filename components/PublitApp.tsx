@@ -347,10 +347,10 @@ export function PublitApp() {
     }
   }, [deviceHash, refreshSlots]);
 
-  const handleReact = useCallback(async (flameId: string, reactionType: ReactionType) => {
+  const handleReact = useCallback(async (flameId: string, reactionType: ReactionType, reactionLabel?: string) => {
     if (!deviceHash) return;
     try {
-      const result = await publitApi.reactFlame({ flameId, reactionType, deviceHash });
+      const result = await publitApi.reactFlame({ flameId, reactionType, reactionLabel, deviceHash });
       setFlames((current) => current.map((flame) => flame.id === flameId ? {
         ...flame,
         heatLabel: result.heatLabel,

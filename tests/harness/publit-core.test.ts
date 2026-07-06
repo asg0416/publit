@@ -12,8 +12,10 @@ import {
   sanitizeFlameForResponse,
   sanitizeCommentForResponse,
   selectActiveSlotState,
+  summarizeReactionRows,
   suggestTagsForText,
   validateCommentBody,
+  validateCustomReactionLabel,
   validateReactionType,
 } from '../../supabase/functions/_shared/publit.ts';
 
@@ -209,7 +211,26 @@ describe('Publit shared Edge Function core', () => {
     for (const reaction of ['similar', 'curious', 'neutral', 'disagree', 'watching']) {
       assert.equal(validateReactionType(reaction), reaction);
     }
+    assert.equal(validateReactionType('custom'), 'custom');
+    assert.equal(validateCustomReactionLabel('  완전 공감  '), '완전 공감');
+    assert.throws(() => validateCustomReactionLabel(''), /INVALID_REACTION_LABEL/);
+    assert.throws(() => validateCustomReactionLabel('x'.repeat(19)), /INVALID_REACTION_LABEL/);
     assert.throws(() => validateReactionType('need_source'), /INVALID_REACTION_TYPE/);
+  });
+
+  it('summarizes custom reaction labels with my reacted state', () => {
+    const reactions = summarizeReactionRows([
+      { reaction_type: 'similar', device_hash: 'device-a' },
+      { reaction_type: 'custom', reaction_label: '완전 공감', device_hash: 'device-a' },
+      { reaction_type: 'custom', reaction_label: '완전 공감', device_hash: 'device-b' },
+      { reaction_type: 'custom', reaction_label: '글쎄', device_hash: 'device-c' },
+    ], 'device-a');
+
+    const custom = reactions.filter((reaction) => reaction.type === 'custom');
+    assert.deepEqual(custom, [
+      { type: 'custom', label: '완전 공감', count: 2, reacted: true, custom: true },
+      { type: 'custom', label: '글쎄', count: 1, reacted: false, custom: true },
+    ]);
   });
 
   it('keeps user-entered tags intact while still suggesting and blocking unsafe content', () => {

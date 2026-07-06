@@ -64,6 +64,7 @@ describe('Publit Edge Function contract', () => {
 
     assert.match(readFileSync(join(functionsDir, 'create-flame', 'index.ts'), 'utf8'), /FLAME_SLOT_FULL/);
     assert.match(readFileSync(join(functionsDir, 'react-flame', 'index.ts'), 'utf8'), /flame_id,\s*device_hash,\s*reaction_type|duplicate/i);
+    assert.match(readFileSync(join(functionsDir, 'react-flame', 'index.ts'), 'utf8'), /reactionLabel|reaction_label/);
     assert.match(readFileSync(join(functionsDir, 'report-flame', 'index.ts'), 'utf8'), /reported|hidden/);
   });
 

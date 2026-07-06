@@ -16,7 +16,7 @@ type FlameDetailSheetProps = {
   flames: Flame[];
   onClose: () => void;
   onSelect: (flame: Flame) => void;
-  onReact: (flameId: string, reaction: ReactionType) => void;
+  onReact: (flameId: string, reaction: ReactionType, reactionLabel?: string) => void;
   onReport: (flameId: string, reason: ReportReason) => void;
   onLoadComments: (flameId: string) => Promise<FlameComment[]>;
   onCreateComment: (flameId: string, body: string) => Promise<FlameComment | null>;
@@ -209,7 +209,7 @@ export function FlameDetailSheet({ flame, flames, onClose, onSelect, onReact, on
             </div>
             <p className="rounded-lg bg-[#ef3b32]/10 px-4 py-3 text-sm font-black text-[#b52620]">{displayHeatLabel(activeFlame.heatLabel)}</p>
             {activeFlame.lifecycle !== 'trace' ? (
-              <ReactionBar reactions={activeFlame.reactions} onReact={(reaction) => onReact(activeFlame.id, reaction)} />
+              <ReactionBar reactions={activeFlame.reactions} onReact={(reaction, reactionLabel) => onReact(activeFlame.id, reaction, reactionLabel)} />
             ) : null}
             {activeFlame.lifecycle !== 'trace' ? (
               <section className="grid gap-2 rounded-[14px] bg-white p-3 shadow-[1px_1px_0_rgba(35,35,31,0.32),0_0_0_1px_rgba(35,35,31,0.08)]">

@@ -45,6 +45,9 @@ describe('Publit database privacy migration', () => {
       assert.match(migrationSql, new RegExp(`'${value}'`));
     }
 
+    assert.match(migrationSql, /reaction_label\s+text/);
+    assert.match(migrationSql, /'custom'/);
+
     for (const value of ['visible', 'deleted', 'keep', 'hide', 'delete', 'create_comment', 'extend_flame']) {
       assert.match(migrationSql, new RegExp(`'${value}'`));
     }
@@ -70,6 +73,7 @@ describe('Publit database privacy migration', () => {
     }
 
     assert.match(migrationSql, /create unique index[^;]+flame_reactions[^;]+\(flame_id,\s*device_hash,\s*reaction_type\)/);
+    assert.match(migrationSql, /create unique index[^;]+flame_reactions[^;]+\(flame_id,\s*device_hash,\s*reaction_label\)/);
     assert.match(migrationSql, /create unique index[^;]+reports[^;]+\(flame_id,\s*device_hash,\s*reason\)/);
     assert.match(migrationSql, /create index[^;]+flame_comments[^;]+\(flame_id,\s*created_at\)/);
     assert.match(migrationSql, /create index[^;]+report_reviews[^;]+\(report_id,\s*created_at\)/);

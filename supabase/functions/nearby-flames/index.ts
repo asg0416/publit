@@ -33,7 +33,7 @@ Deno.serve(async (req: Request) => {
     if (flameIds.length) {
       const { data: reactionRows, error: reactionError } = await supabase
         .from('flame_reactions')
-        .select('flame_id, reaction_type, device_hash')
+        .select('flame_id, reaction_type, reaction_label, device_hash')
         .in('flame_id', flameIds);
       if (reactionError) throw new PublitHttpError('REACTION_SUMMARY_FAILED', 500);
 

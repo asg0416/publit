@@ -69,7 +69,7 @@ export const publitApi = {
     lng: number;
     deviceHash: string;
   }) => invoke<{ flame?: Flame; activeFlames?: Array<{ id: string; tagLabel: string; status: string; createdAt: string }>; error?: { code: string } }>('create-flame', body),
-  reactFlame: (body: { flameId: string; reactionType: ReactionType; deviceHash: string }) =>
+  reactFlame: (body: { flameId: string; reactionType: ReactionType; reactionLabel?: string; deviceHash: string }) =>
     invoke<{ heatLabel: string; duplicate?: boolean; reactions?: ReactionSummaryItem[] }>('react-flame', body),
   reportFlame: (body: { flameId: string; reason: ReportReason; detail?: string; deviceHash: string }) =>
     invoke<{ ok: boolean; status: string }>('report-flame', body),

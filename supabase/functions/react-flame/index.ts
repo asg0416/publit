@@ -1,4 +1,4 @@
-import { getHeatLabel, summarizeReactionRows, validateDeviceHash, validateReactionType } from '../_shared/publit.ts';
+import { detectBlockedContent, getHeatLabel, summarizeReactionRows, validateCustomReactionLabel, validateDeviceHash, validateReactionType } from '../_shared/publit.ts';
 import {
   assertActionAllowed,
   createAdminClient,
@@ -19,17 +19,23 @@ Deno.serve(async (req: Request) => {
 
     const deviceHash = validateDeviceHash(body.deviceHash);
     const reactionType = validateReactionType(body.reactionType);
+    const reactionLabel = reactionType === 'custom' ? validateCustomReactionLabel(body.reactionLabel) : null;
+    if (reactionLabel) {
+      const blocked = detectBlockedContent(reactionLabel);
+      if (blocked.blocked) throw new PublitHttpError('CONTENT_BLOCKED', 400, 'CONTENT_BLOCKED', blocked.reason);
+    }
     const supabase = createAdminClient();
 
     await assertActionAllowed(supabase, deviceHash, 'react_flame');
 
-    const duplicate = await supabase
+    let duplicateQuery = supabase
       .from('flame_reactions')
       .select('id')
       .eq('flame_id', flameId)
       .eq('device_hash', deviceHash)
-      .eq('reaction_type', reactionType)
-      .maybeSingle();
+      .eq('reaction_type', reactionType);
+    if (reactionLabel) duplicateQuery = duplicateQuery.eq('reaction_label', reactionLabel);
+    const duplicate = await duplicateQuery.maybeSingle();
 
     const { data: flame, error: flameError } = await supabase
       .from('flames')
@@ -44,7 +50,7 @@ Deno.serve(async (req: Request) => {
     const getReactions = async () => {
       const { data: reactionRows, error: reactionError } = await supabase
         .from('flame_reactions')
-        .select('reaction_type, device_hash')
+        .select('reaction_type, reaction_label, device_hash')
         .eq('flame_id', flameId);
       if (reactionError) throw new PublitHttpError('REACTION_SUMMARY_FAILED', 500);
       return summarizeReactionRows(reactionRows ?? [], deviceHash);
@@ -62,6 +68,7 @@ Deno.serve(async (req: Request) => {
       flame_id: flameId,
       device_hash: deviceHash,
       reaction_type: reactionType,
+      reaction_label: reactionLabel,
     });
     if (insertError) throw new PublitHttpError('REACTION_CREATE_FAILED', 500);
 
