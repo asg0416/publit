@@ -311,23 +311,16 @@ export function validateDisplayScope(value: unknown): DisplayScope {
 }
 
 export function computeLifecycle(
-  flame: Pick<Record<string, unknown>, 'status' | 'live_until' | 'ember_until' | 'trace_until'>,
+  flame: Pick<Record<string, unknown>, 'status' | 'live_until' | 'expires_at'>,
   now = new Date(),
 ): FlameStatus {
   const status = flame.status as FlameStatus;
   if (['extinguished', 'reported', 'hidden', 'expired'].includes(status)) return status;
 
   const currentTime = now.getTime();
-  if (status === 'trace') {
-    return currentTime < new Date(String(flame.trace_until)).getTime() ? 'trace' : 'expired';
-  }
-  if (status === 'ember') {
-    return currentTime < new Date(String(flame.ember_until)).getTime() ? 'ember' : 'trace';
-  }
-  if (currentTime < new Date(String(flame.live_until)).getTime()) return 'live';
-  if (currentTime < new Date(String(flame.ember_until)).getTime()) return 'ember';
-  if (currentTime < new Date(String(flame.trace_until)).getTime()) return 'trace';
-  return 'expired';
+  const expiresAt = new Date(String(flame.expires_at ?? flame.live_until)).getTime();
+  if (!Number.isFinite(expiresAt)) return 'expired';
+  return currentTime < expiresAt && status === 'live' ? 'live' : 'expired';
 }
 
 export function sanitizeFlameForResponse(row: Record<string, unknown>, now = new Date()): Record<string, unknown> {
@@ -347,7 +340,6 @@ export function sanitizeFlameForResponse(row: Record<string, unknown>, now = new
     regionCode: row.region_code ?? 'nearby',
     createdAt: row.created_at,
     liveUntil: row.live_until,
-    emberUntil: row.ember_until,
   };
 
   if (row.expires_at) response.expiresAt = row.expires_at;
@@ -355,9 +347,7 @@ export function sanitizeFlameForResponse(row: Record<string, unknown>, now = new
     response.extensionCount = Number(row.extension_count);
   }
 
-  if (lifecycle !== 'trace') {
-    response.text = row.text;
-  }
+  response.text = row.text;
 
   const characterEmoji = sanitizeCharacterEmoji(row.character_emoji);
   if (characterEmoji) {

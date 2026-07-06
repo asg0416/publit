@@ -60,7 +60,7 @@ Deno.serve(async (req: Request) => {
       .select('id, tag_label, status, created_at')
       .eq('device_hash', deviceHash)
       .eq('status', 'live')
-      .gt('live_until', now.toISOString())
+      .gt('expires_at', now.toISOString())
       .order('created_at', { ascending: false });
 
     if (activeError) throw new PublitHttpError('ACTIVE_SLOT_LOOKUP_FAILED', 500);

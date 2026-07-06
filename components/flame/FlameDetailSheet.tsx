@@ -32,8 +32,6 @@ const moodLabels: Record<Flame['mood'], string> = {
 
 const lifecycleLabels: Record<Flame['lifecycle'], string> = {
   live: '방금 떠 있음',
-  ember: '잔잔히 남음',
-  trace: '분위기로 남음',
 };
 
 function displayHeatLabel(label: string) {
@@ -192,7 +190,7 @@ export function FlameDetailSheet({ flame, flames, onClose, onSelect, onReact, on
                   })}
                 </span>
                 <p className="self-center text-pretty text-base font-black leading-7 text-inherit">
-                  {activeFlame.text ?? '이 생각은 본문 없이 공간의 분위기로만 남아 있어요.'}
+                  {activeFlame.text ?? '생각 내용을 불러오지 못했어요.'}
                 </p>
               </div>
               {canSwipe ? (
@@ -208,46 +206,42 @@ export function FlameDetailSheet({ flame, flames, onClose, onSelect, onReact, on
               <Badge>{formatLifeLabel(activeFlame)}</Badge>
             </div>
             <p className="rounded-lg bg-[#ef3b32]/10 px-4 py-3 text-sm font-black text-[#b52620]">{displayHeatLabel(activeFlame.heatLabel)}</p>
-            {activeFlame.lifecycle !== 'trace' ? (
-              <ReactionBar reactions={activeFlame.reactions} onReact={(reaction, reactionLabel) => onReact(activeFlame.id, reaction, reactionLabel)} />
-            ) : null}
-            {activeFlame.lifecycle !== 'trace' ? (
-              <section className="grid gap-2 rounded-[14px] bg-white p-3 shadow-[1px_1px_0_rgba(35,35,31,0.32),0_0_0_1px_rgba(35,35,31,0.08)]">
-                <div className="flex items-center justify-between gap-3">
-                  <h3 className="text-sm font-black text-[#252520]">익명 댓글</h3>
-                  <span className="font-mono text-[10px] font-black tabular-nums text-[#9a968c]">{comments.length}</span>
-                </div>
-                <div className="grid max-h-32 gap-1.5 overflow-y-auto pr-1">
-                  {comments.length === 0 ? <p className="text-xs font-bold text-[#6f6b61]">아직 댓글이 없어요.</p> : null}
-                  {comments.map((comment) => (
-                    <p key={comment.id} className="rounded-[10px] bg-[#f5f5f5] px-3 py-2 text-xs font-bold leading-5 text-[#252520]">
-                      {comment.body}
-                    </p>
-                  ))}
-                </div>
-                <form className="grid grid-cols-[minmax(0,1fr)_auto] gap-2" onSubmit={handleCommentSubmit}>
-                  <label className="sr-only" htmlFor="thought-comment-input">익명 댓글</label>
-                  <input
-                    id="thought-comment-input"
-                    value={commentBody}
-                    maxLength={160}
-                    onChange={(event) => setCommentBody(event.target.value)}
-                    className="min-h-10 min-w-0 rounded-[12px] border border-[#d5d2c8] bg-white px-3 text-xs font-bold text-[#252520] outline-none transition-[border-color,box-shadow] placeholder:text-[#9a968c] focus:border-[#ef3b32] focus:shadow-[0_0_0_3px_rgba(239,59,50,0.14)]"
-                    placeholder="익명으로 한마디"
-                  />
-                  <Button type="submit" disabled={!commentBody.trim() || commentSubmitting} className="px-3 text-xs">
-                    남기기
-                  </Button>
-                </form>
-              </section>
-            ) : null}
+            <ReactionBar reactions={activeFlame.reactions} onReact={(reaction, reactionLabel) => onReact(activeFlame.id, reaction, reactionLabel)} />
+            <section className="grid gap-2 rounded-[14px] bg-white p-3 shadow-[1px_1px_0_rgba(35,35,31,0.32),0_0_0_1px_rgba(35,35,31,0.08)]">
+              <div className="flex items-center justify-between gap-3">
+                <h3 className="text-sm font-black text-[#252520]">익명 댓글</h3>
+                <span className="font-mono text-[10px] font-black tabular-nums text-[#9a968c]">{comments.length}</span>
+              </div>
+              <div className="grid max-h-32 gap-1.5 overflow-y-auto pr-1">
+                {comments.length === 0 ? <p className="text-xs font-bold text-[#6f6b61]">아직 댓글이 없어요.</p> : null}
+                {comments.map((comment) => (
+                  <p key={comment.id} className="rounded-[10px] bg-[#f5f5f5] px-3 py-2 text-xs font-bold leading-5 text-[#252520]">
+                    {comment.body}
+                  </p>
+                ))}
+              </div>
+              <form className="grid grid-cols-[minmax(0,1fr)_auto] gap-2" onSubmit={handleCommentSubmit}>
+                <label className="sr-only" htmlFor="thought-comment-input">익명 댓글</label>
+                <input
+                  id="thought-comment-input"
+                  value={commentBody}
+                  maxLength={160}
+                  onChange={(event) => setCommentBody(event.target.value)}
+                  className="min-h-10 min-w-0 rounded-[12px] border border-[#d5d2c8] bg-white px-3 text-xs font-bold text-[#252520] outline-none transition-[border-color,box-shadow] placeholder:text-[#9a968c] focus:border-[#ef3b32] focus:shadow-[0_0_0_3px_rgba(239,59,50,0.14)]"
+                  placeholder="익명으로 한마디"
+                />
+                <Button type="submit" disabled={!commentBody.trim() || commentSubmitting} className="px-3 text-xs">
+                  남기기
+                </Button>
+              </form>
+            </section>
             <div className="grid grid-cols-2 gap-2">
-              {activeFlame.ownedByDevice && activeFlame.lifecycle !== 'trace' ? (
+              {activeFlame.ownedByDevice ? (
                 <Button type="button" onClick={handleExtend} disabled={extending}>
                   하루 연장
                 </Button>
               ) : null}
-              <Button variant="secondary" className={activeFlame.ownedByDevice && activeFlame.lifecycle !== 'trace' ? '' : 'col-span-2'} onClick={() => setReportOpen(true)}>신고</Button>
+              <Button variant="secondary" className={activeFlame.ownedByDevice ? '' : 'col-span-2'} onClick={() => setReportOpen(true)}>신고</Button>
             </div>
           </div>
         ) : null}

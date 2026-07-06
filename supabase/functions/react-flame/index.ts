@@ -39,12 +39,15 @@ Deno.serve(async (req: Request) => {
 
     const { data: flame, error: flameError } = await supabase
       .from('flames')
-      .select('id, heat_score, status')
+      .select('id, heat_score, status, expires_at')
       .eq('id', flameId)
       .single();
 
     if (flameError || !flame || ['hidden', 'reported', 'expired', 'extinguished'].includes(flame.status)) {
       throw new PublitHttpError('FLAME_NOT_REACTABLE', 404);
+    }
+    if (flame.status !== 'live' || new Date(String(flame.expires_at)).getTime() <= Date.now()) {
+      throw new PublitHttpError('FLAME_EXPIRED', 410);
     }
 
     const getReactions = async () => {

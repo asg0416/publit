@@ -30,7 +30,7 @@ Deno.serve(async (req: Request) => {
       .select('id, status, expires_at')
       .eq('id', flameId)
       .single();
-    if (flameError || !flame || ['hidden', 'reported', 'expired', 'extinguished'].includes(flame.status)) {
+    if (flameError || !flame || flame.status !== 'live') {
       throw new PublitHttpError('FLAME_NOT_COMMENTABLE', 404);
     }
     if (flame.expires_at && new Date(flame.expires_at).getTime() <= Date.now()) {

@@ -14,7 +14,7 @@ Deno.serve(async (req: Request) => {
       .select('id, tag_label, status, created_at')
       .eq('device_hash', deviceHash)
       .eq('status', 'live')
-      .gt('live_until', new Date().toISOString())
+      .gt('expires_at', new Date().toISOString())
       .order('created_at', { ascending: false });
 
     if (error) throw new PublitHttpError('MY_FLAMES_FAILED', 500);

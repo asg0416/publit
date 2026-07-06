@@ -71,7 +71,6 @@ describe('Publit shared Edge Function core', () => {
       'characterKey',
       'createdAt',
       'displayScope',
-      'emberUntil',
       'heatLabel',
       'id',
       'lifecycle',
@@ -138,42 +137,41 @@ describe('Publit shared Edge Function core', () => {
     });
   });
 
-  it('hides trace body text while keeping aggregate tag/category signal', () => {
+  it('expires thoughts at the configured delete boundary instead of keeping bodyless traces', () => {
     const response = sanitizeFlameForResponse({
       id: 'flame-2',
-      text: 'trace 상태에서는 본문이 노출되면 안 된다.',
+      text: '기준 시간이 지나면 공간 분위기로 남지 않는다.',
       tag_label: '#지역교통',
       tag_normalized: '지역교통',
       category: 'local',
       mood: 'quiet',
       self_strength: 1,
       heat_score: 2,
-      status: 'trace',
+      status: 'live',
       created_at: '2026-06-28T01:00:00.000Z',
       live_until: '2026-06-28T04:00:00.000Z',
       ember_until: '2026-06-29T04:00:00.000Z',
       trace_until: '2026-07-06T04:00:00.000Z',
+      expires_at: '2026-06-28T04:00:00.000Z',
       geohash: 'g:wydm6',
       device_hash: 'secret-device-hash',
-    }, new Date('2026-06-30T04:00:00.000Z'));
+    }, new Date('2026-06-28T04:00:00.000Z'));
 
-    assert.equal(response.lifecycle, 'trace');
-    assert.equal('text' in response, false);
-    assert.equal(response.tagLabel, '#지역교통');
+    assert.equal(response.lifecycle, 'expired');
+    assert.equal(response.text, '기준 시간이 지나면 공간 분위기로 남지 않는다.');
   });
 
-  it('computes live to ember to trace to expired lifecycle boundaries', () => {
+  it('computes live directly to expired at expires_at', () => {
     const flame = {
       status: 'live',
       live_until: '2026-06-28T04:00:00.000Z',
       ember_until: '2026-06-29T04:00:00.000Z',
       trace_until: '2026-07-06T04:00:00.000Z',
+      expires_at: '2026-06-28T04:00:00.000Z',
     };
 
     assert.equal(computeLifecycle(flame, new Date('2026-06-28T03:59:59.000Z')), 'live');
-    assert.equal(computeLifecycle(flame, new Date('2026-06-28T04:00:00.000Z')), 'ember');
-    assert.equal(computeLifecycle(flame, new Date('2026-06-29T04:00:00.000Z')), 'trace');
-    assert.equal(computeLifecycle(flame, new Date('2026-07-06T04:00:00.000Z')), 'expired');
+    assert.equal(computeLifecycle(flame, new Date('2026-06-28T04:00:00.000Z')), 'expired');
   });
 
   it('limits actions to one per 30 seconds or three per minute', () => {

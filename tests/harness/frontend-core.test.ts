@@ -107,8 +107,8 @@ describe('Publit frontend core harness', () => {
     const flames = [
       { id: '1', tagNormalized: '카페대화', tagLabel: '#카페대화', category: 'daily', selfStrength: 1, heatLabel: '방금 떠오른 생각', lifecycle: 'live' },
       { id: '2', tagNormalized: '카페대화', tagLabel: '#카페대화', category: 'daily', selfStrength: 2, heatLabel: '반응이 생기고 있어요', lifecycle: 'live' },
-      { id: '3', tagNormalized: '카페대화', tagLabel: '#카페대화', category: 'daily', selfStrength: 3, heatLabel: '요즘 이 태그가 모여요', lifecycle: 'ember' },
-      { id: '4', tagNormalized: '지역교통', tagLabel: '#지역교통', category: 'local', selfStrength: 2, heatLabel: '방금 떠오른 생각', lifecycle: 'trace' },
+      { id: '3', tagNormalized: '카페대화', tagLabel: '#카페대화', category: 'daily', selfStrength: 3, heatLabel: '요즘 이 태그가 모여요', lifecycle: 'live' },
+      { id: '4', tagNormalized: '지역교통', tagLabel: '#지역교통', category: 'local', selfStrength: 2, heatLabel: '방금 떠오른 생각', lifecycle: 'live' },
     ] as const;
 
     const particles = createInitialParticles(flames, 240);

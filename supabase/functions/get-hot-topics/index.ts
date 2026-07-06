@@ -10,10 +10,12 @@ Deno.serve(async (req: Request) => {
     const scope = requestedScope === 'local' || requestedScope === 'regional' ? requestedScope : 'global';
     const supabase = createAdminClient();
     const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
+    const now = new Date().toISOString();
     let flameQuery = supabase
       .from('flames')
       .select('tag_label, tag_normalized, category, heat_score, created_at, geohash, extension_count')
-      .in('status', ['live', 'ember', 'trace'])
+      .eq('status', 'live')
+      .gt('expires_at', now)
       .gt('created_at', since)
       .order('created_at', { ascending: false })
       .limit(200);

@@ -15,26 +15,11 @@ Deno.serve(async (req: Request) => {
       .lte('expires_at', now);
     if (expired.error) throw new PublitHttpError('EXPIRED_DELETE_FAILED', 500);
 
-    const live = await supabase
+    const legacy = await supabase
       .from('flames')
-      .update({ status: 'ember', updated_at: now })
-      .eq('status', 'live')
-      .lte('live_until', now);
-    if (live.error) throw new PublitHttpError('LIVE_EXPIRE_FAILED', 500);
-
-    const ember = await supabase
-      .from('flames')
-      .update({ status: 'trace', updated_at: now })
-      .eq('status', 'ember')
-      .lte('ember_until', now);
-    if (ember.error) throw new PublitHttpError('EMBER_EXPIRE_FAILED', 500);
-
-    const trace = await supabase
-      .from('flames')
-      .update({ status: 'expired', updated_at: now })
-      .eq('status', 'trace')
-      .lte('trace_until', now);
-    if (trace.error) throw new PublitHttpError('TRACE_EXPIRE_FAILED', 500);
+      .delete()
+      .in('status', ['ember', 'trace', 'expired']);
+    if (legacy.error) throw new PublitHttpError('LEGACY_EXPIRE_DELETE_FAILED', 500);
 
     return json({ ok: true });
   } catch (error) {

@@ -12,11 +12,10 @@
     "actions": ["create_flame", "react_flame", "report_flame", "extinguish_flame"]
   },
   "lifecycle": {
-    "order": ["live", "ember", "trace", "expired"],
-    "liveHours": 3,
-    "emberHours": 24,
-    "traceDays": 7,
-    "traceBodyVisible": false
+    "order": ["live", "deleted"],
+    "liveHours": 24,
+    "extensionHours": 24,
+    "deleteExpired": true
   },
   "slot": {
     "liveLimitPerDeviceHash": 3,

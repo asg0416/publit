@@ -15,13 +15,15 @@ Deno.serve(async (req: Request) => {
       deviceHash = null;
     }
     const now = new Date();
+    const nowIso = now.toISOString();
     const supabase = createAdminClient();
 
     const { data, error } = await supabase
       .from('flames')
       .select('id, text, tag_label, tag_normalized, category, mood, self_strength, heat_score, status, created_at, live_until, ember_until, trace_until, expires_at, extension_count, character_key, character_emoji, region_label, region_code, display_scope, device_hash')
       .in('geohash', gridPrefixes)
-      .in('status', ['live', 'ember', 'trace'])
+      .eq('status', 'live')
+      .gt('expires_at', nowIso)
       .order('created_at', { ascending: false })
       .limit(80);
 
@@ -52,7 +54,7 @@ Deno.serve(async (req: Request) => {
         ownedByDevice: Boolean(deviceHash && flame.device_hash === deviceHash),
         reactions: summarizeReactionRows(reactionRowsByFlame.get(String(flame.id)) ?? [], deviceHash),
       }))
-      .filter((flame) => flame.lifecycle !== 'expired'));
+      .filter((flame) => flame.lifecycle === 'live'));
   } catch (error) {
     return handleError(error);
   }

@@ -1,6 +1,6 @@
 export type FlameCategory = 'politics' | 'local' | 'society' | 'safety' | 'daily' | 'other';
 export type FlameMood = 'quiet' | 'curious' | 'serious' | 'want_talk';
-export type FlameLifecycle = 'live' | 'ember' | 'trace';
+export type FlameLifecycle = 'live';
 export type HeatLevel = 'fresh' | 'warming' | 'hot' | 'cluster';
 export type ReactionType = 'similar' | 'curious' | 'neutral' | 'disagree' | 'watching' | 'custom';
 export type ReportReason = 'misinformation' | 'doxxing' | 'violence' | 'illegal' | 'hate' | 'spam' | 'privacy' | 'other';
@@ -20,7 +20,6 @@ export type Flame = {
   lifecycle: FlameLifecycle;
   createdAt: string;
   liveUntil?: string;
-  emberUntil?: string;
   expiresAt?: string;
   extensionCount?: number;
   ownedByDevice?: boolean;

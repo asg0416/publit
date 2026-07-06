@@ -35,6 +35,7 @@ describe('Publit harness engineering project setup', () => {
     assert.deepEqual(manifest.privacy.neverPersist, ['lat', 'lng', 'latitude', 'longitude', 'coordinates', 'raw_location']);
     assert.equal(manifest.remoteSmoke.requiresServiceRoleKey, false);
     assert.equal(manifest.remoteSmoke.requiresPublishableKey, true);
-    assert.equal(manifest.lifecycle.order.join('>'), 'live>ember>trace>expired');
+    assert.equal(manifest.lifecycle.order.join('>'), 'live>deleted');
+    assert.equal(manifest.lifecycle.deleteExpired, true);
   });
 });

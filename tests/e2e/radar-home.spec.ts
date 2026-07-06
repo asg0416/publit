@@ -50,7 +50,7 @@ const nearbyFlames = [
     mood: 'want_talk',
     selfStrength: 3,
     heatLabel: '요즘 이 태그가 모여요',
-    lifecycle: 'ember',
+    lifecycle: 'live',
     characterKey: 'chick',
     displayScope: 'nearby',
     regionLabel: '근처',

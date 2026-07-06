@@ -31,12 +31,16 @@ Deno.serve(async (req: Request) => {
       .single();
     if (flameError || !flame) throw new PublitHttpError('FLAME_NOT_FOUND', 404);
     if (flame.device_hash !== deviceHash) throw new PublitHttpError('FLAME_NOT_OWNED', 403);
-    if (['hidden', 'reported', 'expired', 'extinguished'].includes(flame.status)) {
+    if (flame.status !== 'live') {
       throw new PublitHttpError('FLAME_NOT_EXTENDABLE', 409);
     }
 
     const now = new Date();
     const currentExpiresAt = new Date(String(flame.expires_at ?? flame.live_until));
+    if (!Number.isFinite(currentExpiresAt.getTime()) || currentExpiresAt.getTime() <= now.getTime()) {
+      throw new PublitHttpError('FLAME_EXPIRED', 410);
+    }
+
     const baseTime = Math.max(now.getTime(), currentExpiresAt.getTime());
     const liveUntil = new Date(baseTime + ONE_DAY_MS);
     const emberUntil = new Date(liveUntil.getTime() + ONE_HOUR_MS);
