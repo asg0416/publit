@@ -1,4 +1,4 @@
-import { detectBlockedContent, encodeGrid, suggestTagsForText } from '../_shared/publit.ts';
+import { detectBlockedContent, encodeGrid, getGridPrefixesForRange, suggestTagsForText } from '../_shared/publit.ts';
 import { createAdminClient, handleError, json, PublitHttpError, readJson } from '../_shared/supabase.ts';
 
 Deno.serve(async (req: Request) => {
@@ -11,6 +11,31 @@ Deno.serve(async (req: Request) => {
     if (blocked.blocked) throw new PublitHttpError('CONTENT_BLOCKED', 400, 'CONTENT_BLOCKED', blocked.reason);
 
     const supabase = createAdminClient();
+    const since = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString();
+    let flameQuery = supabase
+      .from('flames')
+      .select('tag_label, tag_normalized, category, heat_score, created_at, geohash')
+      .in('status', ['live', 'ember', 'trace'])
+      .gt('created_at', since)
+      .order('created_at', { ascending: false })
+      .limit(50);
+
+    if (body.lat !== undefined && body.lng !== undefined) {
+      flameQuery = flameQuery.in('geohash', getGridPrefixesForRange(Number(body.lat), Number(body.lng), '10km'));
+    }
+
+    const { data: flameRows, error: flameError } = await flameQuery;
+    if (flameError) throw new PublitHttpError('TAG_SUGGESTION_FAILED', 500);
+
+    const flameTopics = (flameRows ?? []).map((flame) => ({
+      display_label: flame.tag_label,
+      normalized_key: flame.tag_normalized,
+      category: flame.category,
+      scope: 'recent',
+      heat_score: flame.heat_score,
+      status: 'visible',
+    }));
+
     let query = supabase
       .from('topics')
       .select('display_label, normalized_key, category, scope, heat_score, status')
@@ -25,7 +50,7 @@ Deno.serve(async (req: Request) => {
     const { data, error } = await query;
     if (error) throw new PublitHttpError('TAG_SUGGESTION_FAILED', 500);
 
-    return json(suggestTagsForText(text, data ?? []));
+    return json(suggestTagsForText(text, [...flameTopics, ...(data ?? [])]));
   } catch (error) {
     return handleError(error);
   }

@@ -1,7 +1,8 @@
 'use client';
 
 import { useRef, useState } from 'react';
-import type { Flame, ReactionType, ReportReason } from '@/lib/flame/types';
+import { useEffect, type FormEvent } from 'react';
+import type { Flame, FlameComment, ReactionType, ReportReason } from '@/lib/flame/types';
 import { BottomSheet } from '@/components/ui/BottomSheet';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -17,6 +18,9 @@ type FlameDetailSheetProps = {
   onSelect: (flame: Flame) => void;
   onReact: (flameId: string, reaction: ReactionType) => void;
   onReport: (flameId: string, reason: ReportReason) => void;
+  onLoadComments: (flameId: string) => Promise<FlameComment[]>;
+  onCreateComment: (flameId: string, body: string) => Promise<FlameComment | null>;
+  onExtend: (flameId: string) => void | Promise<void>;
 };
 
 const moodLabels: Record<Flame['mood'], string> = {
@@ -42,28 +46,88 @@ function isGlittery(label: string) {
   return label.includes('이야기') || label.includes('자주');
 }
 
-export function FlameDetailSheet({ flame, flames, onClose, onSelect, onReact, onReport }: FlameDetailSheetProps) {
+function formatLifeLabel(flame: Flame) {
+  if (!flame.expiresAt) return '오늘 안에 사라져요';
+  const expiresAt = new Date(flame.expiresAt);
+  if (!Number.isFinite(expiresAt.getTime())) return '오늘 안에 사라져요';
+  return `${expiresAt.toLocaleString('ko-KR', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' })}까지 떠 있어요`;
+}
+
+export function FlameDetailSheet({ flame, flames, onClose, onSelect, onReact, onReport, onLoadComments, onCreateComment, onExtend }: FlameDetailSheetProps) {
   const [reportOpen, setReportOpen] = useState(false);
   const [swipeDirection, setSwipeDirection] = useState<'idle' | 'forward' | 'back'>('idle');
   const [dragOffset, setDragOffset] = useState(0);
+  const [commentsState, setCommentsState] = useState<{ flameId: string | null; items: FlameComment[] }>({ flameId: null, items: [] });
+  const [commentBody, setCommentBody] = useState('');
+  const [commentSubmitting, setCommentSubmitting] = useState(false);
+  const [extending, setExtending] = useState(false);
   const touchStartX = useRef<number | null>(null);
   const activeFlame = flame ? flames.find((item) => item.id === flame.id) ?? flame : null;
+  const activeFlameId = activeFlame?.id ?? null;
   const currentIndex = activeFlame ? flames.findIndex((item) => item.id === activeFlame.id) : -1;
   const canSwipe = currentIndex >= 0 && flames.length > 1;
   const activeTone = activeFlame ? thoughtToneForFlame(activeFlame) : null;
+  const comments = commentsState.flameId === activeFlameId ? commentsState.items : [];
+
+  useEffect(() => {
+    if (!activeFlameId) {
+      return undefined;
+    }
+
+    let cancelled = false;
+    onLoadComments(activeFlameId)
+      .then((nextComments) => {
+        if (!cancelled) setCommentsState({ flameId: activeFlameId, items: nextComments });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [activeFlameId, onLoadComments]);
 
   const goTo = (direction: -1 | 1) => {
     if (!canSwipe) return;
     const nextIndex = (currentIndex + direction + flames.length) % flames.length;
     setDragOffset(0);
     setSwipeDirection(direction > 0 ? 'forward' : 'back');
+    setCommentBody('');
     onSelect(flames[nextIndex]);
   };
 
   const handleClose = () => {
     setDragOffset(0);
     setSwipeDirection('idle');
+    setCommentsState({ flameId: null, items: [] });
+    setCommentBody('');
     onClose();
+  };
+
+  const handleCommentSubmit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!activeFlame || !commentBody.trim() || commentSubmitting) return;
+
+    setCommentSubmitting(true);
+    try {
+      const created = await onCreateComment(activeFlame.id, commentBody);
+      if (created) {
+        setCommentsState((current) => ({
+          flameId: activeFlame.id,
+          items: current.flameId === activeFlame.id ? [...current.items, created] : [created],
+        }));
+        setCommentBody('');
+      }
+    } finally {
+      setCommentSubmitting(false);
+    }
+  };
+
+  const handleExtend = async () => {
+    if (!activeFlame || extending) return;
+    setExtending(true);
+    try {
+      await onExtend(activeFlame.id);
+    } finally {
+      setExtending(false);
+    }
   };
 
   const handleDragEnd = (end: number | undefined) => {
@@ -141,12 +205,50 @@ export function FlameDetailSheet({ flame, flames, onClose, onSelect, onReact, on
               <Badge>{moodLabels[activeFlame.mood]}</Badge>
               <Badge>{activeTone?.fullLabel ?? '반짝 생각남'}</Badge>
               <Badge>{lifecycleLabels[activeFlame.lifecycle]}</Badge>
+              <Badge>{formatLifeLabel(activeFlame)}</Badge>
             </div>
             <p className="rounded-lg bg-[#ef3b32]/10 px-4 py-3 text-sm font-black text-[#b52620]">{displayHeatLabel(activeFlame.heatLabel)}</p>
             {activeFlame.lifecycle !== 'trace' ? (
               <ReactionBar reactions={activeFlame.reactions} onReact={(reaction) => onReact(activeFlame.id, reaction)} />
             ) : null}
-            <Button variant="secondary" onClick={() => setReportOpen(true)}>신고</Button>
+            {activeFlame.lifecycle !== 'trace' ? (
+              <section className="grid gap-2 rounded-[14px] bg-white p-3 shadow-[1px_1px_0_rgba(35,35,31,0.32),0_0_0_1px_rgba(35,35,31,0.08)]">
+                <div className="flex items-center justify-between gap-3">
+                  <h3 className="text-sm font-black text-[#252520]">익명 댓글</h3>
+                  <span className="font-mono text-[10px] font-black tabular-nums text-[#9a968c]">{comments.length}</span>
+                </div>
+                <div className="grid max-h-32 gap-1.5 overflow-y-auto pr-1">
+                  {comments.length === 0 ? <p className="text-xs font-bold text-[#6f6b61]">아직 댓글이 없어요.</p> : null}
+                  {comments.map((comment) => (
+                    <p key={comment.id} className="rounded-[10px] bg-[#f5f5f5] px-3 py-2 text-xs font-bold leading-5 text-[#252520]">
+                      {comment.body}
+                    </p>
+                  ))}
+                </div>
+                <form className="grid grid-cols-[minmax(0,1fr)_auto] gap-2" onSubmit={handleCommentSubmit}>
+                  <label className="sr-only" htmlFor="thought-comment-input">익명 댓글</label>
+                  <input
+                    id="thought-comment-input"
+                    value={commentBody}
+                    maxLength={160}
+                    onChange={(event) => setCommentBody(event.target.value)}
+                    className="min-h-10 min-w-0 rounded-[12px] border border-[#d5d2c8] bg-white px-3 text-xs font-bold text-[#252520] outline-none transition-[border-color,box-shadow] placeholder:text-[#9a968c] focus:border-[#ef3b32] focus:shadow-[0_0_0_3px_rgba(239,59,50,0.14)]"
+                    placeholder="익명으로 한마디"
+                  />
+                  <Button type="submit" disabled={!commentBody.trim() || commentSubmitting} className="px-3 text-xs">
+                    남기기
+                  </Button>
+                </form>
+              </section>
+            ) : null}
+            <div className="grid grid-cols-2 gap-2">
+              {activeFlame.ownedByDevice && activeFlame.lifecycle !== 'trace' ? (
+                <Button type="button" onClick={handleExtend} disabled={extending}>
+                  하루 연장
+                </Button>
+              ) : null}
+              <Button variant="secondary" className={activeFlame.ownedByDevice && activeFlame.lifecycle !== 'trace' ? '' : 'col-span-2'} onClick={() => setReportOpen(true)}>신고</Button>
+            </div>
           </div>
         ) : null}
       </BottomSheet>

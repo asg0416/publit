@@ -340,6 +340,7 @@ export function MapBackground({ center, isTracking = false, rangeValue, onCamera
       data-map-state={state}
       className="absolute inset-0 overflow-hidden bg-white"
       aria-hidden="true"
+      style={{ touchAction: 'none', overscrollBehavior: 'none' }}
       onPointerDown={handleFallbackPointerDown}
       onPointerUp={handleFallbackPointerUp}
       onWheel={handleMapWheel}

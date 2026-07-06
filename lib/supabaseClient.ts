@@ -1,4 +1,4 @@
-import type { CharacterKey, DisplayScope, Flame, HotTopic, ReactionSummaryItem, ReactionType, ReportReason, TagSuggestion, ThoughtRangeValue } from './flame/types.ts';
+import type { CharacterKey, DisplayScope, Flame, FlameComment, HotTopic, ReactionSummaryItem, ReactionType, ReportReason, TagSuggestion, ThoughtRangeValue } from './flame/types.ts';
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -17,6 +17,25 @@ async function invoke<T>(slug: string, body: Record<string, unknown>): Promise<T
       apikey: key!,
       authorization: `Bearer ${key}`,
       'content-type': 'application/json',
+    },
+    body: JSON.stringify(body),
+  });
+  const payload = await response.json();
+  if (!response.ok) {
+    throw new Error(payload?.error?.code ?? `${slug.toUpperCase()}_FAILED`);
+  }
+  return payload as T;
+}
+
+async function invokeAdmin<T>(slug: string, body: Record<string, unknown>, adminToken: string): Promise<T> {
+  assertPublicEnv();
+  const response = await fetch(`${url}/functions/v1/${slug}`, {
+    method: 'POST',
+    headers: {
+      apikey: key!,
+      authorization: `Bearer ${key}`,
+      'content-type': 'application/json',
+      'x-admin-token': adminToken,
     },
     body: JSON.stringify(body),
   });
@@ -56,4 +75,21 @@ export const publitApi = {
     invoke<{ ok: boolean; status: string }>('report-flame', body),
   extinguishFlame: (body: { flameId: string; deviceHash: string }) =>
     invoke<{ ok: boolean }>('extinguish-flame', body),
+  getComments: (body: { flameId: string }) =>
+    invoke<FlameComment[]>('get-comments', body),
+  createComment: (body: { flameId: string; body: string; deviceHash: string }) =>
+    invoke<{ comment: FlameComment }>('create-comment', body),
+  extendFlame: (body: { flameId: string; deviceHash: string }) =>
+    invoke<{ flame: Flame }>('extend-flame', body),
+  adminReports: (body: Record<string, unknown>, adminToken: string) =>
+    invokeAdmin<Array<{
+      id: string;
+      flameId: string;
+      reason: ReportReason;
+      detail?: string | null;
+      createdAt: string;
+      thought: { id: string; text: string; tagLabel: string; tagNormalized: string; status: string; heatScore: number; createdAt: string };
+    }>>('admin-reports', body, adminToken),
+  adminResolveReport: (body: { reportId: string; action: 'keep' | 'hide' | 'delete'; adminNote?: string }, adminToken: string) =>
+    invokeAdmin<{ ok: boolean; action: string }>('admin-resolve-report', body, adminToken),
 };

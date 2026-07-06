@@ -48,9 +48,9 @@ Deno.serve(async (req: Request) => {
     const positionLongitude = Number(body.lng);
     const geohash = encodeGrid(positionLatitude, positionLongitude);
     const now = new Date();
-    const liveUntil = new Date(now.getTime() + 3 * 60 * 60 * 1000);
-    const emberUntil = new Date(liveUntil.getTime() + 24 * 60 * 60 * 1000);
-    const traceUntil = new Date(emberUntil.getTime() + 7 * 24 * 60 * 60 * 1000);
+    const liveUntil = new Date(now.getTime() + 24 * 60 * 60 * 1000);
+    const emberUntil = new Date(liveUntil.getTime() + 60 * 60 * 1000);
+    const traceUntil = new Date(emberUntil.getTime() + 60 * 60 * 1000);
     const supabase = createAdminClient();
 
     await assertActionAllowed(supabase, deviceHash, 'create_flame', now);
@@ -90,12 +90,14 @@ Deno.serve(async (req: Request) => {
       live_until: liveUntil.toISOString(),
       ember_until: emberUntil.toISOString(),
       trace_until: traceUntil.toISOString(),
+      expires_at: liveUntil.toISOString(),
+      extension_count: 0,
     };
 
     const { data: flame, error } = await supabase
       .from('flames')
       .insert(flameInsert)
-      .select('id, text, tag_label, tag_normalized, category, mood, self_strength, heat_score, status, created_at, live_until, ember_until, trace_until, character_key, character_emoji, region_label, region_code, display_scope')
+      .select('id, text, tag_label, tag_normalized, category, mood, self_strength, heat_score, status, created_at, live_until, ember_until, trace_until, expires_at, extension_count, character_key, character_emoji, region_label, region_code, display_scope')
       .single();
 
     if (error) throw new PublitHttpError('FLAME_CREATE_FAILED', 500);

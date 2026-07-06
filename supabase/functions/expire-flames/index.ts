@@ -9,6 +9,12 @@ Deno.serve(async (req: Request) => {
     const now = new Date().toISOString();
     const supabase = createAdminClient();
 
+    const expired = await supabase
+      .from('flames')
+      .delete()
+      .lte('expires_at', now);
+    if (expired.error) throw new PublitHttpError('EXPIRED_DELETE_FAILED', 500);
+
     const live = await supabase
       .from('flames')
       .update({ status: 'ember', updated_at: now })

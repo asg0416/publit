@@ -15,6 +15,11 @@ const functionNames = [
   'expire-flames',
   'get-hot-topics',
   'suggest-tags',
+  'create-comment',
+  'get-comments',
+  'extend-flame',
+  'admin-reports',
+  'admin-resolve-report',
 ];
 
 const sourceFiles = readdirSync(functionsDir, { recursive: true })
@@ -50,7 +55,7 @@ describe('Publit Edge Function contract', () => {
   });
 
   it('guards write actions with device_hash, duplicate checks, and rate limits', () => {
-    for (const functionName of ['create-flame', 'react-flame', 'report-flame', 'extinguish-flame']) {
+    for (const functionName of ['create-flame', 'react-flame', 'report-flame', 'extinguish-flame', 'create-comment', 'extend-flame']) {
       const body = readFileSync(join(functionsDir, functionName, 'index.ts'), 'utf8');
 
       assert.match(body, /deviceHash|device_hash/);
@@ -73,5 +78,19 @@ describe('Publit Edge Function contract', () => {
   it('keeps the service role key server-only', () => {
     assert.match(source, /Deno\.env\.get\(['"]SUPABASE_SERVICE_ROLE_KEY['"]\)/);
     assert.doesNotMatch(source, /NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY/);
+  });
+
+  it('protects admin functions with a server-side admin token', () => {
+    assert.match(source, /Deno\.env\.get\(['"]ADMIN_TOKEN['"]\)/);
+    assert.match(source, /x-admin-token/i);
+    assert.doesNotMatch(source, /NEXT_PUBLIC_ADMIN_TOKEN/);
+  });
+
+  it('derives trends and suggestions from real thought rows', () => {
+    const hotTopicsSource = readFileSync(join(functionsDir, 'get-hot-topics', 'index.ts'), 'utf8');
+    const suggestTagsSource = readFileSync(join(functionsDir, 'suggest-tags', 'index.ts'), 'utf8');
+
+    assert.match(hotTopicsSource, /\.from\('flames'\)/);
+    assert.match(suggestTagsSource, /\.from\('flames'\)/);
   });
 });

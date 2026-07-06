@@ -10,8 +10,10 @@ import {
   isRateLimited,
   normalizeTag,
   sanitizeFlameForResponse,
+  sanitizeCommentForResponse,
   selectActiveSlotState,
   suggestTagsForText,
+  validateCommentBody,
   validateReactionType,
 } from '../../supabase/functions/_shared/publit.ts';
 
@@ -113,6 +115,27 @@ describe('Publit shared Edge Function core', () => {
     assert.equal('characterEmoji' in response, false);
   });
 
+  it('validates and sanitizes anonymous comments without exposing device identity', () => {
+    assert.equal(validateCommentBody('  나도 방금 그 생각 했어  '), '나도 방금 그 생각 했어');
+    assert.throws(() => validateCommentBody(''), /INVALID_COMMENT/);
+    assert.throws(() => validateCommentBody('x'.repeat(161)), /INVALID_COMMENT/);
+
+    const response = sanitizeCommentForResponse({
+      id: 'comment-1',
+      flame_id: 'flame-1',
+      body: '근처에서 나도 봤어',
+      status: 'visible',
+      device_hash: 'secret-device-hash',
+      created_at: '2026-07-06T01:00:00.000Z',
+    });
+
+    assert.deepEqual(response, {
+      id: 'comment-1',
+      body: '근처에서 나도 봤어',
+      createdAt: '2026-07-06T01:00:00.000Z',
+    });
+  });
+
   it('hides trace body text while keeping aggregate tag/category signal', () => {
     const response = sanitizeFlameForResponse({
       id: 'flame-2',
@@ -130,7 +153,7 @@ describe('Publit shared Edge Function core', () => {
       trace_until: '2026-07-06T04:00:00.000Z',
       geohash: 'g:wydm6',
       device_hash: 'secret-device-hash',
-    });
+    }, new Date('2026-06-30T04:00:00.000Z'));
 
     assert.equal(response.lifecycle, 'trace');
     assert.equal('text' in response, false);

@@ -12,7 +12,7 @@ const migrationSql = readdirSync(migrationsDir)
   .join('\n')
   .toLowerCase();
 
-const requiredTables = ['flames', 'flame_reactions', 'reports', 'topics', 'action_events'];
+const requiredTables = ['flames', 'flame_reactions', 'reports', 'topics', 'action_events', 'flame_comments', 'report_reviews'];
 
 describe('Publit database privacy migration', () => {
   it('creates the required tables without raw coordinate columns', () => {
@@ -23,7 +23,7 @@ describe('Publit database privacy migration', () => {
     assert.doesNotMatch(migrationSql, /\b(lat|latitude|lng|longitude|coordinates?|raw_location)\b/);
     assert.match(migrationSql, /\bgeohash\s+text\s+not null\b/);
 
-    for (const column of ['character_key', 'character_emoji', 'region_code', 'display_scope']) {
+    for (const column of ['character_key', 'character_emoji', 'region_code', 'display_scope', 'expires_at', 'extension_count']) {
       assert.match(migrationSql, new RegExp(`\\b${column}\\b`));
     }
   });
@@ -45,6 +45,10 @@ describe('Publit database privacy migration', () => {
       assert.match(migrationSql, new RegExp(`'${value}'`));
     }
 
+    for (const value of ['visible', 'deleted', 'keep', 'hide', 'delete', 'create_comment', 'extend_flame']) {
+      assert.match(migrationSql, new RegExp(`'${value}'`));
+    }
+
     assert.match(migrationSql, /self_strength\s+int\s+not null/);
     assert.match(migrationSql, /self_strength\s+in\s+\(1,\s*2,\s*3\)/);
   });
@@ -61,12 +65,14 @@ describe('Publit database privacy migration', () => {
   });
 
   it('adds privacy and lifecycle indexes used by Edge Functions', () => {
-    for (const column of ['geohash', 'status', 'live_until', 'ember_until', 'trace_until', 'category', 'tag_normalized', 'device_hash']) {
+    for (const column of ['geohash', 'status', 'live_until', 'ember_until', 'trace_until', 'expires_at', 'category', 'tag_normalized', 'device_hash']) {
       assert.match(migrationSql, new RegExp(`create index[^;]+flames[^;]+\\(${column}\\)`));
     }
 
     assert.match(migrationSql, /create unique index[^;]+flame_reactions[^;]+\(flame_id,\s*device_hash,\s*reaction_type\)/);
     assert.match(migrationSql, /create unique index[^;]+reports[^;]+\(flame_id,\s*device_hash,\s*reason\)/);
+    assert.match(migrationSql, /create index[^;]+flame_comments[^;]+\(flame_id,\s*created_at\)/);
+    assert.match(migrationSql, /create index[^;]+report_reviews[^;]+\(report_id,\s*created_at\)/);
     assert.match(migrationSql, /create index[^;]+action_events[^;]+\(device_hash,\s*created_at\)/);
   });
 });

@@ -6,6 +6,7 @@ export type ReportReason = 'misinformation' | 'doxxing' | 'violence' | 'illegal'
 export type CharacterKey = 'turtle' | 'chick' | 'fox' | 'dog' | 'butterfly' | 'bug';
 export type DisplayScope = 'nearby' | 'district' | 'regional' | 'national';
 export type ThoughtRangeValue = '50m' | '100m' | '300m' | '500m' | '1km' | '3km' | '10km' | 'region' | 'national';
+export type AdminReportAction = 'keep' | 'hide' | 'delete';
 
 const GEOHASH_ALPHABET = '0123456789bcdefghjkmnpqrstuvwxyz';
 const EARTH_RADIUS_METERS = 6_371_000;
@@ -325,6 +326,11 @@ export function sanitizeFlameForResponse(row: Record<string, unknown>, now = new
     emberUntil: row.ember_until,
   };
 
+  if (row.expires_at) response.expiresAt = row.expires_at;
+  if (row.extension_count !== undefined && row.extension_count !== null) {
+    response.extensionCount = Number(row.extension_count);
+  }
+
   if (lifecycle !== 'trace') {
     response.text = row.text;
   }
@@ -335,6 +341,20 @@ export function sanitizeFlameForResponse(row: Record<string, unknown>, now = new
   }
 
   return response;
+}
+
+export function validateCommentBody(value: unknown): string {
+  const body = String(value ?? '').trim();
+  if (!body || body.length > 160) throw new Error('INVALID_COMMENT');
+  return body;
+}
+
+export function sanitizeCommentForResponse(row: Record<string, unknown>): Record<string, unknown> {
+  return {
+    id: row.id,
+    body: row.body,
+    createdAt: row.created_at,
+  };
 }
 
 export function isRateLimited(
@@ -463,4 +483,9 @@ export function validateReportReason(value: unknown): ReportReason {
     return value;
   }
   throw new Error('INVALID_REPORT_REASON');
+}
+
+export function validateAdminReportAction(value: unknown): AdminReportAction {
+  if (value === 'keep' || value === 'hide' || value === 'delete') return value;
+  throw new Error('INVALID_ADMIN_ACTION');
 }

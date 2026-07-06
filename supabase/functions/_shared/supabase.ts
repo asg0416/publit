@@ -3,7 +3,7 @@ import { isRateLimited } from './publit.ts';
 
 export const corsHeaders = {
   'Access-Control-Allow-Origin': '*',
-  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type, x-admin-token',
   'Access-Control-Allow-Methods': 'GET, POST, OPTIONS',
 };
 
@@ -66,10 +66,19 @@ export function handleError(error: unknown): Response {
   return json({ error: { code: message, message } }, 400);
 }
 
+export function assertAdminToken(req: Request) {
+  const configuredToken = Deno.env.get('ADMIN_TOKEN');
+  const requestToken = req.headers.get('x-admin-token');
+
+  if (!configuredToken || requestToken !== configuredToken) {
+    throw new PublitHttpError('ADMIN_UNAUTHORIZED', 401);
+  }
+}
+
 export async function assertActionAllowed(
   supabase: ReturnType<typeof createAdminClient>,
   deviceHash: string,
-  actionType: 'create_flame' | 'react_flame' | 'report_flame' | 'extinguish_flame',
+  actionType: 'create_flame' | 'react_flame' | 'report_flame' | 'extinguish_flame' | 'create_comment' | 'extend_flame',
   now = new Date(),
 ) {
   const since = new Date(now.getTime() - 60_000).toISOString();
@@ -92,7 +101,7 @@ export async function assertActionAllowed(
 export async function recordAction(
   supabase: ReturnType<typeof createAdminClient>,
   deviceHash: string,
-  actionType: 'create_flame' | 'react_flame' | 'report_flame' | 'extinguish_flame',
+  actionType: 'create_flame' | 'react_flame' | 'report_flame' | 'extinguish_flame' | 'create_comment' | 'extend_flame',
 ) {
   const { error } = await supabase.from('action_events').insert({
     device_hash: deviceHash,

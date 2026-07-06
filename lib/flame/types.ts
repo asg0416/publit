@@ -21,12 +21,21 @@ export type Flame = {
   createdAt: string;
   liveUntil?: string;
   emberUntil?: string;
+  expiresAt?: string;
+  extensionCount?: number;
+  ownedByDevice?: boolean;
   characterKey?: CharacterKey;
   characterEmoji?: string;
   displayScope?: DisplayScope;
   regionLabel?: string;
   regionCode?: string;
   reactions?: ReactionSummaryItem[];
+};
+
+export type FlameComment = {
+  id: string;
+  body: string;
+  createdAt: string;
 };
 
 export type ReactionSummaryItem = {

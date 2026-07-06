@@ -155,6 +155,7 @@ test('keeps the full map controls separated on desktop', async ({ page }) => {
   const rangeButton = page.getByRole('button', { name: '반경 설정' });
 
   await expect(map).toBeVisible();
+  await expect(map).toHaveCSS('touch-action', 'none');
   await expect(thoughtMap).toBeVisible();
   await expect(page.getByTestId('thought-character')).toHaveCount(2);
   await expect(page.getByTestId('summary-panel')).toHaveCount(0);
@@ -217,6 +218,7 @@ test('keeps the full map controls separated on mobile', async ({ page }) => {
   const rangeButton = page.getByRole('button', { name: '반경 설정' });
 
   await expect(page.getByTestId('mapglot-background')).toBeVisible();
+  await expect(page.getByTestId('mapglot-background')).toHaveCSS('touch-action', 'none');
   await expect(page.getByTestId('thought-character')).toHaveCount(2);
   await expect(page.getByTestId('summary-panel')).toHaveCount(0);
   await expect(page.getByTestId('range-control')).toHaveCount(0);

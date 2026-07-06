@@ -15,7 +15,7 @@ import { publitApi } from '@/lib/supabaseClient';
 import { encodeGrid } from '@/lib/location/geohash';
 import { distanceMeters } from '@/lib/location/useMovingLocationCore';
 import { getThoughtRangeForZoom } from '@/lib/map/rangeViewport';
-import type { CharacterKey, Flame as FlameType, FlameCategory, FlameMood, HotTopic, ReactionType, ReportReason, TagSuggestion, ThoughtRangeValue } from '@/lib/flame/types';
+import type { CharacterKey, Flame as FlameType, FlameCategory, FlameComment, FlameMood, HotTopic, ReactionType, ReportReason, TagSuggestion, ThoughtRangeValue } from '@/lib/flame/types';
 
 const NEARBY_REFRESH_INTERVAL_MS = 12_000;
 type PositionState = { lat: number; lng: number; grid: string };
@@ -309,6 +309,7 @@ export function PublitApp() {
           characterKey: result.flame.characterKey ?? input.characterKey,
           characterEmoji: result.flame.characterEmoji ?? input.characterEmoji,
           selfStrength: result.flame.selfStrength ?? (input.selfStrength as 1 | 2 | 3),
+          ownedByDevice: true,
         };
         optimisticFlamesRef.current = [
           createdFlame,
@@ -377,6 +378,46 @@ export function PublitApp() {
       setStatus('신고를 접수했어요.');
     } catch {
       setStatus('신고를 접수하지 못했어요.');
+    }
+  }, [deviceHash]);
+
+  const handleLoadComments = useCallback(async (flameId: string): Promise<FlameComment[]> => {
+    try {
+      return await publitApi.getComments({ flameId });
+    } catch {
+      setStatus('댓글을 불러오지 못했어요.');
+      return [];
+    }
+  }, []);
+
+  const handleCreateComment = useCallback(async (flameId: string, body: string): Promise<FlameComment | null> => {
+    if (!deviceHash) return null;
+    try {
+      const result = await publitApi.createComment({ flameId, body, deviceHash });
+      return result.comment;
+    } catch {
+      setStatus('댓글을 남기지 못했어요.');
+      return null;
+    }
+  }, [deviceHash]);
+
+  const handleExtend = useCallback(async (flameId: string) => {
+    if (!deviceHash) return;
+    try {
+      const result = await publitApi.extendFlame({ flameId, deviceHash });
+      setFlames((current) => current.map((flame) => flame.id === flameId ? {
+        ...flame,
+        ...result.flame,
+        ownedByDevice: true,
+      } : flame));
+      setSelected((current) => current?.id === flameId ? {
+        ...current,
+        ...result.flame,
+        ownedByDevice: true,
+      } : current);
+      setStatus('생각을 하루 더 유지했어요.');
+    } catch {
+      setStatus('생각을 연장하지 못했어요.');
     }
   }, [deviceHash]);
 
@@ -511,6 +552,9 @@ export function PublitApp() {
         }}
         onReact={handleReact}
         onReport={handleReport}
+        onLoadComments={handleLoadComments}
+        onCreateComment={handleCreateComment}
+        onExtend={handleExtend}
       />
     </main>
   );
