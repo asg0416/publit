@@ -2,7 +2,7 @@
 
 import { useRef, useState } from 'react';
 import { useEffect, type FormEvent } from 'react';
-import type { Flame, FlameComment, ReactionType, ReportReason } from '@/lib/flame/types';
+import type { Flame, FlameComment, ReactionAction, ReactionType, ReportReason } from '@/lib/flame/types';
 import { BottomSheet } from '@/components/ui/BottomSheet';
 import { Button } from '@/components/ui/Button';
 import { Badge } from '@/components/ui/Badge';
@@ -16,7 +16,7 @@ type FlameDetailSheetProps = {
   flames: Flame[];
   onClose: () => void;
   onSelect: (flame: Flame) => void;
-  onReact: (flameId: string, reaction: ReactionType, reactionLabel?: string) => void;
+  onReact: (flameId: string, reaction: ReactionType, reactionLabel?: string, action?: ReactionAction) => void;
   onReport: (flameId: string, reason: ReportReason) => void;
   onLoadComments: (flameId: string) => Promise<FlameComment[]>;
   onCreateComment: (flameId: string, body: string) => Promise<FlameComment | null>;
@@ -220,7 +220,7 @@ export function FlameDetailSheet({ flame, flames, onClose, onSelect, onReact, on
               <Badge>{formatLifeLabel(activeFlame)}</Badge>
             </div>
             <p className="rounded-lg bg-[#ef3b32]/10 px-4 py-3 text-sm font-black text-[#b52620]">{displayHeatLabel(activeFlame.heatLabel)}</p>
-            <ReactionBar reactions={activeFlame.reactions} onReact={(reaction, reactionLabel) => onReact(activeFlame.id, reaction, reactionLabel)} />
+            <ReactionBar reactions={activeFlame.reactions} onReact={(reaction, reactionLabel, action) => onReact(activeFlame.id, reaction, reactionLabel, action)} />
             <section className="grid gap-2 rounded-[14px] bg-white p-3 shadow-[1px_1px_0_rgba(35,35,31,0.32),0_0_0_1px_rgba(35,35,31,0.08)]">
               <div className="flex items-center justify-between gap-3">
                 <h3 className="text-sm font-black text-[#252520]">익명 댓글</h3>

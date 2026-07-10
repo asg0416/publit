@@ -19,6 +19,7 @@ Deno.serve(async (req: Request) => {
 
     const deviceHash = validateDeviceHash(body.deviceHash);
     const reactionType = validateReactionType(body.reactionType);
+    const action = body.action === 'remove' ? 'remove' : 'add';
     const reactionLabel = reactionType === 'custom' ? validateCustomReactionLabel(body.reactionLabel) : null;
     if (reactionLabel) {
       const blocked = detectBlockedContent(reactionLabel);
@@ -57,6 +58,28 @@ Deno.serve(async (req: Request) => {
       if (reactionError) throw new PublitHttpError('REACTION_SUMMARY_FAILED', 500);
       return summarizeReactionRows(reactionRows ?? [], deviceHash);
     };
+
+    if (action === 'remove') {
+      if (!duplicate) {
+        return json({
+          removed: false,
+          heatLabel: getHeatLabel(Number(flame.heat_score ?? 0)),
+          reactions: await getReactions(),
+        });
+      }
+
+      const { error: deleteError } = await supabase
+        .from('flame_reactions')
+        .delete()
+        .eq('id', duplicate.id);
+      if (deleteError) throw new PublitHttpError('REACTION_REMOVE_FAILED', 500);
+
+      return json({
+        removed: true,
+        heatLabel: getHeatLabel(Number(flame.heat_score ?? 0)),
+        reactions: await getReactions(),
+      });
+    }
 
     if (duplicate) {
       return json({

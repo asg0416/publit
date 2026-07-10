@@ -6,10 +6,13 @@ import type { Flame, FlameParticle as FlameParticleType } from '@/lib/flame/type
 import { thoughtToneForFlame } from '@/components/flame/thoughtTone';
 import { emojiForThought } from './character';
 import { RangeCircle } from './RangeCircle';
+import { getThoughtRangeMeters } from '@/lib/map/rangeViewport';
+import type { ThoughtRangeValue } from '@/lib/flame/types';
 
 type ThoughtOverlayProps = {
   thoughts: Flame[];
   rangeLabel: string;
+  rangeValue: ThoughtRangeValue;
   onSelect: (thought: Flame) => void;
 };
 
@@ -19,7 +22,7 @@ function isGlittery(heatLevel: FlameParticleType['heatLevel']) {
   return heatLevel === 'hot' || heatLevel === 'cluster';
 }
 
-export function ThoughtOverlay({ thoughts, rangeLabel, onSelect }: ThoughtOverlayProps) {
+export function ThoughtOverlay({ thoughts, rangeLabel, rangeValue, onSelect }: ThoughtOverlayProps) {
   const overlayKey = thoughts.map((thought) => `${thought.id}:${thought.tagNormalized}:${thought.characterKey ?? ''}:${thought.characterEmoji ?? ''}:${thought.mood}:${thought.selfStrength}`).join('|');
 
   return (
@@ -27,13 +30,15 @@ export function ThoughtOverlay({ thoughts, rangeLabel, onSelect }: ThoughtOverla
       key={overlayKey}
       thoughts={thoughts}
       rangeLabel={rangeLabel}
+      rangeValue={rangeValue}
       onSelect={onSelect}
     />
   );
 }
 
-function ThoughtOverlaySimulation({ thoughts, rangeLabel, onSelect }: ThoughtOverlayProps) {
-  const initial = useMemo(() => createInitialParticles(thoughts, overlaySize), [thoughts]);
+function ThoughtOverlaySimulation({ thoughts, rangeLabel, rangeValue, onSelect }: ThoughtOverlayProps) {
+  const rangeMeters = getThoughtRangeMeters(rangeValue) ?? undefined;
+  const initial = useMemo(() => createInitialParticles(thoughts, overlaySize, rangeMeters), [rangeMeters, thoughts]);
   const [particles, setParticles] = useState<FlameParticleType[]>(initial);
 
   useEffect(() => {
@@ -47,7 +52,7 @@ function ThoughtOverlaySimulation({ thoughts, rangeLabel, onSelect }: ThoughtOve
   const clusters = summarizeClusters(particles);
 
   return (
-    <section data-testid="thought-overlay" className="pointer-events-none absolute inset-x-2 bottom-[8.75rem] top-[5.35rem] z-10 grid place-items-center">
+    <section data-testid="thought-overlay" className="pointer-events-none absolute inset-0 z-10 grid place-items-center">
       <div className="relative size-[min(78vw,320px)] max-h-[320px] max-w-[320px]" data-testid="thought-map">
         <RangeCircle label={rangeLabel} />
         {clusters.map((cluster) => (

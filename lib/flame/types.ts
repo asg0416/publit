@@ -4,6 +4,7 @@ export type FlameLifecycle = 'live';
 export type ContentLocale = 'ko' | 'en';
 export type HeatLevel = 'fresh' | 'warming' | 'hot' | 'cluster';
 export type ReactionType = 'similar' | 'curious' | 'neutral' | 'disagree' | 'watching' | 'custom';
+export type ReactionAction = 'add' | 'remove';
 export type ReportReason = 'misinformation' | 'doxxing' | 'violence' | 'illegal' | 'hate' | 'spam' | 'privacy' | 'other';
 export type CharacterKey = 'turtle' | 'chick' | 'fox' | 'dog' | 'butterfly' | 'bug';
 export type DisplayScope = 'nearby' | 'district' | 'regional' | 'national';
@@ -33,6 +34,10 @@ export type Flame = {
   regionLabel?: string;
   regionCode?: string;
   reactions?: ReactionSummaryItem[];
+  relativePosition?: {
+    northMeters: number;
+    eastMeters: number;
+  } | null;
 };
 
 export type FlameComment = {
@@ -55,7 +60,7 @@ export type HotTopic = {
   displayLabel: string;
   normalizedKey: string;
   category: FlameCategory;
-  scope: 'local' | 'regional' | 'global';
+  scope: 'local' | 'regional' | 'country' | 'global';
   heatLabel: string;
 };
 

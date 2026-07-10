@@ -1,11 +1,12 @@
 'use client';
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { LocateFixed, RefreshCw, SlidersHorizontal } from 'lucide-react';
+import { LocateFixed, RefreshCw } from 'lucide-react';
 import { LocationGate } from '@/components/location/LocationGate';
 import { useMovingLocation, type LocationDebugInfo } from '@/components/location/useMovingLocation';
 import { MapBackground, type MapCameraChange } from '@/components/map/MapBackground';
-import { RANGE_OPTIONS, RangeControl } from '@/components/map/RangeControl';
+import { RANGE_OPTIONS } from '@/components/map/RangeControl';
+import { RangeZoomControl } from '@/components/map/RangeZoomControl';
 import { ThoughtOverlay } from '@/components/map/ThoughtOverlay';
 import { FlameDetailSheet } from '@/components/flame/FlameDetailSheet';
 import { HotTagTicker } from '@/components/flame/HotTagTicker';
@@ -15,8 +16,7 @@ import { getPreferredContentLocale } from '@/lib/i18n';
 import { publitApi } from '@/lib/supabaseClient';
 import { encodeGrid } from '@/lib/location/geohash';
 import { distanceMeters } from '@/lib/location/useMovingLocationCore';
-import { getThoughtRangeForZoom } from '@/lib/map/rangeViewport';
-import type { CharacterKey, ContentLocale, Flame as FlameType, FlameCategory, FlameComment, FlameMood, HotTopic, ReactionType, ReportReason, TagSuggestion, ThoughtRangeValue } from '@/lib/flame/types';
+import type { CharacterKey, ContentLocale, Flame as FlameType, FlameCategory, FlameComment, FlameMood, HotTopic, ReactionAction, ReactionType, ReportReason, TagSuggestion, ThoughtRangeValue } from '@/lib/flame/types';
 
 const NEARBY_REFRESH_INTERVAL_MS = 12_000;
 type PositionState = { lat: number; lng: number; grid: string };
@@ -70,6 +70,7 @@ export function PublitApp() {
   const [locale, setLocale] = useState<ContentLocale>('ko');
   const [countryCode, setCountryCode] = useState<string | null>(null);
   const [topics, setTopics] = useState<HotTopic[]>(fallbackTopicsByLocale.ko);
+  const [trendScope, setTrendScope] = useState<HotTopic['scope']>('local');
   const [suggestions, setSuggestions] = useState<TagSuggestion[]>([]);
   const [slots, setSlots] = useState<{ used: number; limit: number; activeFlames: Array<{ id: string; tagLabel: string; status: string; createdAt: string }> } | null>(null);
   const [selected, setSelected] = useState<FlameType | null>(null);
@@ -84,7 +85,6 @@ export function PublitApp() {
   const [, setStatus] = useState('지금 이곳에 떠도는 생각을 확인해보세요.');
   const [createFeedback, setCreateFeedback] = useState('');
   const [rangeValue, setRangeValue] = useState<ThoughtRangeValue>('500m');
-  const [rangeOpen, setRangeOpen] = useState(false);
   const optimisticFlamesRef = useRef<FlameType[]>([]);
   const pendingRangeRefreshRef = useRef<PositionState | null>(null);
   const pendingReactionsRef = useRef(new Set<string>());
@@ -103,6 +103,15 @@ export function PublitApp() {
     return () => window.clearTimeout(preferredLocaleTimer);
   }, []);
 
+  useEffect(() => {
+    document.documentElement.dataset.publitViewport = 'locked';
+    document.body.dataset.publitViewport = 'locked';
+    return () => {
+      delete document.documentElement.dataset.publitViewport;
+      delete document.body.dataset.publitViewport;
+    };
+  }, []);
+
   const refreshSlots = useCallback(async (hash = deviceHash) => {
     if (!hash) return;
     try {
@@ -114,12 +123,14 @@ export function PublitApp() {
 
   const refreshTopics = useCallback(async (position?: { lat: number; lng: number }) => {
     try {
-      const next = await publitApi.getHotTopics(position ? { ...position, scope: 'local', locale } : { scope: 'global', locale });
+      const next = await publitApi.getHotTopics(position
+        ? { ...position, scope: trendScope, locale, ...(countryCode ? { countryCode } : {}) }
+        : { scope: 'global', locale, ...(countryCode ? { countryCode } : {}) });
       setTopics(next.length ? next : fallbackTopicsByLocale[locale]);
     } catch {
       setTopics(fallbackTopicsByLocale[locale]);
     }
-  }, [locale]);
+  }, [countryCode, locale, trendScope]);
 
   const mergeWithOptimisticFlames = useCallback((remoteFlames: FlameType[]) => {
     const remoteIds = new Set(remoteFlames.map((flame) => flame.id));
@@ -182,10 +193,10 @@ export function PublitApp() {
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
-      void refreshTopics();
+      void refreshTopics(viewPosition ?? undefined);
     }, 0);
     return () => window.clearTimeout(timeout);
-  }, [refreshTopics]);
+  }, [refreshTopics, viewPosition]);
 
   useEffect(() => {
     if (!deviceHash) return undefined;
@@ -259,36 +270,22 @@ export function PublitApp() {
       lng: position.lng,
       grid: encodeGrid(position.lat, position.lng),
     };
-    const isManualBrowse = manualPositionActive && manualPositionReason === 'user';
-    const refreshPosition = camera.gesture === 'zoom' && !isManualBrowse
-      ? (liveDevicePosition ?? viewPosition ?? next)
-      : next;
-    let pendingRangeRefresh = false;
+    const refreshPosition = next;
 
     setMapCenterPosition(next);
 
-    if (camera.source === 'user') {
-      const nextRange = getThoughtRangeForZoom(camera.zoom, next.lat);
-      if (nextRange !== rangeValue) {
-        pendingRangeRefreshRef.current = refreshPosition;
-        pendingRangeRefresh = true;
-        setRangeValue(nextRange);
-      }
-
-      if (camera.gesture === 'pan') {
-        manualPositionReasonRef.current = 'user';
-        setManualPositionReason('user');
-        setManualPositionActive(true);
-      }
+    if (camera.source === 'user' && camera.gesture === 'pan') {
+      manualPositionReasonRef.current = 'user';
+      setManualPositionReason('user');
+      setManualPositionActive(true);
     }
 
     const canBrowseManualCenter = camera.gesture === 'pan' || manualPositionActive || locationState.status === 'granted';
     if (!canBrowseManualCenter) return;
-    if (pendingRangeRefresh) return;
     if (camera.gesture !== 'zoom' && viewPosition && distanceMeters(viewPosition, refreshPosition) < 25) return;
 
     void refreshNearby(refreshPosition, { silent: true });
-  }, [liveDevicePosition, locationState.status, manualPositionActive, manualPositionReason, rangeValue, refreshNearby, viewPosition]);
+  }, [locationState.status, manualPositionActive, refreshNearby, viewPosition]);
 
   const handleSuggest = useCallback(async (text: string) => {
     try {
@@ -373,7 +370,7 @@ export function PublitApp() {
     }
   }, [deviceHash, refreshSlots]);
 
-  const handleReact = useCallback(async (flameId: string, reactionType: ReactionType, reactionLabel?: string) => {
+  const handleReact = useCallback(async (flameId: string, reactionType: ReactionType, reactionLabel?: string, action: ReactionAction = 'add') => {
     if (!deviceHash) return;
     const reactionKey = `${flameId}:${reactionType}:${reactionLabel ?? ''}`;
     if (pendingReactionsRef.current.has(reactionKey)) return;
@@ -384,12 +381,19 @@ export function PublitApp() {
     const existingReaction = previousReactions.find((reaction) => (
       reaction.type === reactionType && (reactionType !== 'custom' || reaction.label === reactionLabel)
     ));
-    if (existingReaction?.reacted) return;
+    if (action === 'add' && existingReaction?.reacted) return;
+    if (action === 'remove' && !existingReaction?.reacted) return;
 
-    const optimisticReactions = existingReaction
-      ? previousReactions.map((reaction) => reaction === existingReaction
-        ? { ...reaction, count: reaction.count + 1, reacted: true }
-        : reaction)
+    const optimisticReactions = existingReaction && action === 'remove'
+      ? previousReactions
+        .map((reaction) => reaction === existingReaction
+          ? { ...reaction, count: Math.max(0, reaction.count - 1), reacted: false }
+          : reaction)
+        .filter((reaction) => !(reaction.custom && reaction.count === 0))
+      : existingReaction
+        ? previousReactions.map((reaction) => reaction === existingReaction
+          ? { ...reaction, count: reaction.count + 1, reacted: true }
+          : reaction)
       : [
           ...previousReactions,
           { type: 'custom' as const, label: reactionLabel ?? '내 반응', count: 1, reacted: true, custom: true },
@@ -399,16 +403,21 @@ export function PublitApp() {
     setSelected((current) => current?.id === flameId ? { ...current, reactions: optimisticReactions } : current);
 
     try {
-      const result = await publitApi.reactFlame({ flameId, reactionType, reactionLabel, deviceHash });
+      const result = await publitApi.reactFlame({ flameId, reactionType, reactionLabel, action, deviceHash });
+      const serverReactions = result.reactions ?? previousReactions;
+      const syncedReactions = action === 'remove' && reactionType === 'custom' && reactionLabel
+        && !serverReactions.some((reaction) => reaction.type === 'custom' && reaction.label === reactionLabel)
+        ? [...serverReactions, { type: 'custom' as const, label: reactionLabel, count: 0, reacted: false, custom: true }]
+        : serverReactions;
       setFlames((current) => current.map((flame) => flame.id === flameId ? {
         ...flame,
         heatLabel: result.heatLabel,
-        reactions: result.reactions ?? flame.reactions,
+        reactions: syncedReactions,
       } : flame));
       setSelected((current) => current?.id === flameId ? {
         ...current,
         heatLabel: result.heatLabel,
-        reactions: result.reactions ?? current.reactions,
+        reactions: syncedReactions,
       } : current);
     } catch {
       setFlames((current) => current.map((flame) => flame.id === flameId ? { ...flame, reactions: previousReactions } : flame));
@@ -477,7 +486,7 @@ export function PublitApp() {
   const displayedFlames = flames.length ? flames : [];
 
   return (
-    <main data-testid="publit-shell" className="relative min-h-[100svh] overflow-hidden bg-white text-[#252520]">
+    <main data-testid="publit-shell" className="relative h-[100svh] max-h-[100svh] min-h-0 overflow-hidden overscroll-none bg-white text-[#252520]">
       <MapBackground
         center={activeMapCenter}
         isTracking={isTrackingPosition}
@@ -493,7 +502,13 @@ export function PublitApp() {
               <p data-testid="brand-subtitle" className="mt-0.5 whitespace-nowrap text-[9px] font-black leading-none text-[#ef3b32]">아니근데 나만?</p>
             </div>
           </div>
-          <HotTagTicker topics={topics} compact locale={locale} />
+        <HotTagTicker
+          topics={topics}
+          compact
+          locale={locale}
+          scope={trendScope}
+          onScopeChange={(nextScope) => setTrendScope(nextScope)}
+        />
         </div>
       </div>
 
@@ -509,25 +524,14 @@ export function PublitApp() {
         <ThoughtOverlay
           thoughts={displayedFlames}
           rangeLabel={selectedRange.label}
+          rangeValue={rangeValue}
           onSelect={(flame) => {
-            setRangeOpen(false);
             setSelected(flame);
           }}
         />
       </div>
 
       <div className="absolute right-3 top-[5.6rem] z-[60] grid gap-2 sm:right-4">
-        <button
-          type="button"
-          onClick={() => setRangeOpen((current) => !current)}
-          className={`grid size-9 place-items-center rounded-[10px] bg-white text-[#252520] shadow-[2px_2px_0_rgba(35,35,31,0.78)] transition-[transform,background-color,color] active:scale-[0.96] ${
-            rangeOpen ? 'bg-[#ef3b32] text-white' : ''
-          }`}
-          aria-label="반경 설정"
-          aria-expanded={rangeOpen}
-        >
-          <SlidersHorizontal size={16} />
-        </button>
         <button
           type="button"
           onClick={() => viewPosition ? void refreshNearby({ ...viewPosition }) : requestLocation({ forceRefresh: true })}
@@ -565,24 +569,21 @@ export function PublitApp() {
         </button>
       </div>
 
-      {rangeOpen ? (
-        <div className="absolute right-[3.6rem] top-[5.6rem] z-[70] sm:right-[4.1rem]">
-          <RangeControl
-            value={rangeValue}
-            onChange={(next) => {
-              pendingRangeRefreshRef.current = activeMapCenter;
-              setRangeValue(next);
-              setRangeOpen(false);
-            }}
-          />
-        </div>
-      ) : null}
+      <div className="absolute bottom-[calc(env(safe-area-inset-bottom)+8.25rem)] right-3 z-[140] sm:right-4">
+        <RangeZoomControl
+          value={rangeValue}
+          onChange={(next) => {
+            if (next === rangeValue) return;
+            pendingRangeRefreshRef.current = activeMapCenter;
+            setRangeValue(next);
+          }}
+        />
+      </div>
 
       <InlineThoughtComposer
         topics={topics}
         remoteSuggestions={suggestions}
         slots={slots}
-        onFocus={() => setRangeOpen(false)}
         onSuggest={handleSuggest}
         onSubmit={handleCreate}
         onExtinguish={handleExtinguish}
@@ -601,7 +602,6 @@ export function PublitApp() {
         flames={displayedFlames}
         onClose={() => setSelected(null)}
         onSelect={(flame) => {
-          setRangeOpen(false);
           setSelected(flame);
         }}
         onReact={handleReact}

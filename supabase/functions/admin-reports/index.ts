@@ -11,6 +11,7 @@ Deno.serve(async (req: Request) => {
     const { data, error } = await supabase
       .from('reports')
       .select('id, flame_id, reason, detail, created_at, flames!inner(id, text, tag_label, tag_normalized, status, heat_score, created_at)')
+      .is('reviewed_at', null)
       .order('created_at', { ascending: false })
       .limit(80);
     if (error) throw new PublitHttpError('ADMIN_REPORTS_FAILED', 500);

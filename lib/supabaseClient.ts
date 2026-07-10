@@ -1,4 +1,4 @@
-import type { CharacterKey, DisplayScope, Flame, FlameComment, HotTopic, ReactionSummaryItem, ReactionType, ReportReason, TagSuggestion, ThoughtRangeValue } from './flame/types.ts';
+import type { CharacterKey, DisplayScope, Flame, FlameComment, HotTopic, ReactionAction, ReactionSummaryItem, ReactionType, ReportReason, TagSuggestion, ThoughtRangeValue } from './flame/types.ts';
 
 const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
 const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -47,7 +47,7 @@ async function invokeAdmin<T>(slug: string, body: Record<string, unknown>, admin
 }
 
 export const publitApi = {
-  getHotTopics: (body: { lat?: number; lng?: number; scope?: 'local' | 'global' | 'regional'; locale?: 'ko' | 'en' }) =>
+  getHotTopics: (body: { lat?: number; lng?: number; countryCode?: string; scope?: 'local' | 'global' | 'regional' | 'country'; locale?: 'ko' | 'en' }) =>
     invoke<HotTopic[]>('get-hot-topics', body),
   suggestTags: (body: { text: string; lat?: number; lng?: number; locale?: 'ko' | 'en' }) =>
     invoke<TagSuggestion[]>('suggest-tags', body),
@@ -71,8 +71,8 @@ export const publitApi = {
     lng: number;
     deviceHash: string;
   }) => invoke<{ flame?: Flame; activeFlames?: Array<{ id: string; tagLabel: string; status: string; createdAt: string }>; error?: { code: string } }>('create-flame', body),
-  reactFlame: (body: { flameId: string; reactionType: ReactionType; reactionLabel?: string; deviceHash: string }) =>
-    invoke<{ heatLabel: string; duplicate?: boolean; reactions?: ReactionSummaryItem[] }>('react-flame', body),
+  reactFlame: (body: { flameId: string; reactionType: ReactionType; reactionLabel?: string; action?: ReactionAction; deviceHash: string }) =>
+    invoke<{ heatLabel: string; duplicate?: boolean; removed?: boolean; reactions?: ReactionSummaryItem[] }>('react-flame', body),
   reportFlame: (body: { flameId: string; reason: ReportReason; detail?: string; deviceHash: string }) =>
     invoke<{ ok: boolean; status: string }>('report-flame', body),
   extinguishFlame: (body: { flameId: string; deviceHash: string }) =>

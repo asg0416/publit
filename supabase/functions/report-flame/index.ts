@@ -22,7 +22,15 @@ Deno.serve(async (req: Request) => {
     const detail = body.detail ? String(body.detail).slice(0, 240) : null;
     const supabase = createAdminClient();
 
-    await assertActionAllowed(supabase, deviceHash, 'report_flame');
+    const { data: flame, error: flameError } = await supabase
+      .from('flames')
+      .select('id, status, expires_at')
+      .eq('id', flameId)
+      .maybeSingle();
+    if (flameError || !flame) throw new PublitHttpError('FLAME_NOT_FOUND', 404);
+    if (['expired', 'extinguished', 'hidden'].includes(String(flame.status)) || new Date(String(flame.expires_at)).getTime() <= Date.now()) {
+      throw new PublitHttpError('FLAME_NOT_REPORTABLE', 410);
+    }
 
     const duplicate = await supabase
       .from('reports')
@@ -31,6 +39,11 @@ Deno.serve(async (req: Request) => {
       .eq('device_hash', deviceHash)
       .eq('reason', reason)
       .maybeSingle();
+    if (duplicate.error) throw new PublitHttpError('REPORT_LOOKUP_FAILED', 500);
+
+    if (!duplicate.data) {
+      await assertActionAllowed(supabase, deviceHash, 'report_flame');
+    }
 
     if (!duplicate.data) {
       const { error: insertError } = await supabase.from('reports').insert({

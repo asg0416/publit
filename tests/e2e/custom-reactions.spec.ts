@@ -61,11 +61,12 @@ test.beforeEach(async ({ page }) => {
   await page.route('**/functions/v1/react-flame', async (route) => {
     const body = route.request().postDataJSON();
     expect(body).toMatchObject({ flameId: flame.id, reactionType: 'custom', reactionLabel: '완전 공감' });
+    const isRemoving = body.action === 'remove';
     await route.fulfill({
       status: 200,
       json: {
         heatLabel: '반응이 생기고 있어요',
-        reactions: [
+        reactions: isRemoving ? flame.reactions : [
           ...flame.reactions,
           { type: 'custom', label: '완전 공감', count: 1, reacted: true, custom: true },
         ],
@@ -86,4 +87,6 @@ test('lets a viewer create and press a custom reaction button', async ({ page })
   await dialog.getByRole('button', { name: '추가' }).click();
 
   await expect(dialog.getByRole('button', { name: /완전 공감\s+1/ })).toHaveAttribute('aria-pressed', 'true');
+  await dialog.getByRole('button', { name: /완전 공감\s+1/ }).click();
+  await expect(dialog.getByRole('button', { name: /완전 공감\s+0/ })).toHaveAttribute('aria-pressed', 'false');
 });

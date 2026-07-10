@@ -145,8 +145,7 @@ test('sends the selected thought radius when loading nearby thoughts', async ({ 
 
   await expect.poll(() => nearbyRequestBodies.at(-1)?.rangeValue).toBe('500m');
 
-  await page.getByRole('button', { name: '반경 설정' }).click();
-  await page.getByRole('button', { name: '1km' }).click();
+  await page.getByRole('button', { name: '반경 넓히기' }).click();
 
   await expect.poll(() => nearbyRequestBodies.at(-1)?.rangeValue).toBe('1km');
 });
@@ -181,11 +180,8 @@ test('renders the map-first Anigeunde home without old map globals', async ({ pa
   await expect(page.getByTestId('flame-glyph')).toHaveCount(3);
   await expect(page.getByTestId('summary-panel')).toHaveCount(0);
   await expect(page.getByTestId('range-control')).toHaveCount(0);
-  await expect(page.getByRole('button', { name: '반경 설정' })).toBeVisible();
-  await page.getByRole('button', { name: '반경 설정' }).click();
-  await expect(page.getByRole('button', { name: '50m' })).toBeVisible();
-  await expect(page.getByRole('button', { name: '500m' })).toBeVisible();
-  await expect(page.getByRole('button', { name: '전국' })).toBeVisible();
+  await expect(page.getByTestId('range-zoom-control')).toBeVisible();
+  await expect(page.getByTestId('range-zoom-control')).toContainText('500m');
   await expect(page.getByTestId('inline-thought-composer')).toBeVisible();
   await expect(page.getByTestId('composer-options-panel')).toHaveCount(0);
   await expect(page.getByRole('button', { name: '생각 띄우기', exact: true })).toBeVisible();

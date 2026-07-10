@@ -1,4 +1,4 @@
-import { encodeGrid, getGridPrefixesForRange, getHeatLabel } from '../_shared/publit.ts';
+import { getGridPrefixesForRange, getHeatLabel } from '../_shared/publit.ts';
 import { createAdminClient, handleError, json, PublitHttpError, readJson } from '../_shared/supabase.ts';
 
 Deno.serve(async (req: Request) => {
@@ -7,21 +7,27 @@ Deno.serve(async (req: Request) => {
   try {
     const body = await readJson(req);
     const requestedScope = String(body.scope ?? 'global');
-    const scope = requestedScope === 'local' || requestedScope === 'regional' ? requestedScope : 'global';
+    const scope = requestedScope === 'local' || requestedScope === 'regional' || requestedScope === 'country' ? requestedScope : 'global';
+    const countryCode = typeof body.countryCode === 'string' && /^[A-Za-z]{2}$/.test(body.countryCode)
+      ? body.countryCode.toUpperCase()
+      : null;
     const supabase = createAdminClient();
     const since = new Date(Date.now() - 24 * 60 * 60 * 1000).toISOString();
     const now = new Date().toISOString();
     let flameQuery = supabase
       .from('flames')
-      .select('tag_label, tag_normalized, category, heat_score, created_at, geohash, extension_count')
+      .select('tag_label, tag_normalized, category, heat_score, created_at, geohash, extension_count, country_code')
       .eq('status', 'live')
       .gt('expires_at', now)
       .gt('created_at', since)
       .order('created_at', { ascending: false })
       .limit(200);
 
-    if (scope === 'local' && body.lat !== undefined && body.lng !== undefined) {
-      flameQuery = flameQuery.in('geohash', getGridPrefixesForRange(Number(body.lat), Number(body.lng), '3km'));
+    if ((scope === 'local' || scope === 'regional') && body.lat !== undefined && body.lng !== undefined) {
+      flameQuery = flameQuery.in('geohash', getGridPrefixesForRange(Number(body.lat), Number(body.lng), scope === 'local' ? '3km' : '10km'));
+    }
+    if (scope === 'country' && countryCode) {
+      flameQuery = flameQuery.eq('country_code', countryCode);
     }
 
     const { data: flameRows, error: flameError } = await flameQuery;
@@ -39,7 +45,9 @@ Deno.serve(async (req: Request) => {
       const normalizedKey = String(flame.tag_normalized ?? '');
       if (!normalizedKey) continue;
       const previous = grouped.get(normalizedKey);
-      const score = 5 + Number(flame.heat_score ?? 0) + Number(flame.extension_count ?? 0) * 2;
+      const ageHours = Math.max(0, (Date.now() - new Date(String(flame.created_at ?? '')).getTime()) / (60 * 60 * 1000));
+      const recency = Number.isFinite(ageHours) ? Math.max(0, 8 - ageHours / 3) : 0;
+      const score = 5 + Number(flame.heat_score ?? 0) + Number(flame.extension_count ?? 0) * 2 + recency;
       grouped.set(normalizedKey, {
         displayLabel: String(flame.tag_label ?? `#${normalizedKey}`),
         normalizedKey,
@@ -62,16 +70,17 @@ Deno.serve(async (req: Request) => {
 
     if (realTopics.length) return json(realTopics);
 
+    const topicScope = scope === 'country' ? 'global' : scope;
     let query = supabase
       .from('topics')
       .select('display_label, normalized_key, category, scope, heat_score')
       .eq('status', 'visible')
-      .eq('scope', scope)
+      .eq('scope', topicScope)
       .order('heat_score', { ascending: false })
       .limit(10);
 
-    if (scope === 'local' && body.lat !== undefined && body.lng !== undefined) {
-      query = query.like('geohash', `${encodeGrid(Number(body.lat), Number(body.lng)).slice(0, 5)}%`);
+    if ((scope === 'local' || scope === 'regional') && body.lat !== undefined && body.lng !== undefined) {
+      query = query.like('geohash', `${getGridPrefixesForRange(Number(body.lat), Number(body.lng), scope === 'local' ? '3km' : '10km')[0].slice(0, 5)}%`);
     }
 
     const { data, error } = await query;

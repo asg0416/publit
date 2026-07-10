@@ -233,7 +233,7 @@ export function InlineThoughtComposer({ topics, remoteSuggestions, slots, submit
           </button>
         )}
       >
-        <div className="grid gap-4">
+      <div className="grid gap-4">
           <div className="grid gap-2">
             <label className="text-xs font-black text-[#6f6b61]" htmlFor="detail-thought-text">지금 떠오른 생각</label>
             <textarea
@@ -259,6 +259,20 @@ export function InlineThoughtComposer({ topics, remoteSuggestions, slots, submit
               placeholder="#지금생각"
               aria-label="생각 태그"
             />
+            {suggestions.length ? (
+              <div data-testid="tag-suggestions" className="flex min-w-0 gap-1 overflow-x-auto pb-0.5" aria-label="추천 태그">
+                {suggestions.slice(0, 6).map((suggestion) => (
+                  <button
+                    type="button"
+                    key={`${suggestion.source}-${suggestion.normalizedKey}`}
+                    onClick={() => handleSuggestionSelect(suggestion)}
+                    className="min-h-8 shrink-0 rounded-full bg-[#f5f5f5] px-3 text-[11px] font-black text-[#5d5a51] shadow-[1px_1px_0_rgba(35,35,31,0.32)] transition-[transform,background-color,color] hover:bg-[#ffefef] hover:text-[#b52620] active:scale-[0.96]"
+                  >
+                    {suggestion.displayLabel}
+                  </button>
+                ))}
+              </div>
+            ) : null}
           </div>
 
           <section className="grid gap-2">
@@ -331,21 +345,6 @@ export function InlineThoughtComposer({ topics, remoteSuggestions, slots, submit
               </label>
             ) : null}
           </section>
-
-          {suggestions.length ? (
-            <div className="flex gap-1 overflow-x-auto pb-0.5" aria-label="추천 태그">
-              {suggestions.slice(0, 6).map((suggestion) => (
-                <button
-                  type="button"
-                  key={`${suggestion.source}-${suggestion.normalizedKey}`}
-                  onClick={() => handleSuggestionSelect(suggestion)}
-                  className="min-h-8 shrink-0 rounded-full bg-white px-3 text-[11px] font-black text-[#5d5a51] shadow-[1px_1px_0_rgba(35,35,31,0.32),0_0_0_1px_rgba(35,35,31,0.08)] transition-[transform,background-color,color] hover:bg-[#f5f5f5] active:scale-[0.96]"
-                >
-                  {suggestion.displayLabel}
-                </button>
-              ))}
-            </div>
-          ) : null}
 
           <MyFlameSlots slots={slots} onExtinguish={onExtinguish} />
 

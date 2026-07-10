@@ -42,6 +42,21 @@ function anchorForTag(tagNormalized: string, size: number) {
   };
 }
 
+function anchorForFlame(flame: Flame, size: number, rangeMeters?: number) {
+  const relativePosition = flame.relativePosition;
+  if (!relativePosition || !rangeMeters || !Number.isFinite(relativePosition.northMeters) || !Number.isFinite(relativePosition.eastMeters)) {
+    return anchorForTag(flame.tagNormalized, size);
+  }
+
+  const center = size / 2;
+  const radius = size / 2 - PARTICLE_BOUNDARY_PADDING;
+  const scale = radius / rangeMeters;
+  return {
+    x: center + relativePosition.eastMeters * scale,
+    y: center - relativePosition.northMeters * scale,
+  };
+}
+
 function separateParticles(particles: FlameParticle[], size: number): FlameParticle[] {
   let next = particles.map((particle) => ({ ...particle }));
 
@@ -91,7 +106,7 @@ function separateParticles(particles: FlameParticle[], size: number): FlameParti
   return next;
 }
 
-export function createInitialParticles(flames: readonly Flame[], size: number): FlameParticle[] {
+export function createInitialParticles(flames: readonly Flame[], size: number, rangeMeters?: number): FlameParticle[] {
   const tagCounts = new Map<string, number>();
 
   return flames.map((flame) => {
@@ -99,7 +114,7 @@ export function createInitialParticles(flames: readonly Flame[], size: number): 
     tagCounts.set(flame.tagNormalized, tagIndex + 1);
 
     const seed = hashString(`${flame.id}:${flame.tagNormalized}`);
-    const anchor = anchorForTag(flame.tagNormalized, size);
+    const anchor = anchorForFlame(flame, size, rangeMeters);
     const angle = ((seed % 360) * Math.PI) / 180 + tagIndex * 1.92;
     const orbit = 8 + (tagIndex % 4) * 5 + ((seed >>> 10) % 6);
 

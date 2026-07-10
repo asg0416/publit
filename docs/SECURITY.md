@@ -23,4 +23,10 @@
 - Live slot limit is three active live flames per deviceHash.
 - Create/react/report/extinguish actions are rate-limited.
 - Duplicate reactions and reports are constrained by DB unique indexes.
+
+## Report Operations
+
+- Users submit reports through `report-flame`; repeat submissions from the same device and reason are idempotent.
+- Operators review the queue at `/admin` with the server-only `ADMIN_TOKEN` supplied through the admin form.
+- `admin-reports` lists unresolved reports, and `admin-resolve-report` records an audit row before keeping, hiding, or deleting the thought.
 - Blocked content is filtered before insert or suggestion response.

@@ -29,6 +29,13 @@ Deno.serve(async (req: Request) => {
     });
     if (reviewError) throw new PublitHttpError('REPORT_REVIEW_CREATE_FAILED', 500);
 
+    const reviewedAt = new Date().toISOString();
+    const { error: markReviewedError } = await supabase
+      .from('reports')
+      .update({ reviewed_at: reviewedAt, review_action: action })
+      .eq('id', report.id);
+    if (markReviewedError) throw new PublitHttpError('REPORT_REVIEW_STATUS_FAILED', 500);
+
     if (action === 'delete') {
       const { error: deleteError } = await supabase.from('flames').delete().eq('id', report.flame_id);
       if (deleteError) throw new PublitHttpError('REPORT_DELETE_FAILED', 500);

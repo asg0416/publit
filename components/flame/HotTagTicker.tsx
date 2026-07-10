@@ -7,9 +7,18 @@ type HotTagTickerProps = {
   topics: HotTopic[];
   compact?: boolean;
   locale?: 'ko' | 'en';
+  scope?: HotTopic['scope'];
+  onScopeChange?: (scope: HotTopic['scope']) => void;
 };
 
-export function HotTagTicker({ topics, compact = false, locale = 'ko' }: HotTagTickerProps) {
+const scopeOptions: Array<{ value: HotTopic['scope']; ko: string; en: string }> = [
+  { value: 'local', ko: '근처', en: 'Nearby' },
+  { value: 'regional', ko: '지역', en: 'Region' },
+  { value: 'country', ko: '나라', en: 'Country' },
+  { value: 'global', ko: '전세계', en: 'World' },
+];
+
+export function HotTagTicker({ topics, compact = false, locale = 'ko', scope = 'local', onScopeChange }: HotTagTickerProps) {
   const [index, setIndex] = useState(0);
   const [expanded, setExpanded] = useState(false);
   const current = topics[index % Math.max(topics.length, 1)];
@@ -67,6 +76,19 @@ export function HotTagTicker({ topics, compact = false, locale = 'ko' }: HotTagT
             compact ? 'absolute right-0 top-[calc(100%+0.5rem)] w-[min(72vw,320px)]' : 'relative mt-3'
           }`}
         >
+          <li className="flex gap-1 rounded-lg bg-[#f5f5f5] p-1" role="group" aria-label={locale === 'ko' ? '트렌드 범위' : 'Trend scope'}>
+            {scopeOptions.map((option) => (
+              <button
+                type="button"
+                key={option.value}
+                onClick={() => onScopeChange?.(option.value)}
+                className={`min-h-7 min-w-0 flex-1 rounded-full px-1.5 text-[10px] font-black transition-[background-color,color,transform] active:scale-[0.96] ${scope === option.value ? 'bg-[#ef3b32] text-white' : 'bg-white text-[#6f6b61]'}`}
+                aria-pressed={scope === option.value}
+              >
+                {locale === 'ko' ? option.ko : option.en}
+              </button>
+            ))}
+          </li>
           {topics.slice(0, 10).map((topic, topicIndex) => (
             <li key={`${topic.scope}-${topic.normalizedKey}`} className={`${compact ? 'grid gap-0.5' : 'flex items-center justify-between gap-3'} rounded-lg bg-white px-3 py-2 text-xs text-[#5d5a51] shadow-[0_0_0_1px_rgba(35,35,31,0.08)]`}>
               <span className="break-words font-black">{topicIndex + 1}. {topic.displayLabel}</span>

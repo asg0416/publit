@@ -9,6 +9,7 @@ Publit is a mobile-first Next.js + Supabase service for viewing anonymous live t
 - `lib/`: client-side device hash, location throttling, Supabase Edge Function calls, flame types, tag normalization, heat labels, and particle simulation.
 - `supabase/migrations/`: Postgres schema with no raw lat/lng columns.
 - `supabase/functions/`: public Edge Functions that validate input, derive coarse grid keys, enforce action limits, and sanitize responses.
+- Map API access is isolated to the MapGlot browser adapter in `components/map/MapBackground.tsx`; no map SDK is imported by Supabase functions.
 - `tests/harness/`: harness contracts for privacy, rate-limit, lifecycle, approved MapGlot background usage, and docs structure.
 - `docs/`: product, design, reliability, security, and execution context for future agents.
 
@@ -22,7 +23,7 @@ All public mutations go through Edge Functions. The client uses the Supabase pub
 
 ## UX Boundary
 
-The core visual metaphor is a circular thought range over a geographic map. Thoughts have simulated screen positions, drift, attraction by tag/category, and cluster aura. They are never exposed as precise coordinate markers.
+The core visual metaphor is a circular thought range over a geographic map. Thoughts use rounded grid-cell offsets for an in-range screen position, then drift, attract by tag/category, and form a cluster aura. They are never exposed as precise coordinate markers.
 
 ## Harness Boundary
 

@@ -38,6 +38,9 @@ type MapGlotMap = {
   setLanguage?: (language: string) => void;
   setCenter?: (center: [number, number]) => void;
   setZoom?: (zoom: number) => void;
+  scrollZoom?: { disable?: () => void };
+  touchZoom?: { disable?: () => void };
+  doubleClickZoom?: { disable?: () => void };
 };
 
 type MapGlotGlobal = {
@@ -195,6 +198,11 @@ export function MapBackground({ center, isTracking = false, language = 'ko', ran
           compass: false,
           geolocate: false,
         });
+        // Radius changes are explicit through the fixed +/- control. Map gestures still pan,
+        // but wheel, pinch, and double-click zoom cannot change the thought radius implicitly.
+        mapRef.current.scrollZoom?.disable?.();
+        mapRef.current.touchZoom?.disable?.();
+        mapRef.current.doubleClickZoom?.disable?.();
 
         const resizeMap = () => {
           window.requestAnimationFrame(() => mapRef.current?.resize?.());
@@ -310,20 +318,8 @@ export function MapBackground({ center, isTracking = false, language = 'ko', ran
   };
 
   const handleMapWheel = (event: ReactWheelEvent<HTMLDivElement>) => {
-    if (state === 'ready') return;
     event.preventDefault();
-    const mapCenterValue = mapRef.current?.getCenter?.();
-    const currentCamera = latestCameraRef.current;
-    const currentZoom = mapRef.current?.getZoom?.() ?? currentCamera.zoom;
-    const nextZoom = currentZoom + (event.deltaY < 0 ? 1 : -1);
-    onCameraChangeRef.current?.({
-      center: mapCenterValue
-        ? { lat: mapCenterValue.lat, lng: mapCenterValue.lng }
-        : { lat: currentCamera.center[1], lng: currentCamera.center[0] },
-      zoom: nextZoom,
-      source: 'user',
-      gesture: 'zoom',
-    });
+    if (state === 'ready') return;
   };
 
   return (

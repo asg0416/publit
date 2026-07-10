@@ -150,7 +150,7 @@ test('tracks live device movement until the user pans, then resumes from the cur
   await expect.poll(async () => (await mapCenter(page)).lat).toBeCloseTo(35.185, 4);
 });
 
-test('uses map zoom gestures to snap the radius to the nearest range step', async ({ page }) => {
+test('keeps map gestures from changing the radius and uses the explicit +/- control', async ({ page }) => {
   await page.setViewportSize({ width: 390, height: 844 });
   await page.goto('/');
   await page.getByRole('button', { name: /위치 허용/ }).click();
@@ -160,11 +160,13 @@ test('uses map zoom gestures to snap the radius to the nearest range step', asyn
   await expect.poll(() => nearbyRequestBodies.at(-1)?.rangeValue).toBe('500m');
 
   await map.dispatchEvent('wheel', { deltaY: -800 });
-  await expect(map).toHaveAttribute('data-map-range', '300m');
+  await expect(map).toHaveAttribute('data-map-range', '500m');
   await expect(map).toHaveAttribute('data-map-tracking', 'active');
+  await page.getByRole('button', { name: '반경 줄이기' }).click();
+  await expect(map).toHaveAttribute('data-map-range', '300m');
   await expect.poll(() => nearbyRequestBodies.at(-1)?.rangeValue).toBe('300m');
 
   await map.dispatchEvent('wheel', { deltaY: 800 });
-  await expect(map).toHaveAttribute('data-map-range', '500m');
-  await expect.poll(() => nearbyRequestBodies.at(-1)?.rangeValue).toBe('500m');
+  await expect(map).toHaveAttribute('data-map-range', '300m');
+  await expect.poll(() => nearbyRequestBodies.at(-1)?.rangeValue).toBe('300m');
 });

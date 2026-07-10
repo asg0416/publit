@@ -186,6 +186,64 @@ export function encodeGrid(latitudeValue: number, longitudeValue: number, precis
   return `g:${hash}`;
 }
 
+export function getGridCellCenter(grid: unknown): { lat: number; lng: number } | null {
+  const hash = String(grid ?? '').replace(/^g:/, '').toLowerCase();
+  if (!hash || hash.length > GRID_PRECISION || [...hash].some((character) => !GEOHASH_ALPHABET.includes(character))) return null;
+
+  let evenBit = true;
+  let latMin = -90;
+  let latMax = 90;
+  let lonMin = -180;
+  let lonMax = 180;
+
+  for (const character of hash) {
+    const value = GEOHASH_ALPHABET.indexOf(character);
+    for (let bit = 4; bit >= 0; bit -= 1) {
+      const selected = (value >> bit) & 1;
+      if (evenBit) {
+        const mid = (lonMin + lonMax) / 2;
+        if (selected) lonMin = mid;
+        else lonMax = mid;
+      } else {
+        const mid = (latMin + latMax) / 2;
+        if (selected) latMin = mid;
+        else latMax = mid;
+      }
+      evenBit = !evenBit;
+    }
+  }
+
+  return {
+    lat: (latMin + latMax) / 2,
+    lng: (lonMin + lonMax) / 2,
+  };
+}
+
+export function distanceMetersBetween(latitudeA: number, longitudeA: number, latitudeB: number, longitudeB: number) {
+  const latitudeDelta = ((latitudeB - latitudeA) * Math.PI) / 180;
+  const longitudeDelta = ((longitudeB - longitudeA) * Math.PI) / 180;
+  const latitudeARadians = (latitudeA * Math.PI) / 180;
+  const latitudeBRadians = (latitudeB * Math.PI) / 180;
+  const sineLatitude = Math.sin(latitudeDelta / 2);
+  const sineLongitude = Math.sin(longitudeDelta / 2);
+  const haversine = sineLatitude * sineLatitude
+    + Math.cos(latitudeARadians) * Math.cos(latitudeBRadians) * sineLongitude * sineLongitude;
+  return 2 * EARTH_RADIUS_METERS * Math.asin(Math.min(1, Math.sqrt(haversine)));
+}
+
+export function getGridRelativePosition(grid: unknown, latitude: number, longitude: number) {
+  const center = getGridCellCenter(grid);
+  if (!center) return null;
+  const latitudeRadians = (latitude * Math.PI) / 180;
+  const northMeters = (center.lat - latitude) * Math.PI / 180 * EARTH_RADIUS_METERS;
+  const eastMeters = (center.lng - longitude) * Math.PI / 180 * EARTH_RADIUS_METERS * Math.max(0.01, Math.cos(latitudeRadians));
+
+  return {
+    northMeters: Math.round(northMeters / 5) * 5,
+    eastMeters: Math.round(eastMeters / 5) * 5,
+  };
+}
+
 export function validateThoughtRangeValue(value: unknown): ThoughtRangeValue {
   if (
     value === '50m'

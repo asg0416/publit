@@ -152,7 +152,7 @@ test('keeps the full map controls separated on desktop', async ({ page }) => {
   const toolbar = page.getByTestId('composer-toolbar');
   const tagBadge = page.getByTestId('composer-tag-badge');
   const toneBadge = page.getByTestId('composer-tone-badge');
-  const rangeButton = page.getByRole('button', { name: '반경 설정' });
+  const rangeButton = page.getByTestId('range-zoom-control');
 
   await expect(map).toBeVisible();
   await expect(map).toHaveCSS('touch-action', 'none');
@@ -185,8 +185,7 @@ test('keeps the full map controls separated on desktop', async ({ page }) => {
   expectInside(tagBadgeBox, toolbarBox);
   expectInside(toneBadgeBox, toolbarBox);
 
-  await rangeButton.click();
-  const rangeBox = await requiredBox(page.getByTestId('range-control'));
+  const rangeBox = await requiredBox(rangeButton);
   expectInside(rangeBox, shellBox);
 
   await composer.getByRole('textbox', { name: '지금 떠오른 생각' }).click();
@@ -215,7 +214,7 @@ test('keeps the full map controls separated on mobile', async ({ page }) => {
   const toolbar = page.getByTestId('composer-toolbar');
   const tagBadge = page.getByTestId('composer-tag-badge');
   const toneBadge = page.getByTestId('composer-tone-badge');
-  const rangeButton = page.getByRole('button', { name: '반경 설정' });
+  const rangeButton = page.getByTestId('range-zoom-control');
 
   await expect(page.getByTestId('mapglot-background')).toBeVisible();
   await expect(page.getByTestId('mapglot-background')).toHaveCSS('touch-action', 'none');
@@ -249,8 +248,7 @@ test('keeps the full map controls separated on mobile', async ({ page }) => {
   expectInside(tagBadgeBox, toolbarBox);
   expectInside(toneBadgeBox, toolbarBox);
 
-  await rangeButton.click();
-  const rangeBox = await requiredBox(page.getByTestId('range-control'));
+  const rangeBox = await requiredBox(rangeButton);
   expectInside(rangeBox, shellBox);
 
   await composer.getByRole('textbox', { name: '지금 떠오른 생각' }).click();
