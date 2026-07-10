@@ -1,4 +1,4 @@
-import { getGridPrefixesForRange, getGridRelativePosition, getThoughtRangeMeters, normalizeContentLocale, sanitizeFlameForResponse, summarizeReactionRows, validateDeviceHash, validateThoughtRangeValue } from '../_shared/publit.ts';
+import { getGridCellRadiusMeters, getGridPrefixesForRange, getGridRelativePosition, getThoughtRangeMeters, normalizeContentLocale, sanitizeFlameForResponse, summarizeReactionRows, validateDeviceHash, validateThoughtRangeValue } from '../_shared/publit.ts';
 import { createAdminClient, handleError, json, PublitHttpError, readJson } from '../_shared/supabase.ts';
 
 Deno.serve(async (req: Request) => {
@@ -34,7 +34,7 @@ Deno.serve(async (req: Request) => {
       .limit(80);
 
     if (radiusMeters !== null) {
-      flameQuery = flameQuery.in('geohash', gridPrefixes);
+      flameQuery = flameQuery.or(gridPrefixes.map((prefix) => `geohash.like.${prefix}%`).join(','));
     }
     if (countryCode && rangeValue === 'national') {
       flameQuery = flameQuery.eq('country_code', countryCode);
@@ -47,7 +47,8 @@ Deno.serve(async (req: Request) => {
       if (radiusMeters === null) return true;
       const cell = getGridRelativePosition(flame.geohash, latitude, longitude);
       if (!cell) return false;
-      return Math.hypot(cell.northMeters, cell.eastMeters) <= radiusMeters + 25;
+      const cellRadiusMeters = getGridCellRadiusMeters(flame.geohash) ?? 25;
+      return Math.hypot(cell.northMeters, cell.eastMeters) <= radiusMeters + cellRadiusMeters;
     });
     const flameIds = flameRows.map((flame) => flame.id).filter(Boolean);
     const reactionRowsByFlame = new Map<string, Array<Record<string, unknown>>>();

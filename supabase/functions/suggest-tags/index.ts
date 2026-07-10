@@ -23,7 +23,8 @@ Deno.serve(async (req: Request) => {
       .limit(50);
 
     if (body.lat !== undefined && body.lng !== undefined) {
-      flameQuery = flameQuery.in('geohash', getGridPrefixesForRange(Number(body.lat), Number(body.lng), '10km'));
+      const gridPrefixes = getGridPrefixesForRange(Number(body.lat), Number(body.lng), '10km');
+      flameQuery = flameQuery.or(gridPrefixes.map((prefix) => `geohash.like.${prefix}%`).join(','));
     }
 
     const { data: flameRows, error: flameError } = await flameQuery;

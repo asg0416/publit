@@ -6,6 +6,8 @@ import {
   detectBlockedContent,
   encodeGrid,
   getGridPrefixesForRange,
+  getGridCellCenter,
+  getGridCellRadiusMeters,
   getHeatLabel,
   isRateLimited,
   normalizeTag,
@@ -32,10 +34,20 @@ describe('Publit shared Edge Function core', () => {
     const grids50m = getGridPrefixesForRange(35.1795, 129.0756, '50m');
     const grids1km = getGridPrefixesForRange(35.1795, 129.0756, '1km');
 
-    assert.ok(grids50m.includes(centerGrid));
-    assert.ok(grids1km.includes(centerGrid));
+    assert.ok(grids50m.some((prefix) => centerGrid.startsWith(prefix)));
+    assert.ok(grids1km.some((prefix) => centerGrid.startsWith(prefix)));
     assert.ok(grids1km.length > grids50m.length);
-    assert.ok(grids1km.every((grid) => /^g:[a-z0-9]{8}$/.test(grid)));
+    assert.ok(grids1km.every((grid) => /^g:[a-z0-9]{6}$/.test(grid)));
+  });
+
+  it('covers nearby fine and legacy grid cells through coarse query prefixes', () => {
+    const center = getGridCellCenter('g:wy78p4um');
+    assert.ok(center);
+    const prefixes = getGridPrefixesForRange(center.lat, center.lng, '500m');
+
+    assert.ok(prefixes.some((prefix) => 'g:wy78p4ek'.startsWith(prefix)));
+    assert.ok(prefixes.some((prefix) => 'g:wy78p4'.startsWith(prefix)));
+    assert.ok((getGridCellRadiusMeters('g:wy78p4') ?? 0) > (getGridCellRadiusMeters('g:wy78p4ek') ?? 0));
   });
 
   it('sanitizes flame responses for privacy and exact-count hiding', () => {

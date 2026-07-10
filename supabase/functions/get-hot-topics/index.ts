@@ -24,7 +24,8 @@ Deno.serve(async (req: Request) => {
       .limit(200);
 
     if ((scope === 'local' || scope === 'regional') && body.lat !== undefined && body.lng !== undefined) {
-      flameQuery = flameQuery.in('geohash', getGridPrefixesForRange(Number(body.lat), Number(body.lng), scope === 'local' ? '3km' : '10km'));
+      const gridPrefixes = getGridPrefixesForRange(Number(body.lat), Number(body.lng), scope === 'local' ? '3km' : '10km');
+      flameQuery = flameQuery.or(gridPrefixes.map((prefix) => `geohash.like.${prefix}%`).join(','));
     }
     if (scope === 'country' && countryCode) {
       flameQuery = flameQuery.eq('country_code', countryCode);

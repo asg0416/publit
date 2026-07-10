@@ -73,7 +73,8 @@ describe('Publit Edge Function contract', () => {
 
     assert.doesNotMatch(nearbySource, /geohash\.slice\(0,\s*5\)/);
     assert.match(nearbySource, /getGridPrefixesForRange/);
-    assert.match(nearbySource, /\.in\('geohash',\s*gridPrefixes\)/);
+    assert.match(nearbySource, /geohash\.like/);
+    assert.match(nearbySource, /getGridCellRadiusMeters/);
   });
 
   it('keeps the service role key server-only', () => {

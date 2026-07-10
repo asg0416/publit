@@ -15,7 +15,7 @@ describe('Anigeunde scheduled expiration contract', () => {
 
     const vercelConfig = JSON.parse(readFileSync(vercelConfigPath, 'utf8')) as { crons?: Array<{ path: string; schedule: string }> };
     assert.deepEqual(vercelConfig.crons, [
-      { path: '/api/cron/expire-flames', schedule: '0 * * * *' },
+      { path: '/api/cron/expire-flames', schedule: '0 15 * * *' },
     ]);
 
     const routeSource = readFileSync(routePath, 'utf8');

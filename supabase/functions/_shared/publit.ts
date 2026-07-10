@@ -186,7 +186,14 @@ export function encodeGrid(latitudeValue: number, longitudeValue: number, precis
   return `g:${hash}`;
 }
 
-export function getGridCellCenter(grid: unknown): { lat: number; lng: number } | null {
+type GridCellBounds = {
+  latMin: number;
+  latMax: number;
+  lonMin: number;
+  lonMax: number;
+};
+
+function getGridCellBounds(grid: unknown): GridCellBounds | null {
   const hash = String(grid ?? '').replace(/^g:/, '').toLowerCase();
   if (!hash || hash.length > GRID_PRECISION || [...hash].some((character) => !GEOHASH_ALPHABET.includes(character))) return null;
 
@@ -213,9 +220,15 @@ export function getGridCellCenter(grid: unknown): { lat: number; lng: number } |
     }
   }
 
+  return { latMin, latMax, lonMin, lonMax };
+}
+
+export function getGridCellCenter(grid: unknown): { lat: number; lng: number } | null {
+  const bounds = getGridCellBounds(grid);
+  if (!bounds) return null;
   return {
-    lat: (latMin + latMax) / 2,
-    lng: (lonMin + lonMax) / 2,
+    lat: (bounds.latMin + bounds.latMax) / 2,
+    lng: (bounds.lonMin + bounds.lonMax) / 2,
   };
 }
 
@@ -229,6 +242,14 @@ export function distanceMetersBetween(latitudeA: number, longitudeA: number, lat
   const haversine = sineLatitude * sineLatitude
     + Math.cos(latitudeARadians) * Math.cos(latitudeBRadians) * sineLongitude * sineLongitude;
   return 2 * EARTH_RADIUS_METERS * Math.asin(Math.min(1, Math.sqrt(haversine)));
+}
+
+export function getGridCellRadiusMeters(grid: unknown): number | null {
+  const bounds = getGridCellBounds(grid);
+  if (!bounds) return null;
+  const centerLatitude = (bounds.latMin + bounds.latMax) / 2;
+  const centerLongitude = (bounds.lonMin + bounds.lonMax) / 2;
+  return distanceMetersBetween(centerLatitude, centerLongitude, bounds.latMax, bounds.lonMax);
 }
 
 export function getGridRelativePosition(grid: unknown, latitude: number, longitude: number) {
@@ -265,12 +286,11 @@ export function getThoughtRangeMeters(range: ThoughtRangeValue): number | null {
   return THOUGHT_RANGE_METERS[range] ?? null;
 }
 
-function getRangeSampleStepMeters(radiusMeters: number) {
-  if (radiusMeters <= 100) return 25;
-  if (radiusMeters <= 500) return 100;
-  if (radiusMeters <= 1_000) return 200;
-  if (radiusMeters <= 3_000) return 500;
-  return 1_000;
+function getRangeQueryGrid(radiusMeters: number) {
+  if (radiusMeters <= 1_000) {
+    return { precision: 6, sampleStepMeters: 250, paddingMeters: 800 };
+  }
+  return { precision: 5, sampleStepMeters: 1_500, paddingMeters: 4_000 };
 }
 
 function offsetPosition(latitude: number, longitude: number, northMeters: number, eastMeters: number) {
@@ -287,14 +307,15 @@ function offsetPosition(latitude: number, longitude: number, northMeters: number
 
 export function getGridPrefixesForRange(latitude: number, longitude: number, range: ThoughtRangeValue): string[] {
   const radiusMeters = getThoughtRangeMeters(range) ?? THOUGHT_RANGE_METERS['500m']!;
-  const stepMeters = getRangeSampleStepMeters(radiusMeters);
-  const gridPrefixes = new Set<string>([encodeGrid(latitude, longitude)]);
+  const { precision, sampleStepMeters, paddingMeters } = getRangeQueryGrid(radiusMeters);
+  const searchRadiusMeters = radiusMeters + paddingMeters;
+  const gridPrefixes = new Set<string>([encodeGrid(latitude, longitude, precision)]);
 
-  for (let northMeters = -radiusMeters; northMeters <= radiusMeters; northMeters += stepMeters) {
-    for (let eastMeters = -radiusMeters; eastMeters <= radiusMeters; eastMeters += stepMeters) {
-      if (Math.hypot(northMeters, eastMeters) > radiusMeters + stepMeters / 2) continue;
+  for (let northMeters = -searchRadiusMeters; northMeters <= searchRadiusMeters; northMeters += sampleStepMeters) {
+    for (let eastMeters = -searchRadiusMeters; eastMeters <= searchRadiusMeters; eastMeters += sampleStepMeters) {
+      if (Math.hypot(northMeters, eastMeters) > searchRadiusMeters + sampleStepMeters / 2) continue;
       const point = offsetPosition(latitude, longitude, northMeters, eastMeters);
-      gridPrefixes.add(encodeGrid(point.lat, point.lng));
+      gridPrefixes.add(encodeGrid(point.lat, point.lng, precision));
     }
   }
 
