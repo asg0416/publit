@@ -9,7 +9,7 @@ Do users want to see anonymous thought flames floating in their current space?
 - Seeing nearby anonymous flames
 - Creating one short flame without login
 - Reacting/reporting without exact counts
-- Watching live -> ember -> trace lifecycle
+- Watching live thoughts disappear after 24 hours unless the author extends them
 - Feeling clusters form around shared tags
 
 ## Non-Goals
@@ -21,5 +21,5 @@ Do users want to see anonymous thought flames floating in their current space?
 - Chat
 - Political preference selection
 - Admin dashboard
-- Maps
+- Precise map pins or address exposure
 - Accurate location display

@@ -5,11 +5,13 @@ export type ReactionType = 'similar' | 'curious' | 'neutral' | 'disagree' | 'wat
 export type ReportReason = 'misinformation' | 'doxxing' | 'violence' | 'illegal' | 'hate' | 'spam' | 'privacy' | 'other';
 export type CharacterKey = 'turtle' | 'chick' | 'fox' | 'dog' | 'butterfly' | 'bug';
 export type DisplayScope = 'nearby' | 'district' | 'regional' | 'national';
+export type ContentLocale = 'ko' | 'en';
 export type ThoughtRangeValue = '50m' | '100m' | '300m' | '500m' | '1km' | '3km' | '10km' | 'region' | 'national';
 export type AdminReportAction = 'keep' | 'hide' | 'delete';
 
 const GEOHASH_ALPHABET = '0123456789bcdefghjkmnpqrstuvwxyz';
 const EARTH_RADIUS_METERS = 6_371_000;
+const GRID_PRECISION = 8;
 const CHARACTER_KEYS: CharacterKey[] = ['turtle', 'chick', 'fox', 'dog', 'butterfly', 'bug'];
 const THOUGHT_RANGE_METERS: Partial<Record<ThoughtRangeValue, number>> = {
   '50m': 50,
@@ -128,8 +130,18 @@ const BLOCKED_PATTERNS: Array<[RegExp, string]> = [
   [/도배|광고|스팸/, 'spam'],
 ];
 
-export function encodeGrid(latitudeValue: number, longitudeValue: number, precision = 6): string {
-  if (!Number.isFinite(latitudeValue) || !Number.isFinite(longitudeValue)) {
+export function encodeGrid(latitudeValue: number, longitudeValue: number, precision = GRID_PRECISION): string {
+  if (
+    !Number.isFinite(latitudeValue)
+    || !Number.isFinite(longitudeValue)
+    || latitudeValue < -90
+    || latitudeValue > 90
+    || longitudeValue < -180
+    || longitudeValue > 180
+    || !Number.isInteger(precision)
+    || precision < 1
+    || precision > 8
+  ) {
     throw new Error('INVALID_POSITION');
   }
 
@@ -310,6 +322,11 @@ export function validateDisplayScope(value: unknown): DisplayScope {
   return 'nearby';
 }
 
+export function normalizeContentLocale(value: unknown): ContentLocale {
+  if (value === undefined || value === null || value === '') return 'ko';
+  return String(value ?? '').toLowerCase().startsWith('ko') ? 'ko' : 'en';
+}
+
 export function computeLifecycle(
   flame: Pick<Record<string, unknown>, 'status' | 'live_until' | 'expires_at'>,
   now = new Date(),
@@ -340,6 +357,7 @@ export function sanitizeFlameForResponse(row: Record<string, unknown>, now = new
     regionCode: row.region_code ?? 'nearby',
     createdAt: row.created_at,
     liveUntil: row.live_until,
+    sourceLocale: normalizeContentLocale(row.source_locale),
   };
 
   if (row.expires_at) response.expiresAt = row.expires_at;

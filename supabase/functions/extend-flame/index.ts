@@ -26,7 +26,7 @@ Deno.serve(async (req: Request) => {
 
     const { data: flame, error: flameError } = await supabase
       .from('flames')
-      .select('id, text, tag_label, tag_normalized, category, mood, self_strength, heat_score, status, created_at, live_until, ember_until, trace_until, expires_at, extension_count, character_key, character_emoji, region_label, region_code, display_scope, device_hash')
+      .select('id, text, tag_label, tag_normalized, category, mood, self_strength, heat_score, status, created_at, live_until, ember_until, trace_until, expires_at, extension_count, character_key, character_emoji, region_label, region_code, display_scope, source_locale, device_hash')
       .eq('id', flameId)
       .single();
     if (flameError || !flame) throw new PublitHttpError('FLAME_NOT_FOUND', 404);
@@ -59,7 +59,7 @@ Deno.serve(async (req: Request) => {
         updated_at: now.toISOString(),
       })
       .eq('id', flameId)
-      .select('id, text, tag_label, tag_normalized, category, mood, self_strength, heat_score, status, created_at, live_until, ember_until, trace_until, expires_at, extension_count, character_key, character_emoji, region_label, region_code, display_scope')
+      .select('id, text, tag_label, tag_normalized, category, mood, self_strength, heat_score, status, created_at, live_until, ember_until, trace_until, expires_at, extension_count, character_key, character_emoji, region_label, region_code, display_scope, source_locale')
       .single();
     if (updateError || !updated) throw new PublitHttpError('FLAME_EXTEND_FAILED', 500);
 

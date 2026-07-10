@@ -25,8 +25,14 @@ const nearbyFlames = [
   },
 ];
 
-const quickPositionOptions = { enableHighAccuracy: false, maximumAge: 30000, timeout: 10000 };
-const watchPositionOptions = { enableHighAccuracy: true, maximumAge: 60000, timeout: 20000 };
+const quickPositionOptions = { enableHighAccuracy: false, maximumAge: 30000, timeout: 4000 };
+
+async function expectedWatchPositionOptions(page: Page) {
+  const isMobile = await page.evaluate(() => /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent));
+  return isMobile
+    ? { enableHighAccuracy: true, maximumAge: 15000, timeout: 12000 }
+    : { enableHighAccuracy: false, maximumAge: 30000, timeout: 8000 };
+}
 
 type GeolocationCalls = {
   getCurrentPositionCalls: number;
@@ -176,7 +182,7 @@ test('starts browser location probes only after an explicit user action', async 
     watchPositionCalls: 1,
     clearWatchCalls: 0,
     getCurrentPositionOptions: [quickPositionOptions],
-    watchPositionOptions: [watchPositionOptions],
+    watchPositionOptions: [await expectedWatchPositionOptions(page)],
   });
   await expect(page.getByTestId('location-gate')).toHaveCount(0);
   await expect(page.getByTestId('thought-character')).toHaveCount(1);
@@ -200,7 +206,7 @@ test('does not get stuck on desktop position lookup failures after the user allo
     watchPositionCalls: 1,
     clearWatchCalls: 1,
     getCurrentPositionOptions: [quickPositionOptions],
-    watchPositionOptions: [watchPositionOptions],
+    watchPositionOptions: [await expectedWatchPositionOptions(page)],
   });
 });
 
@@ -223,7 +229,7 @@ test('uses the map center immediately when desktop geolocation cannot resolve', 
     watchPositionCalls: 1,
     clearWatchCalls: 1,
     getCurrentPositionOptions: [quickPositionOptions],
-    watchPositionOptions: [watchPositionOptions],
+    watchPositionOptions: [await expectedWatchPositionOptions(page)],
   });
 });
 
@@ -243,7 +249,7 @@ test('uses the immediate watch probe instead of a second one-shot retry after ti
     getCurrentPositionCalls: 1,
     watchPositionCalls: 1,
     clearWatchCalls: 0,
-    watchPositionOptions: [watchPositionOptions],
+    watchPositionOptions: [await expectedWatchPositionOptions(page)],
   });
 });
 
@@ -262,7 +268,7 @@ test('starts a watch immediately so desktop location can resolve before the one-
     getCurrentPositionCalls: 1,
     watchPositionCalls: 1,
     clearWatchCalls: 0,
-    watchPositionOptions: [watchPositionOptions],
+    watchPositionOptions: [await expectedWatchPositionOptions(page)],
   });
 });
 
@@ -350,7 +356,7 @@ test('recovers with watchPosition when the first allowed lookup is temporarily u
     getCurrentPositionCalls: 1,
     watchPositionCalls: 1,
     clearWatchCalls: 0,
-    watchPositionOptions: [watchPositionOptions],
+    watchPositionOptions: [await expectedWatchPositionOptions(page)],
   });
 });
 

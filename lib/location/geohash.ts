@@ -1,7 +1,18 @@
 const GEOHASH_ALPHABET = '0123456789bcdefghjkmnpqrstuvwxyz';
+export const GRID_PRECISION = 8;
 
-export function encodeGrid(latitudeValue: number, longitudeValue: number, precision = 6): string {
-  if (!Number.isFinite(latitudeValue) || !Number.isFinite(longitudeValue)) {
+export function encodeGrid(latitudeValue: number, longitudeValue: number, precision = GRID_PRECISION): string {
+  if (
+    !Number.isFinite(latitudeValue)
+    || !Number.isFinite(longitudeValue)
+    || latitudeValue < -90
+    || latitudeValue > 90
+    || longitudeValue < -180
+    || longitudeValue > 180
+    || !Number.isInteger(precision)
+    || precision < 1
+    || precision > 8
+  ) {
     throw new Error('INVALID_POSITION');
   }
 

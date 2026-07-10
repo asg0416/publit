@@ -6,9 +6,10 @@ import type { HotTopic } from '@/lib/flame/types';
 type HotTagTickerProps = {
   topics: HotTopic[];
   compact?: boolean;
+  locale?: 'ko' | 'en';
 };
 
-export function HotTagTicker({ topics, compact = false }: HotTagTickerProps) {
+export function HotTagTicker({ topics, compact = false, locale = 'ko' }: HotTagTickerProps) {
   const [index, setIndex] = useState(0);
   const [expanded, setExpanded] = useState(false);
   const current = topics[index % Math.max(topics.length, 1)];
@@ -27,7 +28,7 @@ export function HotTagTicker({ topics, compact = false }: HotTagTickerProps) {
           compact ? 'h-full min-w-0 px-3 py-2' : 'z-[90] px-4 py-3 shadow-[2px_2px_0_rgba(35,35,31,0.72)]'
         }`}
       >
-        지금 뜨는 태그를 모으는 중이에요.
+        {locale === 'ko' ? '지금 뜨는 태그를 모으는 중이에요.' : 'Collecting trending tags.'}
       </div>
     );
   }
@@ -48,7 +49,7 @@ export function HotTagTicker({ topics, compact = false }: HotTagTickerProps) {
         aria-expanded={expanded}
       >
         <div className="flex min-w-0 items-center justify-between gap-2">
-          <span className={`shrink-0 font-black text-[#252520] ${compact ? 'text-[11px]' : 'text-xs'}`}>{compact ? '트렌드' : '지금 뜨는 태그'}</span>
+          <span className={`shrink-0 font-black text-[#252520] ${compact ? 'text-[11px]' : 'text-xs'}`}>{compact ? (locale === 'ko' ? '트렌드' : 'Trends') : (locale === 'ko' ? '지금 뜨는 태그' : 'Trending tags')}</span>
           <span className="relative min-w-0 flex-1 overflow-hidden text-right">
             <span
               key={`${current.normalizedKey}-${index}`}

@@ -47,11 +47,11 @@ async function invokeAdmin<T>(slug: string, body: Record<string, unknown>, admin
 }
 
 export const publitApi = {
-  getHotTopics: (body: { lat?: number; lng?: number; scope?: 'local' | 'global' | 'regional' }) =>
+  getHotTopics: (body: { lat?: number; lng?: number; scope?: 'local' | 'global' | 'regional'; locale?: 'ko' | 'en' }) =>
     invoke<HotTopic[]>('get-hot-topics', body),
-  suggestTags: (body: { text: string; lat?: number; lng?: number }) =>
+  suggestTags: (body: { text: string; lat?: number; lng?: number; locale?: 'ko' | 'en' }) =>
     invoke<TagSuggestion[]>('suggest-tags', body),
-  nearbyFlames: (body: { lat: number; lng: number; rangeValue?: ThoughtRangeValue; deviceHash?: string }) =>
+  nearbyFlames: (body: { lat: number; lng: number; rangeValue?: ThoughtRangeValue; deviceHash?: string; locale?: 'ko' | 'en'; countryCode?: string }) =>
     invoke<Flame[]>('nearby-flames', body),
   myFlames: (body: { deviceHash: string }) =>
     invoke<{ used: number; limit: number; isFull: boolean; activeFlames: Array<{ id: string; tagLabel: string; status: string; createdAt: string }> }>('my-flames', body),
@@ -65,6 +65,8 @@ export const publitApi = {
     characterEmoji?: string;
     displayScope?: DisplayScope;
     regionCode?: string;
+    locale?: 'ko' | 'en';
+    countryCode?: string;
     lat: number;
     lng: number;
     deviceHash: string;

@@ -12,6 +12,7 @@ type MapCenter = {
 type MapBackgroundProps = {
   center?: MapCenter | null;
   isTracking?: boolean;
+  language?: 'ko' | 'en';
   rangeValue: ThoughtRangeValue;
   onCameraChange?: (camera: MapCameraChange) => void;
 };
@@ -21,6 +22,7 @@ export type MapCameraChange = {
   zoom: number;
   source: 'programmatic' | 'user';
   gesture?: 'pan' | 'zoom';
+  settled?: boolean;
 };
 
 type MapGlotEventName = 'dragstart' | 'moveend' | 'zoom' | 'zoomend' | 'zoomstart';
@@ -33,6 +35,7 @@ type MapGlotMap = {
   on?: (event: MapGlotEventName, handler: () => void) => void;
   remove?: () => void;
   resize?: () => void;
+  setLanguage?: (language: string) => void;
   setCenter?: (center: [number, number]) => void;
   setZoom?: (zoom: number) => void;
 };
@@ -121,18 +124,18 @@ function moveMap(map: MapGlotMap, center: [number, number], zoom: number, animat
   return duration;
 }
 
-export function MapBackground({ center, isTracking = false, rangeValue, onCameraChange }: MapBackgroundProps) {
+export function MapBackground({ center, isTracking = false, language = 'ko', rangeValue, onCameraChange }: MapBackgroundProps) {
   const containerRef = useRef<HTMLDivElement | null>(null);
   const mapRef = useRef<MapGlotMap | null>(null);
   const programmaticMoveTimerRef = useRef<number | null>(null);
   const programmaticMoveRef = useRef(false);
   const pointerStartRef = useRef<{ x: number; y: number } | null>(null);
   const resizeObserverRef = useRef<ResizeObserver | null>(null);
-  const liveZoomFrameRef = useRef<number | null>(null);
   const userGestureRef = useRef<MapCameraChange['gesture'] | null>(null);
   const onCameraChangeRef = useRef(onCameraChange);
   const [initialMapOptions] = useState(() => ({
     center: toMapglotCenter(center),
+    language,
   }));
   const [state, setState] = useState<'fallback' | 'loading' | 'ready'>(
     mapglotKey && !mapglotDisabled ? 'loading' : 'fallback',
@@ -180,13 +183,13 @@ export function MapBackground({ center, isTracking = false, rangeValue, onCamera
           key: mapglotKey,
           center: initialMapOptions.center,
           zoom: latestCameraRef.current.zoom,
-          style: 'bright',
+          style: 'liberty',
           view: '2d',
           search: false,
           clickToAddress: false,
           routing: false,
           languagePicker: false,
-          language: 'ko',
+          language: initialMapOptions.language,
           imageExport: false,
           zoomControl: false,
           compass: false,
@@ -211,18 +214,12 @@ export function MapBackground({ center, isTracking = false, rangeValue, onCamera
             zoom: nextZoom,
             source: 'user',
             gesture,
+            settled: true,
           });
         };
         const handleCameraZooming = () => {
           if (programmaticMoveRef.current) return;
           userGestureRef.current = 'zoom';
-          if (liveZoomFrameRef.current !== null) return;
-
-          liveZoomFrameRef.current = window.requestAnimationFrame(() => {
-            liveZoomFrameRef.current = null;
-            if (programmaticMoveRef.current || userGestureRef.current !== 'zoom') return;
-            emitUserCameraChange('zoom');
-          });
         };
         const handleCameraSettled = () => {
           if (programmaticMoveRef.current) {
@@ -266,10 +263,6 @@ export function MapBackground({ center, isTracking = false, rangeValue, onCamera
       cancelled = true;
       if (resizeTimer) window.clearTimeout(resizeTimer);
       if (programmaticMoveTimerRef.current !== null) window.clearTimeout(programmaticMoveTimerRef.current);
-      if (liveZoomFrameRef.current !== null) {
-        window.cancelAnimationFrame(liveZoomFrameRef.current);
-        liveZoomFrameRef.current = null;
-      }
       cleanupResize?.();
       cleanupMoveEnd?.();
       resizeObserverRef.current?.disconnect();
@@ -283,6 +276,10 @@ export function MapBackground({ center, isTracking = false, rangeValue, onCamera
     if (!mapRef.current) return;
     moveCamera(mapRef.current, mapCenter, mapZoom, true);
   }, [mapCenter, mapZoom, moveCamera]);
+
+  useEffect(() => {
+    mapRef.current?.setLanguage?.(language);
+  }, [language]);
 
   const handleFallbackPointerDown = (event: ReactPointerEvent<HTMLDivElement>) => {
     if (state === 'ready') return;
@@ -313,6 +310,7 @@ export function MapBackground({ center, isTracking = false, rangeValue, onCamera
   };
 
   const handleMapWheel = (event: ReactWheelEvent<HTMLDivElement>) => {
+    if (state === 'ready') return;
     event.preventDefault();
     const mapCenterValue = mapRef.current?.getCenter?.();
     const currentCamera = latestCameraRef.current;

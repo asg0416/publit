@@ -1,6 +1,7 @@
 export type FlameCategory = 'politics' | 'local' | 'society' | 'safety' | 'daily' | 'other';
 export type FlameMood = 'quiet' | 'curious' | 'serious' | 'want_talk';
 export type FlameLifecycle = 'live';
+export type ContentLocale = 'ko' | 'en';
 export type HeatLevel = 'fresh' | 'warming' | 'hot' | 'cluster';
 export type ReactionType = 'similar' | 'curious' | 'neutral' | 'disagree' | 'watching' | 'custom';
 export type ReportReason = 'misinformation' | 'doxxing' | 'violence' | 'illegal' | 'hate' | 'spam' | 'privacy' | 'other';
@@ -11,6 +12,9 @@ export type ThoughtRangeValue = '50m' | '100m' | '300m' | '500m' | '1km' | '3km'
 export type Flame = {
   id: string;
   text?: string;
+  originalText?: string;
+  sourceLocale?: ContentLocale;
+  translationLocale?: ContentLocale;
   tagLabel: string;
   tagNormalized: string;
   category: FlameCategory;

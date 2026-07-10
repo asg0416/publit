@@ -1,4 +1,4 @@
-import { getGridPrefixesForRange, sanitizeFlameForResponse, summarizeReactionRows, validateDeviceHash, validateThoughtRangeValue } from '../_shared/publit.ts';
+import { getGridPrefixesForRange, normalizeContentLocale, sanitizeFlameForResponse, summarizeReactionRows, validateDeviceHash, validateThoughtRangeValue } from '../_shared/publit.ts';
 import { createAdminClient, handleError, json, PublitHttpError, readJson } from '../_shared/supabase.ts';
 
 Deno.serve(async (req: Request) => {
@@ -16,23 +16,50 @@ Deno.serve(async (req: Request) => {
     }
     const now = new Date();
     const nowIso = now.toISOString();
+    const locale = normalizeContentLocale(body.locale);
+    const countryCode = typeof body.countryCode === 'string' && /^[A-Za-z]{2}$/.test(body.countryCode)
+      ? body.countryCode.toUpperCase()
+      : null;
     const supabase = createAdminClient();
 
-    const { data, error } = await supabase
+    let flameQuery = supabase
       .from('flames')
-      .select('id, text, tag_label, tag_normalized, category, mood, self_strength, heat_score, status, created_at, live_until, ember_until, trace_until, expires_at, extension_count, character_key, character_emoji, region_label, region_code, display_scope, device_hash')
-      .in('geohash', gridPrefixes)
+      .select('id, text, tag_label, tag_normalized, category, mood, self_strength, heat_score, status, created_at, live_until, ember_until, trace_until, expires_at, extension_count, character_key, character_emoji, region_label, region_code, display_scope, source_locale, device_hash')
       .eq('status', 'live')
       .gt('expires_at', nowIso)
       .order('created_at', { ascending: false })
       .limit(80);
 
+    if (rangeValue === 'national') {
+      flameQuery = flameQuery.eq('display_scope', 'national');
+    } else if (rangeValue === 'region') {
+      flameQuery = flameQuery.in('display_scope', ['regional', 'national']);
+    } else {
+      flameQuery = flameQuery.in('geohash', gridPrefixes);
+    }
+    if (countryCode && (rangeValue === 'national' || rangeValue === 'region')) {
+      flameQuery = flameQuery.eq('country_code', countryCode);
+    }
+
+    const { data, error } = await flameQuery;
+
     if (error) throw new PublitHttpError('NEARBY_FLAMES_FAILED', 500);
     const flameRows = data ?? [];
     const flameIds = flameRows.map((flame) => flame.id).filter(Boolean);
     const reactionRowsByFlame = new Map<string, Array<Record<string, unknown>>>();
+    const translationsByFlame = new Map<string, string>();
 
     if (flameIds.length) {
+      const { data: translationRows, error: translationError } = await supabase
+        .from('flame_translations')
+        .select('flame_id, translated_text')
+        .in('flame_id', flameIds)
+        .eq('locale', locale);
+      if (translationError) throw new PublitHttpError('TRANSLATION_LOOKUP_FAILED', 500);
+      for (const translation of translationRows ?? []) {
+        translationsByFlame.set(String(translation.flame_id), String(translation.translated_text ?? ''));
+      }
+
       const { data: reactionRows, error: reactionError } = await supabase
         .from('flame_reactions')
         .select('flame_id, reaction_type, reaction_label, device_hash')
@@ -49,11 +76,20 @@ Deno.serve(async (req: Request) => {
     }
 
     return json(flameRows
-      .map((flame) => ({
-        ...sanitizeFlameForResponse(flame, now),
-        ownedByDevice: Boolean(deviceHash && flame.device_hash === deviceHash),
-        reactions: summarizeReactionRows(reactionRowsByFlame.get(String(flame.id)) ?? [], deviceHash),
-      }))
+      .map((flame) => {
+        const response = sanitizeFlameForResponse(flame, now);
+        const translatedText = translationsByFlame.get(String(flame.id));
+        if (translatedText && translatedText !== flame.text) {
+          response.originalText = flame.text;
+          response.text = translatedText;
+          response.translationLocale = locale;
+        }
+        return {
+          ...response,
+          ownedByDevice: Boolean(deviceHash && flame.device_hash === deviceHash),
+          reactions: summarizeReactionRows(reactionRowsByFlame.get(String(flame.id)) ?? [], deviceHash),
+        };
+      })
       .filter((flame) => flame.lifecycle === 'live'));
   } catch (error) {
     return handleError(error);

@@ -59,6 +59,7 @@ export function FlameDetailSheet({ flame, flames, onClose, onSelect, onReact, on
   const [commentBody, setCommentBody] = useState('');
   const [commentSubmitting, setCommentSubmitting] = useState(false);
   const [extending, setExtending] = useState(false);
+  const [originalViewFlameId, setOriginalViewFlameId] = useState<string | null>(null);
   const touchStartX = useRef<number | null>(null);
   const activeFlame = flame ? flames.find((item) => item.id === flame.id) ?? flame : null;
   const activeFlameId = activeFlame?.id ?? null;
@@ -81,6 +82,8 @@ export function FlameDetailSheet({ flame, flames, onClose, onSelect, onReact, on
       cancelled = true;
     };
   }, [activeFlameId, onLoadComments]);
+
+  const showOriginal = originalViewFlameId === activeFlameId;
 
   const goTo = (direction: -1 | 1) => {
     if (!canSwipe) return;
@@ -189,9 +192,20 @@ export function FlameDetailSheet({ flame, flames, onClose, onSelect, onReact, on
                     characterEmoji: activeFlame.characterEmoji,
                   })}
                 </span>
-                <p className="self-center text-pretty text-base font-black leading-7 text-inherit">
-                  {activeFlame.text ?? '생각 내용을 불러오지 못했어요.'}
-                </p>
+                <div className="min-w-0 self-center">
+                  <p className="text-pretty text-base font-black leading-7 text-inherit">
+                    {(showOriginal ? activeFlame.originalText : activeFlame.text) ?? '생각 내용을 불러오지 못했어요.'}
+                  </p>
+                  {activeFlame.originalText ? (
+                    <button
+                      type="button"
+                      className="mt-1 min-h-7 rounded-full bg-white/70 px-2.5 text-[10px] font-black text-inherit underline decoration-current/30 underline-offset-2 transition-[transform,opacity] active:scale-[0.96]"
+                      onClick={() => setOriginalViewFlameId((current) => current === activeFlameId ? null : activeFlameId)}
+                    >
+                      {showOriginal ? '번역 보기' : '원문 보기'}
+                    </button>
+                  ) : null}
+                </div>
               </div>
               {canSwipe ? (
                 <p className="text-center text-[10px] font-black text-[#6f6b61]">

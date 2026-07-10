@@ -1,14 +1,14 @@
 # Publit Harness Engineering
 
-Publit is built harness-first. The MVP is not considered healthy because a screen renders; it is healthy only when its privacy, rate-limit, lifecycle, moderation, and no-map contracts keep passing.
+Publit is built harness-first. The service is not considered healthy because a screen renders; it is healthy only when its privacy, rate-limit, lifecycle, moderation, and map-boundary contracts keep passing.
 
 ## Harness Gates
 
 - `privacy`: raw lat/lng, latitude/longitude, coordinates, and raw_location must never be persisted or returned by APIs.
 - `rate-limit`: create, react, report, and extinguish actions are guarded by device_hash action events.
-- `lifecycle`: flames move through live -> ember -> trace -> expired, and trace hides body text.
-- `slot`: one device_hash can have at most three live flames, excluding extinguished, ember, trace, and expired flames.
-- `no-map`: map SDKs and map marker UI are forbidden. The browser Geolocation API may be used only to derive a coarse server grid.
+- `lifecycle`: thoughts stay live for 24 hours, can be extended by their owner, then are deleted. Bodyless traces are never retained.
+- `slot`: one device_hash can have at most three non-expired live thoughts, excluding extinguished, reported, hidden, and deleted rows.
+- `no-map`: legacy map SDK packages and precise map marker UI are forbidden. The approved MapGlot browser background and browser Geolocation API may be used; coordinates are reduced to a server grid.
 - `secret hygiene`: service role keys never appear in client code, NEXT_PUBLIC variables, tracked env files, or chat.
 
 ## Commands

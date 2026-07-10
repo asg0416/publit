@@ -1,6 +1,6 @@
 # Publit
 
-Publit is a mobile-first anonymous thought radar. Users can open the web app, allow browser geolocation, and see short nearby thoughts as moving flames inside a circular radar. Publit is not a map app: no map SDK, map tiles, precise markers, profiles, login, DM, or chat.
+Publit is a mobile-first global anonymous thought map. Users can open the web app, allow browser geolocation or use the server IP fallback, and see short live thoughts moving inside a range circle over a MapGlot background. Thoughts are never rendered as precise map pins, and the service has no profiles, login, DM, or chat.
 
 ## Stack
 
@@ -59,6 +59,6 @@ npm run harness:smoke:create
 
 - Never store raw `lat`, `lng`, `latitude`, `longitude`, `coordinates`, or `raw_location`.
 - Never return raw coordinates or `device_hash` to the UI.
-- Never install or import Google Maps, Naver Map, Kakao Map, Mapbox, Leaflet, or any map SDK.
+- Never install or import Google Maps, Naver Map, Kakao Map, Mapbox, Leaflet, or legacy map SDK packages. MapGlot is loaded as the approved browser-only background provider.
 - Use browser Geolocation only to send transient coordinates to Edge Functions, where they become coarse grid keys.
 - Keep anonymous device identity as a local device id hashed before server use.

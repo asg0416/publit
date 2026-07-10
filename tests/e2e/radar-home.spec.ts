@@ -163,7 +163,7 @@ test('renders the map-first Anigeunde home without old map globals', async ({ pa
   await expect(page.getByTestId('hot-tag-current')).toHaveClass(/anigeunde-hot-tag-item/);
   await expect(page.getByTestId('hot-tag-current')).toHaveCSS('color', 'rgb(239, 59, 50)');
   await expect(page.getByTestId('brand-subtitle')).toHaveCSS('color', 'rgb(239, 59, 50)');
-  await expect(page.getByText('트렌드')).toBeVisible();
+  await expect(page.getByText(/트렌드|Trends/)).toBeVisible();
   const brandBox = await page.getByTestId('brand-logo').boundingBox();
   const tickerBox = await page.getByTestId('hot-tag-ticker').boundingBox();
   const topBarBox = await page.getByTestId('top-brand-bar').boundingBox();

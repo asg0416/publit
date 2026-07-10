@@ -3,6 +3,7 @@ import {
   deriveCharacterKey,
   encodeGrid,
   normalizeTag,
+  normalizeContentLocale,
   sanitizeCharacterEmoji,
   sanitizeFlameForResponse,
   selectActiveSlotState,
@@ -21,6 +22,7 @@ import {
   readJson,
   recordAction,
 } from '../_shared/supabase.ts';
+import { translateText } from '../_shared/translation.ts';
 
 Deno.serve(async (req: Request) => {
   if (req.method === 'OPTIONS') return json({ ok: true });
@@ -43,6 +45,10 @@ Deno.serve(async (req: Request) => {
     const characterKey = deriveCharacterKey(body.characterKey ?? `${deviceHash}:${tag.normalized}`);
     const characterEmoji = sanitizeCharacterEmoji(body.characterEmoji);
     const displayScope = validateDisplayScope(body.displayScope);
+    const sourceLocale = normalizeContentLocale(body.locale);
+    const countryCode = typeof body.countryCode === 'string' && /^[A-Za-z]{2}$/.test(body.countryCode)
+      ? body.countryCode.toUpperCase()
+      : null;
     const regionCode = typeof body.regionCode === 'string' ? body.regionCode.slice(0, 40) : null;
     const positionLatitude = Number(body.lat);
     const positionLongitude = Number(body.lng);
@@ -92,15 +98,29 @@ Deno.serve(async (req: Request) => {
       trace_until: traceUntil.toISOString(),
       expires_at: liveUntil.toISOString(),
       extension_count: 0,
+      source_locale: sourceLocale,
+      country_code: countryCode,
     };
 
     const { data: flame, error } = await supabase
       .from('flames')
       .insert(flameInsert)
-      .select('id, text, tag_label, tag_normalized, category, mood, self_strength, heat_score, status, created_at, live_until, ember_until, trace_until, expires_at, extension_count, character_key, character_emoji, region_label, region_code, display_scope')
+      .select('id, text, tag_label, tag_normalized, category, mood, self_strength, heat_score, status, created_at, live_until, ember_until, trace_until, expires_at, extension_count, character_key, character_emoji, region_label, region_code, display_scope, source_locale')
       .single();
 
     if (error) throw new PublitHttpError('FLAME_CREATE_FAILED', 500);
+
+    const targetLocale = sourceLocale === 'ko' ? 'en' : 'ko';
+    const translatedText = await translateText(text, sourceLocale, targetLocale);
+    if (translatedText && translatedText !== text) {
+      await supabase.from('flame_translations').upsert({
+        flame_id: flame.id,
+        locale: targetLocale,
+        translated_text: translatedText,
+        provider: 'google',
+        updated_at: new Date().toISOString(),
+      }, { onConflict: 'flame_id,locale' });
+    }
 
     await supabase.from('topics').upsert({
       raw_keyword: tag.normalized,

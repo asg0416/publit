@@ -26,8 +26,6 @@ Deno.serve(async (req: Request) => {
     }
     const supabase = createAdminClient();
 
-    await assertActionAllowed(supabase, deviceHash, 'react_flame');
-
     let duplicateQuery = supabase
       .from('flame_reactions')
       .select('id')
@@ -35,7 +33,8 @@ Deno.serve(async (req: Request) => {
       .eq('device_hash', deviceHash)
       .eq('reaction_type', reactionType);
     if (reactionLabel) duplicateQuery = duplicateQuery.eq('reaction_label', reactionLabel);
-    const duplicate = await duplicateQuery.maybeSingle();
+    const { data: duplicate, error: duplicateError } = await duplicateQuery.maybeSingle();
+    if (duplicateError) throw new PublitHttpError('REACTION_LOOKUP_FAILED', 500);
 
     const { data: flame, error: flameError } = await supabase
       .from('flames')
@@ -59,7 +58,7 @@ Deno.serve(async (req: Request) => {
       return summarizeReactionRows(reactionRows ?? [], deviceHash);
     };
 
-    if (duplicate.data) {
+    if (duplicate) {
       return json({
         duplicate: true,
         heatLabel: getHeatLabel(Number(flame.heat_score ?? 0)),
@@ -67,23 +66,29 @@ Deno.serve(async (req: Request) => {
       });
     }
 
+    await assertActionAllowed(supabase, deviceHash, 'react_flame');
+
     const { error: insertError } = await supabase.from('flame_reactions').insert({
       flame_id: flameId,
       device_hash: deviceHash,
       reaction_type: reactionType,
       reaction_label: reactionLabel,
     });
+    if (insertError?.code === '23505') {
+      return json({
+        duplicate: true,
+        heatLabel: getHeatLabel(Number(flame.heat_score ?? 0)),
+        reactions: await getReactions(),
+      });
+    }
     if (insertError) throw new PublitHttpError('REACTION_CREATE_FAILED', 500);
 
-    const nextHeat = Number(flame.heat_score ?? 0) + 1;
-    const { error: updateError } = await supabase
-      .from('flames')
-      .update({ heat_score: nextHeat, updated_at: new Date().toISOString() })
-      .eq('id', flameId);
-    if (updateError) throw new PublitHttpError('FLAME_HEAT_UPDATE_FAILED', 500);
+    const { data: nextHeat, error: updateError } = await supabase
+      .rpc('increment_flame_heat', { target_flame_id: flameId });
+    if (updateError || !Number.isFinite(Number(nextHeat))) throw new PublitHttpError('FLAME_HEAT_UPDATE_FAILED', 500);
 
     await recordAction(supabase, deviceHash, 'react_flame');
-    return json({ heatLabel: getHeatLabel(nextHeat), reactions: await getReactions() });
+    return json({ heatLabel: getHeatLabel(Number(nextHeat)), reactions: await getReactions() });
   } catch (error) {
     return handleError(error);
   }

@@ -35,7 +35,7 @@ describe('Publit shared Edge Function core', () => {
     assert.ok(grids50m.includes(centerGrid));
     assert.ok(grids1km.includes(centerGrid));
     assert.ok(grids1km.length > grids50m.length);
-    assert.ok(grids1km.every((grid) => /^g:[a-z0-9]{6}$/.test(grid)));
+    assert.ok(grids1km.every((grid) => /^g:[a-z0-9]{8}$/.test(grid)));
   });
 
   it('sanitizes flame responses for privacy and exact-count hiding', () => {
@@ -79,6 +79,7 @@ describe('Publit shared Edge Function core', () => {
       'regionCode',
       'regionLabel',
       'selfStrength',
+      'sourceLocale',
       'tagLabel',
       'tagNormalized',
       'text',

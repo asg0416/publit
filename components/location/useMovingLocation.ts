@@ -63,15 +63,23 @@ const LOCATION_UNSUPPORTED_MESSAGE = '이 브라우저에서는 위치 권한을
 const LOCATION_DENIED_MESSAGE = '브라우저나 OS에서 위치 권한이 막혀 있어요. 주소창 또는 시스템 위치 설정을 확인해주세요.';
 const LOCATION_UNAVAILABLE_MESSAGE = '권한은 요청됐지만 현재 위치를 가져오지 못했어요. PC의 위치 서비스나 네트워크 위치를 확인한 뒤 다시 시도해주세요.';
 const LOCATION_TIMEOUT_MESSAGE = '위치 확인 시간이 초과됐어요. PC의 위치 서비스나 네트워크 연결을 확인한 뒤 다시 시도해주세요.';
-const QUICK_LOCATION_OPTIONS: PositionOptions = { enableHighAccuracy: false, maximumAge: 30_000, timeout: 10_000 };
-const WATCH_LOCATION_OPTIONS: PositionOptions = { enableHighAccuracy: true, maximumAge: 60_000, timeout: 20_000 };
-const IP_FALLBACK_DELAY_MS = 800;
+const QUICK_LOCATION_OPTIONS: PositionOptions = { enableHighAccuracy: false, maximumAge: 30_000, timeout: 4_000 };
+const IP_FALLBACK_DELAY_MS = 250;
 
 let restoredGrantedPermissionInPage = false;
 
 function getNavigatorPlatform() {
   const nav = navigator as Navigator & { userAgentData?: { platform?: string } };
   return nav.userAgentData?.platform ?? navigator.platform ?? 'unknown';
+}
+
+function getWatchLocationOptions(): PositionOptions {
+  const isMobile = /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+  return {
+    enableHighAccuracy: isMobile,
+    maximumAge: isMobile ? 15_000 : 30_000,
+    timeout: isMobile ? 12_000 : 8_000,
+  };
 }
 
 function createInitialDebugInfo(): LocationDebugInfo {
@@ -369,6 +377,10 @@ export function useMovingLocation(onRefresh: (position: { lat: number; lng: numb
       clearActiveWatch();
       clearFallbackProbe();
       attemptSettled.current = true;
+    } else if (source === 'watchPosition' && watchTimedOut && lastFetchSource.current === 'ipFallback') {
+      watchInFlight.current = false;
+      clearActiveWatch();
+      attemptSettled.current = true;
     } else if (source === 'watchPosition' && !watchTimedOut) {
       watchInFlight.current = false;
       clearActiveWatch();
@@ -480,7 +492,7 @@ export function useMovingLocation(onRefresh: (position: { lat: number; lng: numb
       watchId.current = navigator.geolocation.watchPosition(
         (position) => acceptPosition(position, options, 'watchPosition', attemptId),
         (error) => rejectPosition(error, 'watchPosition', attemptId),
-        WATCH_LOCATION_OPTIONS,
+        getWatchLocationOptions(),
       );
     }
     startFallbackProbe(options, attemptId);

@@ -10,6 +10,16 @@ Deno.serve(async (req: Request) => {
     if (!flameId) throw new PublitHttpError('INVALID_FLAME_ID', 400);
 
     const supabase = createAdminClient();
+    const { data: flame, error: flameError } = await supabase
+      .from('flames')
+      .select('id, status, expires_at')
+      .eq('id', flameId)
+      .maybeSingle();
+    if (flameError) throw new PublitHttpError('FLAME_LOOKUP_FAILED', 500);
+    if (!flame || flame.status !== 'live' || new Date(String(flame.expires_at)).getTime() <= Date.now()) {
+      throw new PublitHttpError('FLAME_NOT_COMMENTABLE', 404);
+    }
+
     const { data, error } = await supabase
       .from('flame_comments')
       .select('id, body, created_at')

@@ -11,11 +11,12 @@ import { FlameDetailSheet } from '@/components/flame/FlameDetailSheet';
 import { HotTagTicker } from '@/components/flame/HotTagTicker';
 import { InlineThoughtComposer } from '@/components/flame/InlineThoughtComposer';
 import { getDeviceHash } from '@/lib/device';
+import { getPreferredContentLocale } from '@/lib/i18n';
 import { publitApi } from '@/lib/supabaseClient';
 import { encodeGrid } from '@/lib/location/geohash';
 import { distanceMeters } from '@/lib/location/useMovingLocationCore';
 import { getThoughtRangeForZoom } from '@/lib/map/rangeViewport';
-import type { CharacterKey, Flame as FlameType, FlameCategory, FlameComment, FlameMood, HotTopic, ReactionType, ReportReason, TagSuggestion, ThoughtRangeValue } from '@/lib/flame/types';
+import type { CharacterKey, ContentLocale, Flame as FlameType, FlameCategory, FlameComment, FlameMood, HotTopic, ReactionType, ReportReason, TagSuggestion, ThoughtRangeValue } from '@/lib/flame/types';
 
 const NEARBY_REFRESH_INTERVAL_MS = 12_000;
 type PositionState = { lat: number; lng: number; grid: string };
@@ -25,11 +26,18 @@ const DEFAULT_MAP_POSITION: PositionState = {
   grid: encodeGrid(37.5665, 126.978),
 };
 
-const fallbackTopics: HotTopic[] = [
-  { displayLabel: '#카페대화', normalizedKey: '카페대화', category: 'daily', scope: 'global', heatLabel: '근처에서 자주 보여요' },
-  { displayLabel: '#지역교통', normalizedKey: '지역교통', category: 'local', scope: 'global', heatLabel: '요즘 이 태그가 모여요' },
-  { displayLabel: '#나만그런가', normalizedKey: '나만그런가', category: 'daily', scope: 'global', heatLabel: '같은 태그가 모이고 있어요' },
-];
+const fallbackTopicsByLocale: Record<ContentLocale, HotTopic[]> = {
+  ko: [
+    { displayLabel: '#카페대화', normalizedKey: '카페대화', category: 'daily', scope: 'global', heatLabel: '근처에서 자주 보여요' },
+    { displayLabel: '#지역교통', normalizedKey: '지역교통', category: 'local', scope: 'global', heatLabel: '요즘 이 태그가 모여요' },
+    { displayLabel: '#나만그런가', normalizedKey: '나만그런가', category: 'daily', scope: 'global', heatLabel: '같은 태그가 모이고 있어요' },
+  ],
+  en: [
+    { displayLabel: '#CafeTalk', normalizedKey: 'CafeTalk', category: 'daily', scope: 'global', heatLabel: 'Often seen nearby' },
+    { displayLabel: '#LocalTransit', normalizedKey: 'LocalTransit', category: 'local', scope: 'global', heatLabel: 'Trending in this area' },
+    { displayLabel: '#IsItJustMe', normalizedKey: 'IsItJustMe', category: 'daily', scope: 'global', heatLabel: 'People are gathering around it' },
+  ],
+};
 
 function LocationDebugPanel({ debugInfo, locationStatus }: { debugInfo: LocationDebugInfo; locationStatus: string }) {
   const debugText = JSON.stringify({ locationStatus, ...debugInfo }, null, 2);
@@ -59,7 +67,9 @@ function LocationDebugPanel({ debugInfo, locationStatus }: { debugInfo: Location
 export function PublitApp() {
   const [deviceHash, setDeviceHash] = useState('');
   const [flames, setFlames] = useState<FlameType[]>([]);
-  const [topics, setTopics] = useState<HotTopic[]>(fallbackTopics);
+  const [locale, setLocale] = useState<ContentLocale>('ko');
+  const [countryCode, setCountryCode] = useState<string | null>(null);
+  const [topics, setTopics] = useState<HotTopic[]>(fallbackTopicsByLocale.ko);
   const [suggestions, setSuggestions] = useState<TagSuggestion[]>([]);
   const [slots, setSlots] = useState<{ used: number; limit: number; activeFlames: Array<{ id: string; tagLabel: string; status: string; createdAt: string }> } | null>(null);
   const [selected, setSelected] = useState<FlameType | null>(null);
@@ -77,9 +87,20 @@ export function PublitApp() {
   const [rangeOpen, setRangeOpen] = useState(false);
   const optimisticFlamesRef = useRef<FlameType[]>([]);
   const pendingRangeRefreshRef = useRef<PositionState | null>(null);
+  const pendingReactionsRef = useRef(new Set<string>());
 
   useEffect(() => {
+    const preferredLocaleTimer = window.setTimeout(() => setLocale(getPreferredContentLocale()), 0);
+    void fetch('/api/locale', { cache: 'no-store' })
+      .then((response) => response.ok ? response.json() as Promise<{ locale?: ContentLocale; countryCode?: string | null }> : null)
+      .then((result) => {
+        if (!result) return;
+        if (result.locale === 'ko' || result.locale === 'en') setLocale(result.locale);
+        if (result.countryCode) setCountryCode(result.countryCode);
+      })
+      .catch(() => undefined);
     getDeviceHash().then(setDeviceHash).catch(() => setStatus('device hash를 만들 수 없어요.'));
+    return () => window.clearTimeout(preferredLocaleTimer);
   }, []);
 
   const refreshSlots = useCallback(async (hash = deviceHash) => {
@@ -93,12 +114,12 @@ export function PublitApp() {
 
   const refreshTopics = useCallback(async (position?: { lat: number; lng: number }) => {
     try {
-      const next = await publitApi.getHotTopics(position ? { ...position, scope: 'local' } : { scope: 'global' });
-      setTopics(next.length ? next : fallbackTopics);
+      const next = await publitApi.getHotTopics(position ? { ...position, scope: 'local', locale } : { scope: 'global', locale });
+      setTopics(next.length ? next : fallbackTopicsByLocale[locale]);
     } catch {
-      setTopics(fallbackTopics);
+      setTopics(fallbackTopicsByLocale[locale]);
     }
-  }, []);
+  }, [locale]);
 
   const mergeWithOptimisticFlames = useCallback((remoteFlames: FlameType[]) => {
     const remoteIds = new Set(remoteFlames.map((flame) => flame.id));
@@ -114,6 +135,8 @@ export function PublitApp() {
         lat: position.lat,
         lng: position.lng,
         rangeValue,
+        locale,
+        ...(countryCode ? { countryCode } : {}),
         ...(deviceHash ? { deviceHash } : {}),
       });
       setFlames(mergeWithOptimisticFlames(next));
@@ -126,7 +149,7 @@ export function PublitApp() {
     } catch {
       if (!options.silent) setStatus('근처 생각을 불러오지 못했어요. 잠시 후 다시 시도해보세요.');
     }
-  }, [deviceHash, mergeWithOptimisticFlames, rangeValue, refreshSlots, refreshTopics]);
+  }, [countryCode, deviceHash, locale, mergeWithOptimisticFlames, rangeValue, refreshSlots, refreshTopics]);
 
   const handleLocationResolved = useCallback((position: PositionState) => {
     setDevicePosition(position);
@@ -273,12 +296,13 @@ export function PublitApp() {
         text,
         lat: viewPosition?.lat,
         lng: viewPosition?.lng,
+        locale,
       });
       setSuggestions(next);
     } catch {
       setSuggestions([]);
     }
-  }, [viewPosition]);
+  }, [locale, viewPosition]);
 
   const handleCreate = useCallback(async (input: { text: string; tagLabel: string; category: FlameCategory; mood: FlameMood; selfStrength: 1 | 2 | 3; characterKey: CharacterKey; characterEmoji?: string }) => {
     if (!deviceHash) {
@@ -302,6 +326,8 @@ export function PublitApp() {
         deviceHash,
         displayScope: selectedRange.displayScope,
         regionCode: selectedRange.value,
+        locale,
+        countryCode: countryCode ?? undefined,
       });
       if (result.flame) {
         const createdFlame: FlameType = {
@@ -332,7 +358,7 @@ export function PublitApp() {
       setStatus(message);
     }
     return false;
-  }, [createPosition, deviceHash, refreshSlots, requestLocation, selectedRange.displayScope, selectedRange.value]);
+  }, [countryCode, createPosition, deviceHash, locale, refreshSlots, requestLocation, selectedRange.displayScope, selectedRange.value]);
 
   const handleExtinguish = useCallback(async (flameId: string) => {
     if (!deviceHash) return;
@@ -349,6 +375,29 @@ export function PublitApp() {
 
   const handleReact = useCallback(async (flameId: string, reactionType: ReactionType, reactionLabel?: string) => {
     if (!deviceHash) return;
+    const reactionKey = `${flameId}:${reactionType}:${reactionLabel ?? ''}`;
+    if (pendingReactionsRef.current.has(reactionKey)) return;
+
+    const previousFlame = flames.find((flame) => flame.id === flameId);
+    if (!previousFlame) return;
+    const previousReactions = previousFlame.reactions ?? [];
+    const existingReaction = previousReactions.find((reaction) => (
+      reaction.type === reactionType && (reactionType !== 'custom' || reaction.label === reactionLabel)
+    ));
+    if (existingReaction?.reacted) return;
+
+    const optimisticReactions = existingReaction
+      ? previousReactions.map((reaction) => reaction === existingReaction
+        ? { ...reaction, count: reaction.count + 1, reacted: true }
+        : reaction)
+      : [
+          ...previousReactions,
+          { type: 'custom' as const, label: reactionLabel ?? '내 반응', count: 1, reacted: true, custom: true },
+        ];
+    pendingReactionsRef.current.add(reactionKey);
+    setFlames((current) => current.map((flame) => flame.id === flameId ? { ...flame, reactions: optimisticReactions } : flame));
+    setSelected((current) => current?.id === flameId ? { ...current, reactions: optimisticReactions } : current);
+
     try {
       const result = await publitApi.reactFlame({ flameId, reactionType, reactionLabel, deviceHash });
       setFlames((current) => current.map((flame) => flame.id === flameId ? {
@@ -362,9 +411,13 @@ export function PublitApp() {
         reactions: result.reactions ?? current.reactions,
       } : current);
     } catch {
+      setFlames((current) => current.map((flame) => flame.id === flameId ? { ...flame, reactions: previousReactions } : flame));
+      setSelected((current) => current?.id === flameId ? { ...current, reactions: previousReactions } : current);
       setStatus('반응을 남기지 못했어요.');
+    } finally {
+      pendingReactionsRef.current.delete(reactionKey);
     }
-  }, [deviceHash]);
+  }, [deviceHash, flames]);
 
   const handleReport = useCallback(async (flameId: string, reason: ReportReason) => {
     if (!deviceHash) return;
@@ -428,6 +481,7 @@ export function PublitApp() {
       <MapBackground
         center={activeMapCenter}
         isTracking={isTrackingPosition}
+        language={locale}
         rangeValue={rangeValue}
         onCameraChange={handleMapCameraChange}
       />
@@ -439,7 +493,7 @@ export function PublitApp() {
               <p data-testid="brand-subtitle" className="mt-0.5 whitespace-nowrap text-[9px] font-black leading-none text-[#ef3b32]">아니근데 나만?</p>
             </div>
           </div>
-          <HotTagTicker topics={topics} compact />
+          <HotTagTicker topics={topics} compact locale={locale} />
         </div>
       </div>
 
